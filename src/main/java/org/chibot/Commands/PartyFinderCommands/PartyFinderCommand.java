@@ -85,6 +85,11 @@ public class PartyFinderCommand implements ICommand {
         job("PCT", "Pictomancer", "1513607504502980705");
     }
 
+    // Emojis de role pras vagas abertas (jobs que faltam na party).
+    private static final String ROLE_TANK = "<:TankRole:1513616986339545359>";
+    private static final String ROLE_HEALER = "<:HealerRole:1513616985072861224>";
+    private static final String ROLE_DPS = "<:DPSRole:1513616983839604886>";
+
     private static void job(String code, String name, String id, String... aliases) {
         String emoji = "<:" + name + ":" + id + ">";
         JOB_EMOJI.put(code, emoji);
@@ -226,7 +231,8 @@ public class PartyFinderCommand implements ICommand {
             EmbedBuilder embed = new EmbedBuilder().setColor(colorFor(duty)).setTitle(titulo);
             totalChars += titulo.length();
             if (first) {
-                String legenda = "ícones = job na party  ·  vaga aberta: 🛡️ tank  💚 healer  ⚔️ dps";
+                String legenda = "ícones = job na party  ·  vaga aberta: " + ROLE_TANK + " tank  "
+                        + ROLE_HEALER + " healer  " + ROLE_DPS + " dps";
                 embed.setDescription(legenda);
                 totalChars += legenda.length();
                 first = false;
@@ -303,10 +309,10 @@ public class PartyFinderCommand implements ICommand {
             if (tok.charAt(0) == '-') {
                 char role = tok.length() > 1 ? tok.charAt(1) : '*';
                 b.append(switch (role) {
-                    case 'T' -> "🛡️";
-                    case 'H' -> "💚";
-                    case 'D' -> "⚔️";
-                    default -> "▫️";
+                    case 'T' -> ROLE_TANK;
+                    case 'H' -> ROLE_HEALER;
+                    case 'D' -> ROLE_DPS;
+                    default -> "▫️"; // vaga que aceita varias roles
                 });
             } else {
                 String emoji = JOB_EMOJI.get(tok.toUpperCase(Locale.ROOT));
