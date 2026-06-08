@@ -8,9 +8,15 @@ services:
     # (token, prefixo, GuildId) e reinicie o container — sem precisar rebuildar.
     volumes:
       - ./ChiConfig.json:/app/ChiConfig.json
+      # Banco do Party Finder (ChiData.db). Volume nomeado pra persistir entre
+      # recriacoes do container (docker compose up --build nao apaga).
+      - chibot-data:/app/data
     # Logs ficam acessiveis via "docker logs chibot".
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
+
+volumes:
+  chibot-data:

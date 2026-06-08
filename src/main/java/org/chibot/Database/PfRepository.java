@@ -33,23 +33,57 @@ import java.util.List;
 public class PfRepository {
 
     private static final Logger log = LoggerFactory.getLogger(PfRepository.class);
-    private static final String DB_URL = "jdbc:sqlite:ChiData.db";
+    private static final String DEFAULT_DB_PATH = "ChiData.db";
 
     private Connection conn;
 
     public PfRepository() {
-        this(DB_URL);
+        this(defaultDbUrl());
     }
 
     /** Construtor com URL explicita (ex.: {@code jdbc:sqlite::memory:} nos testes). */
     public PfRepository(String dbUrl) {
         try {
+            ensureParentDir(dbUrl);
             conn = DriverManager.getConnection(dbUrl);
             createSchema();
             log.info("Banco do Party Finder pronto ({}).", dbUrl);
         } catch (SQLException e) {
             conn = null;
             log.warn("Nao foi possivel abrir o banco do Party Finder; seguindo sem persistencia.", e);
+        }
+    }
+
+    /**
+     * Caminho do banco: env {@code CHIBOT_DB_PATH} (usado na VPS/Docker pra
+     * apontar pra um diretorio com volume) ou {@code ChiData.db} no diretorio
+     * atual (dev local).
+     */
+    private static String defaultDbUrl() {
+        String path = System.getenv("CHIBOT_DB_PATH");
+        if (path == null || path.isBlank()) {
+            path = DEFAULT_DB_PATH;
+        }
+        return "jdbc:sqlite:" + path;
+    }
+
+    /** Cria o diretorio do arquivo do banco se ainda nao existir (ignora {@code :memory:}). */
+    private static void ensureParentDir(String dbUrl) {
+        String prefix = "jdbc:sqlite:";
+        if (!dbUrl.startsWith(prefix)) {
+            return;
+        }
+        String path = dbUrl.substring(prefix.length());
+        if (path.isBlank() || path.startsWith(":")) {
+            return; // :memory:, etc.
+        }
+        try {
+            java.nio.file.Path parent = java.nio.file.Paths.get(path).getParent();
+            if (parent != null) {
+                java.nio.file.Files.createDirectories(parent);
+            }
+        } catch (Exception e) {
+            log.warn("Nao foi possivel criar o diretorio do banco para '{}'.", path, e);
         }
     }
 

@@ -31,6 +31,12 @@ WORKDIR /app
 # Copia a distribuicao gerada no estagio de build.
 COPY --from=builder /build/build/install/ChiBot /app/ChiBot
 
+# Diretorio de dados gravavel pelo usuario do bot (banco do Party Finder).
+# O /app pertence ao root; sem isto o usuario chibot nao conseguiria escrever.
+# Montado como volume no docker-compose.yml pra persistir entre recriacoes.
+RUN mkdir -p /app/data && chown -R chibot:chibot /app/data
+ENV CHIBOT_DB_PATH=/app/data/ChiData.db
+
 USER chibot
 
 # O bot le o ChiConfig.json a partir do diretorio de trabalho (/app).
