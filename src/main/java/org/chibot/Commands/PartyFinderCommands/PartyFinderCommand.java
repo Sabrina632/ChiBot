@@ -34,6 +34,9 @@ public class PartyFinderCommand implements ICommand {
     private static final int MAX_FIELDS_PER_EMBED = 24; // 8 PF x 3 fields
     private static final int MAX_TOTAL_CHARS = 5500;
 
+    // O bot so lista PF do Aether.
+    private static final String DATA_CENTER = "Aether";
+
     private final PartyFinderService service = new PartyFinderService();
 
     // Sigla -> trecho do nome da duty pra casar (sem apostrofo, pra evitar encoding).
@@ -85,16 +88,7 @@ public class PartyFinderCommand implements ICommand {
                 .addChoice("FRU — Futures Rewritten", "fru")
                 .addChoice("UMAD — Dancing Mad", "umad");
 
-        OptionData dc = new OptionData(OptionType.STRING, "datacenter",
-                "Filtrar por Data Center (opcional)", false)
-                .addChoice("Aether", "Aether").addChoice("Primal", "Primal")
-                .addChoice("Crystal", "Crystal").addChoice("Dynamis", "Dynamis")
-                .addChoice("Light", "Light").addChoice("Chaos", "Chaos")
-                .addChoice("Materia", "Materia")
-                .addChoice("Elemental", "Elemental").addChoice("Gaia", "Gaia")
-                .addChoice("Mana", "Mana").addChoice("Meteor", "Meteor");
-
-        return List.of(duty, dc);
+        return List.of(duty);
     }
 
     @Override
@@ -102,7 +96,6 @@ public class PartyFinderCommand implements ICommand {
         ctx.deferReply();
 
         String sel = normalizeSelection(firstNonNull(ctx.getOption("duty"), arg(ctx, 0), "all"));
-        String dc = firstNonNull(ctx.getOption("datacenter"), arg(ctx, 1), null);
 
         List<PfListing> all;
         try {
@@ -118,13 +111,13 @@ public class PartyFinderCommand implements ICommand {
             if (!matchesSelection(l, sel)) {
                 continue;
             }
-            if (dc != null && !dc.equalsIgnoreCase(l.dataCentre())) {
-                continue;
+            if (!DATA_CENTER.equalsIgnoreCase(l.dataCentre())) {
+                continue; // so Aether
             }
             filtered.add(l);
         }
 
-        ctx.replyEmbeds(buildEmbeds(filtered, sel, dc));
+        ctx.replyEmbeds(buildEmbeds(filtered, sel));
     }
 
     /** Aceita os valores do slash e tambem sinonimos digitados no prefixo. */
@@ -157,13 +150,13 @@ public class PartyFinderCommand implements ICommand {
      * PF como uma linha de 3 colunas (campos inline): autor+composicao, descricao
      * e tempo. Respeita os limites do Discord (10 embeds, 25 fields, 6000 chars).
      */
-    private List<MessageEmbed> buildEmbeds(List<PfListing> listings, String sel, String dc) {
+    private List<MessageEmbed> buildEmbeds(List<PfListing> listings, String sel) {
         if (listings.isEmpty()) {
-            String titulo = "🗡️ Party Finder — " + selLabel(sel) + (dc != null ? " · " + dc : "");
+            String titulo = "🗡️ Party Finder " + DATA_CENTER + " — " + selLabel(sel);
             return List.of(new EmbedBuilder()
                     .setColor(KAWAII_PINK)
                     .setTitle(titulo)
-                    .setDescription("Nenhum PF abertinho agora~ (´･ω･`) tenta outra duty/DC ou volta mais tarde ♡")
+                    .setDescription("Nenhum PF abertinho no " + DATA_CENTER + " agora~ (´･ω･`) tenta outra duty ou volta mais tarde ♡")
                     .setFooter("via xivpf.com · cobertura parcial (plugin)~ ♡")
                     .build());
         }
@@ -189,7 +182,7 @@ public class PartyFinderCommand implements ICommand {
             List<PfListing> grupo = e.getValue();
             grupo.sort(Comparator.comparingInt(PfListing::filled).reversed());
 
-            String titulo = dutyEmoji(duty) + " " + safe(duty) + (dc != null ? "  ·  " + dc : "");
+            String titulo = dutyEmoji(duty) + " " + safe(duty);
             EmbedBuilder embed = new EmbedBuilder().setColor(colorFor(duty)).setTitle(titulo);
             totalChars += titulo.length();
             if (first) {
@@ -225,8 +218,8 @@ public class PartyFinderCommand implements ICommand {
         // rodape so no ultimo embed, pra nao poluir
         EmbedBuilder last = builders.get(builders.size() - 1);
         last.setTimestamp(Instant.now());
-        last.setFooter("via xivpf.com · " + listings.size() + " PF" + (truncou ? " (alguns omitidos)" : "")
-                + " · cobertura parcial (plugin)~ ♡");
+        last.setFooter("xivpf.com · " + DATA_CENTER + " · " + listings.size() + " PF"
+                + (truncou ? " (alguns omitidos)" : "") + " · cobertura parcial (plugin)~ ♡");
 
         List<MessageEmbed> out = new ArrayList<>();
         for (EmbedBuilder b : builders) {
@@ -241,11 +234,9 @@ public class PartyFinderCommand implements ICommand {
         String autor = "👤 " + (l.creator() == null ? "?" : safe(trim(creatorName(l.creator()), 28)));
         String comp = compIcons(l.comp()) + "  `" + (l.slots() == null ? "?/?" : l.slots()) + "`";
 
-        // col 2 — DC/iLvl + descricao
-        StringBuilder meta = new StringBuilder("🌐 ").append(safe(l.dataCentre()));
-        if (l.minIL() != null && !l.minIL().isBlank() && !l.minIL().equals("0")) {
-            meta.append(" · iL").append(l.minIL());
-        }
+        // col 2 — iLvl + descricao (o DC e sempre Aether, entao nem mostra)
+        String meta = (l.minIL() != null && !l.minIL().isBlank() && !l.minIL().equals("0"))
+                ? "iLvl " + l.minIL() : "​";
         String desc = (l.description() == null || l.description().isBlank())
                 ? "​" : safe(trim(l.description(), 80));
 
@@ -253,7 +244,7 @@ public class PartyFinderCommand implements ICommand {
         String exp = "⌛ " + (l.expires() == null || l.expires().isBlank() ? "?" : shortTime(l.expires()));
         String upd = "🔄 " + (l.updated() == null || l.updated().isBlank() ? "?" : shortTime(l.updated()));
 
-        return new String[]{autor, comp, meta.toString(), desc, exp, upd};
+        return new String[]{autor, comp, meta, desc, exp, upd};
     }
 
     /** Composicao "THDDD---" em icones de role; vaga aberta vira ▫️. */
