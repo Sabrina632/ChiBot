@@ -27,22 +27,29 @@ import java.util.Map;
 public class StratsCommand implements ICommand {
 
     private static final Color KAWAII_PINK = new Color(0xFFB6C1);
-    private static final int TOP_N = 15;
-    private static final int BAR_LEN = 10;
+    private static final int TOP_N = 10;
+    private static final int BAR_LEN = 12;
 
     private final PartyFinderService service = new PartyFinderService();
 
-    // Sigla -> trecho do nome da duty pra casar; e -> rotulo amigavel pro titulo.
+    // Sigla -> trecho do nome da duty pra casar; rotulo amigavel; e cor de accent.
     private static final Map<String, String> DUTY_MATCH = new LinkedHashMap<>();
     private static final Map<String, String> DUTY_LABEL = new LinkedHashMap<>();
+    private static final Map<String, Color> DUTY_COLOR = new LinkedHashMap<>();
     static {
-        DUTY_MATCH.put("ucob", "Unending Coil");   DUTY_LABEL.put("ucob", "UCOB");
-        DUTY_MATCH.put("uwu", "Weapon");            DUTY_LABEL.put("uwu", "UWU");
-        DUTY_MATCH.put("tea", "Epic of Alexander"); DUTY_LABEL.put("tea", "TEA");
-        DUTY_MATCH.put("dsr", "Dragonsong");        DUTY_LABEL.put("dsr", "DSR");
-        DUTY_MATCH.put("top", "Omega Protocol");    DUTY_LABEL.put("top", "TOP");
-        DUTY_MATCH.put("fru", "Futures Rewritten"); DUTY_LABEL.put("fru", "FRU");
-        DUTY_MATCH.put("umad", "Dancing Mad");      DUTY_LABEL.put("umad", "UMAD");
+        duty("ucob", "Unending Coil",    "UCOB", 0xfce100);
+        duty("uwu",  "Weapon",           "UWU",  0x008bfc);
+        duty("tea",  "Epic of Alexander","TEA",  0xfcaa00);
+        duty("dsr",  "Dragonsong",       "DSR",  0xf12916);
+        duty("top",  "Omega Protocol",   "TOP",  0x13aa9e);
+        duty("fru",  "Futures Rewritten","FRU",  0xa05cd6);
+        duty("umad", "Dancing Mad",      "UMAD", 0xc850c0);
+    }
+
+    private static void duty(String sigla, String match, String label, int rgb) {
+        DUTY_MATCH.put(sigla, match);
+        DUTY_LABEL.put(sigla, label);
+        DUTY_COLOR.put(sigla, new Color(rgb));
     }
 
     @Override
@@ -104,36 +111,45 @@ public class StratsCommand implements ICommand {
     private MessageEmbed buildEmbed(String sel, List<PfRepository.TokenCount> tokens) {
         String label = DUTY_LABEL.getOrDefault(sel, sel.toUpperCase(Locale.ROOT));
         EmbedBuilder embed = new EmbedBuilder()
-                .setColor(KAWAII_PINK)
-                .setTitle("📊 Strats mais usadas — " + label);
+                .setColor(DUTY_COLOR.getOrDefault(sel, KAWAII_PINK))
+                .setAuthor("Party Finder · Aether")
+                .setTitle("✨ Strats mais usadas em " + label + " ✨");
 
         if (tokens.isEmpty()) {
-            embed.setDescription("Ainda nao juntei dados de strat pra " + label
-                    + "~ (´･ω･`) o bot vai aprendendo conforme novos PF vao aparecendo, "
+            embed.setDescription("Ainda nao juntei dados de strat pra **" + label
+                    + "**~ (´･ω･`)\nO bot vai aprendendo conforme novos PF vao aparecendo — "
                     + "tenta de novo daqui a pouco ♡");
             return embed.build();
         }
 
         int max = tokens.get(0).count();
-        StringBuilder sb = new StringBuilder("```\n");
+        StringBuilder sb = new StringBuilder();
         for (int i = 0; i < tokens.size(); i++) {
             PfRepository.TokenCount t = tokens.get(i);
-            sb.append(String.format("%2d. ", i + 1))
-                    .append(bar(t.count(), max))
-                    .append(' ').append(t.token())
-                    .append(" (").append(t.count()).append(")\n");
+            sb.append(rank(i + 1)).append(" **").append(t.token()).append("**")
+                    .append("  `").append(t.count()).append("`\n")
+                    .append(bar(t.count(), max)).append('\n');
         }
-        sb.append("```");
-        embed.setDescription(sb.toString());
+        embed.setDescription(sb.toString().stripTrailing());
         embed.setTimestamp(Instant.now());
-        embed.setFooter("contagem acumulada de termos nas descricoes dos PF~ ♡");
+        embed.setFooter("♡ acumulado das descricoes dos PF · quanto mais o bot roda, melhor");
         return embed.build();
     }
 
-    /** Barra proporcional ao mais frequente (▰ cheio, ▱ vazio). */
+    /** Medalha pro top 3, numero pro resto. */
+    private static String rank(int pos) {
+        return switch (pos) {
+            case 1 -> "🥇";
+            case 2 -> "🥈";
+            case 3 -> "🥉";
+            default -> "`#" + pos + "`";
+        };
+    }
+
+    /** Barra proporcional ao mais frequente (■ cheio, □ vazio). */
     private static String bar(int count, int max) {
-        int filled = max <= 0 ? 0 : Math.round((float) count / max * BAR_LEN);
-        return "▰".repeat(filled) + "▱".repeat(BAR_LEN - filled);
+        int filled = max <= 0 ? 0 : Math.max(1, Math.round((float) count / max * BAR_LEN));
+        return "`" + "█".repeat(filled) + "░".repeat(Math.max(0, BAR_LEN - filled)) + "`";
     }
 
     /** Aceita os valores do slash e tambem sinonimos digitados no prefixo. */
