@@ -32,7 +32,8 @@ public class PartyFinderCommand implements ICommand {
     // 6000 caracteres somando TODOS os embeds. Deixamos margem de seguranca.
     private static final int MAX_EMBEDS = 10;
     private static final int MAX_FIELDS_PER_EMBED = 24; // 8 PF x 3 fields
-    private static final int MAX_TOTAL_CHARS = 5500;
+    // Perto do teto de 6000 do Discord; sobra deixada pro rodape do ultimo embed.
+    private static final int MAX_TOTAL_CHARS = 5800;
 
     // O bot so lista PF do Aether.
     private static final String DATA_CENTER = "Aether";
@@ -218,24 +219,36 @@ public class PartyFinderCommand implements ICommand {
 
         outer:
         for (Map.Entry<String, List<PfListing>> e : porDuty.entrySet()) {
-            if (builders.size() >= MAX_EMBEDS) {
-                truncou = true;
-                break;
-            }
             String duty = e.getKey();
             List<PfListing> grupo = e.getValue();
             grupo.sort(Comparator.comparingInt(PfListing::filled).reversed());
 
-            String titulo = dutyEmoji(duty) + " " + safe(duty);
-            EmbedBuilder embed = new EmbedBuilder().setColor(colorFor(duty)).setTitle(titulo);
-            totalChars += titulo.length();
-
+            // Uma duty pode ocupar varios embeds: quando o embed atual enche
+            // (MAX_FIELDS_PER_EMBED), abrimos outro "(cont.)" pra mesma duty.
+            // Antes cada duty ficava presa a um unico embed, o que limitava o
+            // /pf <duty> a poucas listagens mesmo sobrando orcamento.
+            EmbedBuilder embed = null;
             int fields = 0;
+            boolean primeiro = true;
+
             for (PfListing l : grupo) {
-                if (fields >= MAX_FIELDS_PER_EMBED) {
-                    truncou = true;
-                    break;
+                if (embed == null || fields >= MAX_FIELDS_PER_EMBED) {
+                    if (builders.size() >= MAX_EMBEDS) {
+                        truncou = true;
+                        break outer;
+                    }
+                    String titulo = dutyEmoji(duty) + " " + safe(duty) + (primeiro ? "" : " (cont.)");
+                    if (totalChars + titulo.length() > MAX_TOTAL_CHARS) {
+                        truncou = true;
+                        break outer;
+                    }
+                    embed = new EmbedBuilder().setColor(colorFor(duty)).setTitle(titulo);
+                    builders.add(embed);
+                    totalChars += titulo.length();
+                    fields = 0;
+                    primeiro = false;
                 }
+
                 String[] f = listingFields(l); // [nome1,val1, nome2,val2, nome3,val3]
                 int custo = f[0].length() + f[1].length() + f[2].length()
                         + f[3].length() + f[4].length() + f[5].length();
@@ -249,8 +262,6 @@ public class PartyFinderCommand implements ICommand {
                 totalChars += custo;
                 fields += 3;
             }
-
-            builders.add(embed);
         }
 
         // rodape so no ultimo embed, pra nao poluir
