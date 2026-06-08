@@ -81,10 +81,33 @@ public class PartyFinderService {
                     text(el.selectFirst(".item.creator .text")),
                     text(el.selectFirst(".item.world .text")),
                     text(el.selectFirst(".item.expires .text")),
-                    text(el.selectFirst(".item.updated .text"))
+                    text(el.selectFirst(".item.updated .text")),
+                    parseComp(el)
             ));
         }
         return out;
+    }
+
+    /**
+     * Le os slots da party na ordem e monta uma string de composicao:
+     * T=tank preenchido, H=healer, D=dps, '-'=vaga aberta. Ex.: "THDDD---".
+     */
+    private static String parseComp(Element listing) {
+        StringBuilder comp = new StringBuilder();
+        for (Element slot : listing.select(".party .slot")) {
+            if (slot.hasClass("filled")) {
+                if (slot.hasClass("tank")) {
+                    comp.append('T');
+                } else if (slot.hasClass("healer")) {
+                    comp.append('H');
+                } else {
+                    comp.append('D'); // dps
+                }
+            } else {
+                comp.append('-'); // vaga aberta
+            }
+        }
+        return comp.toString();
     }
 
     private static String text(Element e) {

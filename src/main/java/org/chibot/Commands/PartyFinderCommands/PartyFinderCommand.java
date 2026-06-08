@@ -177,11 +177,12 @@ public class PartyFinderCommand implements ICommand {
                 .forEach(l -> porDuty.computeIfAbsent(l.duty(), k -> new ArrayList<>()).add(l));
 
         StringBuilder sb = new StringBuilder();
+        sb.append("🟦 Tank  🟩 Healer  🟥 DPS  ⬜ Vaga\n");
         boolean truncou = false;
 
         outer:
         for (Map.Entry<String, List<PfListing>> e : porDuty.entrySet()) {
-            String header = "\n**" + safe(e.getKey()) + "**  ·  " + e.getValue().size() + "\n";
+            String header = "\n**" + safe(e.getKey()) + "**  ·  " + e.getValue().size() + " PF\n";
             if (sb.length() + header.length() > MAX_DESC) {
                 truncou = true;
                 break;
@@ -201,7 +202,7 @@ public class PartyFinderCommand implements ICommand {
         }
 
         if (truncou) {
-            sb.append("\n*…e mais. Use o filtro `datacenter` pra afunilar~*");
+            sb.append("\n*…e tem mais~ use `duty:` ou `datacenter:` pra afunilar ♡*");
         }
 
         embed.setDescription(sb.toString());
@@ -211,19 +212,58 @@ public class PartyFinderCommand implements ICommand {
 
     private static String formatLinha(PfListing l) {
         StringBuilder b = new StringBuilder();
-        b.append("`").append(l.slots() == null ? "?/?" : l.slots()).append("`");
-        if (l.minIL() != null && !l.minIL().isBlank() && !l.minIL().equals("0")) {
-            b.append(" · iLvl ").append(l.minIL());
-        }
-        b.append(" · 🌐 ").append(safe(l.dataCentre()));
+        b.append(compBar(l.comp()));
+        b.append(" `").append(l.slots() == null ? "?/?" : l.slots()).append("`");
+        b.append(" · ").append(safe(l.dataCentre()));
         if (l.expires() != null && !l.expires().isBlank()) {
-            b.append(" · ⏳ ").append(safe(l.expires()));
+            b.append(" · ⏳ ").append(shortTime(l.expires()));
+        }
+        if (l.minIL() != null && !l.minIL().isBlank() && !l.minIL().equals("0")) {
+            b.append(" · iL").append(l.minIL());
         }
         if (l.creator() != null && !l.creator().isBlank()) {
-            b.append(" — ").append(safe(trim(l.creator(), 32)));
+            b.append(" · 👤 ").append(safe(trim(creatorName(l.creator()), 22)));
         }
         b.append("\n");
         return b.toString();
+    }
+
+    /** Converte a composicao "THDDD---" em quadradinhos coloridos por role. */
+    private static String compBar(String comp) {
+        if (comp == null || comp.isBlank()) {
+            return "";
+        }
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; i < comp.length(); i++) {
+            b.append(switch (comp.charAt(i)) {
+                case 'T' -> "🟦";
+                case 'H' -> "🟩";
+                case 'D' -> "🟥";
+                default -> "⬜";
+            });
+        }
+        return b.toString();
+    }
+
+    /** "in 30 minutes" -> "30m", "in 1 hour" -> "1h", "now" -> "agora". */
+    private static String shortTime(String s) {
+        String v = s.toLowerCase(Locale.ROOT).trim();
+        if (v.equals("now")) {
+            return "agora";
+        }
+        v = v.replace("in ", "")
+                .replace("an hour", "1 hour")
+                .replace("a minute", "1 minute")
+                .replaceAll("\\s*hours?", "h")
+                .replaceAll("\\s*minutes?", "m")
+                .replaceAll("\\s*seconds?", "s");
+        return safe(v);
+    }
+
+    /** Mantem so o nome do personagem (tira o "@ Mundo"). */
+    private static String creatorName(String creator) {
+        int at = creator.indexOf(" @ ");
+        return at > 0 ? creator.substring(0, at) : creator;
     }
 
     /** Escapa markdown que quebraria o embed e tira quebras de linha. */

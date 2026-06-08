@@ -17,7 +17,8 @@ public record PfListing(
         String creator, // "Nome @ MundoNatal"
         String world,   // mundo onde o PF foi criado
         String expires, // ex.: "in 30 minutes"
-        String updated  // ex.: "now"
+        String updated, // ex.: "now"
+        String comp     // composicao em ordem: T=tank, H=healer, D=dps, -=vaga (ex.: "THDDD---")
 ) {
 
     /** Ultimates tem "(Ultimate)" no nome da duty. */
