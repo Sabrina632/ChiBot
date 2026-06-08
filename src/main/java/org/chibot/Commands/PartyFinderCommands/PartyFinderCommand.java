@@ -32,6 +32,20 @@ public class PartyFinderCommand implements ICommand {
 
     private final PartyFinderService service = new PartyFinderService();
 
+    // Sigla -> trecho do nome da duty pra casar (sem apostrofo, pra evitar encoding).
+    private static final Map<String, String> DUTY_MATCH = new LinkedHashMap<>();
+    // Sigla -> rotulo amigavel pro titulo do embed.
+    private static final Map<String, String> DUTY_LABEL = new LinkedHashMap<>();
+    static {
+        DUTY_MATCH.put("ucob", "Unending Coil");   DUTY_LABEL.put("ucob", "UCOB");
+        DUTY_MATCH.put("uwu", "Weapon");            DUTY_LABEL.put("uwu", "UWU");
+        DUTY_MATCH.put("tea", "Epic of Alexander"); DUTY_LABEL.put("tea", "TEA");
+        DUTY_MATCH.put("dsr", "Dragonsong");        DUTY_LABEL.put("dsr", "DSR");
+        DUTY_MATCH.put("top", "Omega Protocol");    DUTY_LABEL.put("top", "TOP");
+        DUTY_MATCH.put("fru", "Futures Rewritten"); DUTY_LABEL.put("fru", "FRU");
+        DUTY_MATCH.put("umad", "Dancing Mad");      DUTY_LABEL.put("umad", "UMAD");
+    }
+
     @Override
     public String getName() {
         return "pf";
@@ -54,11 +68,18 @@ public class PartyFinderCommand implements ICommand {
 
     @Override
     public List<OptionData> getOptions() {
-        OptionData tipo = new OptionData(OptionType.STRING, "tipo",
-                "Ultimate, Savage ou ambos (padrao: ambos)", false)
-                .addChoice("Ambos", "ambos")
-                .addChoice("Ultimate", "ultimate")
-                .addChoice("Savage", "savage");
+        OptionData duty = new OptionData(OptionType.STRING, "duty",
+                "Qual conteudo mostrar (padrao: todos Ult + Savage)", false)
+                .addChoice("Todos (Ult + Savage)", "all")
+                .addChoice("Todos Ultimates", "ult_all")
+                .addChoice("Todos Savage", "sav_all")
+                .addChoice("UCOB — Unending Coil of Bahamut", "ucob")
+                .addChoice("UWU — The Weapon's Refrain", "uwu")
+                .addChoice("TEA — The Epic of Alexander", "tea")
+                .addChoice("DSR — Dragonsong's Reprise", "dsr")
+                .addChoice("TOP — The Omega Protocol", "top")
+                .addChoice("FRU — Futures Rewritten", "fru")
+                .addChoice("UMAD — Dancing Mad", "umad");
 
         OptionData dc = new OptionData(OptionType.STRING, "datacenter",
                 "Filtrar por Data Center (opcional)", false)
@@ -69,15 +90,14 @@ public class PartyFinderCommand implements ICommand {
                 .addChoice("Elemental", "Elemental").addChoice("Gaia", "Gaia")
                 .addChoice("Mana", "Mana").addChoice("Meteor", "Meteor");
 
-        return List.of(tipo, dc);
+        return List.of(duty, dc);
     }
 
     @Override
     public void execute(CommandContext ctx) {
         ctx.deferReply();
 
-        String tipo = firstNonNull(ctx.getOption("tipo"), arg(ctx, 0), "ambos")
-                .toLowerCase(Locale.ROOT);
+        String sel = normalizeSelection(firstNonNull(ctx.getOption("duty"), arg(ctx, 0), "all"));
         String dc = firstNonNull(ctx.getOption("datacenter"), arg(ctx, 1), null);
 
         List<PfListing> all;
@@ -91,7 +111,7 @@ public class PartyFinderCommand implements ICommand {
 
         List<PfListing> filtered = new ArrayList<>();
         for (PfListing l : all) {
-            if (!matchesType(l, tipo)) {
+            if (!matchesSelection(l, sel)) {
                 continue;
             }
             if (dc != null && !dc.equalsIgnoreCase(l.dataCentre())) {
@@ -100,26 +120,44 @@ public class PartyFinderCommand implements ICommand {
             filtered.add(l);
         }
 
-        ctx.replyEmbeds(buildEmbed(filtered, tipo, dc));
+        ctx.replyEmbeds(buildEmbed(filtered, sel, dc));
     }
 
-    private static boolean matchesType(PfListing l, String tipo) {
-        return switch (tipo) {
-            case "ultimate" -> l.isUltimate();
-            case "savage" -> l.isSavage();
-            default -> l.isUltimate() || l.isSavage(); // "ambos"
+    /** Aceita os valores do slash e tambem sinonimos digitados no prefixo. */
+    private static String normalizeSelection(String s) {
+        String v = s.toLowerCase(Locale.ROOT).trim();
+        return switch (v) {
+            case "", "all", "ambos", "todos" -> "all";
+            case "ult", "ultimate", "ultimates", "ult_all" -> "ult_all";
+            case "sav", "savage", "savages", "sav_all" -> "sav_all";
+            default -> v; // siglas (ucob, uwu, ...) caem direto no DUTY_MATCH
         };
+    }
+
+    private static boolean matchesSelection(PfListing l, String sel) {
+        switch (sel) {
+            case "all":
+                return l.isUltimate() || l.isSavage();
+            case "ult_all":
+                return l.isUltimate();
+            case "sav_all":
+                return l.isSavage();
+            default:
+                String sub = DUTY_MATCH.get(sel);
+                return sub != null && l.duty() != null && l.duty().contains(sub);
+        }
     }
 
     private net.dv8tion.jda.api.entities.MessageEmbed buildEmbed(
-            List<PfListing> listings, String tipo, String dc) {
+            List<PfListing> listings, String sel, String dc) {
 
-        String tipoLabel = switch (tipo) {
-            case "ultimate" -> "Ultimates";
-            case "savage" -> "Savage";
-            default -> "Ultimates & Savage";
+        String selLabel = switch (sel) {
+            case "ult_all" -> "Ultimates";
+            case "sav_all" -> "Savage";
+            case "all" -> "Ultimates & Savage";
+            default -> DUTY_LABEL.getOrDefault(sel, sel.toUpperCase(Locale.ROOT));
         };
-        String titulo = "🗡️ Party Finder — " + tipoLabel + (dc != null ? " · " + dc : "");
+        String titulo = "🗡️ Party Finder — " + selLabel + (dc != null ? " · " + dc : "");
 
         EmbedBuilder embed = new EmbedBuilder()
                 .setColor(KAWAII_PINK)
@@ -139,7 +177,6 @@ public class PartyFinderCommand implements ICommand {
                 .forEach(l -> porDuty.computeIfAbsent(l.duty(), k -> new ArrayList<>()).add(l));
 
         StringBuilder sb = new StringBuilder();
-        int mostradas = 0;
         boolean truncou = false;
 
         outer:
@@ -160,7 +197,6 @@ public class PartyFinderCommand implements ICommand {
                     break outer;
                 }
                 sb.append(linha);
-                mostradas++;
             }
         }
 
