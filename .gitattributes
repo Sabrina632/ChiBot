@@ -1,0 +1,11 @@
+# Normaliza fim de linha
+* text=auto
+
+# Garante a deteccao correta de linguagem (Linguist)
+*.java linguist-language=Java
+gradlew text eol=lf
+gradlew.bat text eol=crlf
+
+# Nao conta artefatos/binarios nas estatisticas de linguagem
+gradle/wrapper/gradle-wrapper.jar binary linguist-vendored
+Imagem/** linguist-vendored
