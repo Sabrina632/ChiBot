@@ -1,7 +1,5 @@
 package org.chibot.Commands.PartyFinderCommands;
 
-import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import org.chibot.Commands.CommandContext;
@@ -9,9 +7,7 @@ import org.chibot.Commands.ICommand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.awt.Color;
 import java.io.IOException;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -21,18 +17,17 @@ import java.util.Map;
 
 /**
  * {@code /pf} (ou {@code !pf}) — lista os Party Finder de Ultimates e Savage,
- * agrupados por duty. Dados via {@link PartyFinderService} (xivpf.com).
+ * agrupados por duty, em texto puro (estilo trappingway). Dados via
+ * {@link PartyFinderService} (xivpf.com).
  */
 public class PartyFinderCommand implements ICommand {
 
     private static final Logger log = LoggerFactory.getLogger(PartyFinderCommand.class);
-    private static final Color KAWAII_PINK = new Color(0xFFB6C1);
 
-    // Limites do Discord: ate 10 embeds por mensagem, 25 fields por embed e
-    // 6000 caracteres somando TODOS os embeds. Deixamos margem de seguranca.
-    private static final int MAX_EMBEDS = 10;
-    private static final int MAX_FIELDS_PER_EMBED = 24; // 8 PF x 3 fields
-    private static final int MAX_TOTAL_CHARS = 5500;
+    // Mensagem de texto do Discord aceita ate 2000 chars; quebramos em varias
+    // com margem, e limitamos a quantidade pra nao virar spam.
+    private static final int MAX_MSG_CHARS = 1900;
+    private static final int MAX_MESSAGES = 6;
 
     // O bot so lista PF do Aether.
     private static final String DATA_CENTER = "Aether";
@@ -157,7 +152,9 @@ public class PartyFinderCommand implements ICommand {
             filtered.add(l);
         }
 
-        ctx.replyEmbeds(buildEmbeds(filtered, sel));
+        for (String message : buildMessages(filtered, sel)) {
+            ctx.reply(message);
+        }
     }
 
     /** Aceita os valores do slash e tambem sinonimos digitados no prefixo. */
@@ -186,19 +183,19 @@ public class PartyFinderCommand implements ICommand {
     }
 
     /**
-     * Monta a resposta no estilo trappingway: um embed colorido por duty, e cada
-     * PF como uma linha de 3 colunas (campos inline): autor+composicao, descricao
-     * e tempo. Respeita os limites do Discord (10 embeds, 25 fields, 6000 chars).
+     * Monta a resposta em texto puro (estilo trappingway): um cabecalho por duty
+     * (## em destaque) e cada PF numa linha com a composicao em icones, vagas,
+     * autor e tempo. Quebra em varias mensagens respeitando o limite de 2000
+     * chars do Discord, repetindo o cabecalho da duty quando precisa continuar.
      */
-    private List<MessageEmbed> buildEmbeds(List<PfListing> listings, String sel) {
+    private List<String> buildMessages(List<PfListing> listings, String sel) {
+        List<String> out = new ArrayList<>();
+        String header = "🗡️ **Party Finder " + DATA_CENTER + " — " + selLabel(sel) + "**\n"
+                + "-# vaga aberta: 🛡️ tank · 💚 healer · ⚔️ dps\n";
+
         if (listings.isEmpty()) {
-            String titulo = "🗡️ Party Finder " + DATA_CENTER + " — " + selLabel(sel);
-            return List.of(new EmbedBuilder()
-                    .setColor(KAWAII_PINK)
-                    .setTitle(titulo)
-                    .setDescription("Nenhum PF abertinho no " + DATA_CENTER + " agora~ (´･ω･`) tenta outra duty ou volta mais tarde ♡")
-                    .setFooter("via xivpf.com · cobertura parcial (plugin)~ ♡")
-                    .build());
+            out.add(header + "\nNenhum PF abertinho no " + DATA_CENTER + " agora~ (´･ω･`) tenta outra duty ou volta mais tarde ♡");
+            return out;
         }
 
         // agrupa por duty, em ordem alfabetica
@@ -207,84 +204,74 @@ public class PartyFinderCommand implements ICommand {
                 .sorted(Comparator.comparing(l -> l.duty() == null ? "" : l.duty()))
                 .forEach(l -> porDuty.computeIfAbsent(l.duty(), k -> new ArrayList<>()).add(l));
 
-        List<EmbedBuilder> builders = new ArrayList<>();
-        int totalChars = 0;
-        boolean first = true;
+        StringBuilder sb = new StringBuilder(header);
         boolean truncou = false;
 
         outer:
         for (Map.Entry<String, List<PfListing>> e : porDuty.entrySet()) {
-            if (builders.size() >= MAX_EMBEDS) {
-                truncou = true;
-                break;
-            }
             String duty = e.getKey();
             List<PfListing> grupo = e.getValue();
             grupo.sort(Comparator.comparingInt(PfListing::filled).reversed());
 
-            String titulo = dutyEmoji(duty) + " " + safe(duty);
-            EmbedBuilder embed = new EmbedBuilder().setColor(colorFor(duty)).setTitle(titulo);
-            totalChars += titulo.length();
-            if (first) {
-                String legenda = "ícones = job na party  ·  vaga aberta: 🛡️ tank  💚 healer  ⚔️ dps";
-                embed.setDescription(legenda);
-                totalChars += legenda.length();
-                first = false;
+            String dutyHeader = "\n## " + dutyEmoji(duty) + " " + safe(duty) + "  ·  " + grupo.size() + " PF\n";
+            if (sb.length() + dutyHeader.length() > MAX_MSG_CHARS) {
+                if (!flush(out, sb)) { truncou = true; break; }
+                sb = new StringBuilder();
             }
+            sb.append(dutyHeader);
 
-            int fields = 0;
             for (PfListing l : grupo) {
-                if (fields >= MAX_FIELDS_PER_EMBED) {
-                    truncou = true;
-                    break;
+                String line = formatLine(l);
+                if (sb.length() + line.length() > MAX_MSG_CHARS) {
+                    if (!flush(out, sb)) { truncou = true; break outer; }
+                    sb = new StringBuilder("## " + dutyEmoji(duty) + " " + safe(duty) + " (cont.)\n");
                 }
-                String[] f = listingFields(l); // [nome1,val1, nome2,val2, nome3,val3]
-                int custo = f[0].length() + f[1].length() + f[2].length()
-                        + f[3].length() + f[4].length() + f[5].length();
-                if (totalChars + custo > MAX_TOTAL_CHARS) {
-                    truncou = true;
-                    break outer;
-                }
-                embed.addField(f[0], f[1], true);
-                embed.addField(f[2], f[3], true);
-                embed.addField(f[4], f[5], true);
-                totalChars += custo;
-                fields += 3;
+                sb.append(line);
             }
-
-            builders.add(embed);
         }
 
-        // rodape so no ultimo embed, pra nao poluir
-        EmbedBuilder last = builders.get(builders.size() - 1);
-        last.setTimestamp(Instant.now());
-        last.setFooter("xivpf.com · " + DATA_CENTER + " · " + listings.size() + " PF"
-                + (truncou ? " (alguns omitidos)" : "") + " · cobertura parcial (plugin)~ ♡");
+        if (sb.length() > 0 && out.size() < MAX_MESSAGES) {
+            out.add(sb.toString());
+        }
 
-        List<MessageEmbed> out = new ArrayList<>();
-        for (EmbedBuilder b : builders) {
-            out.add(b.build());
+        // rodape na ultima mensagem
+        int ultima = out.size() - 1;
+        String rodape = "\n-# xivpf.com · " + DATA_CENTER + " · " + listings.size() + " PF"
+                + (truncou ? " (alguns omitidos~ filtra por `duty:`)" : "") + " · cobertura parcial (plugin)";
+        if (out.get(ultima).length() + rodape.length() <= 2000) {
+            out.set(ultima, out.get(ultima) + rodape);
         }
         return out;
     }
 
-    /** As 3 colunas (campos inline) de um PF: [nome,val] x3. */
-    private static String[] listingFields(PfListing l) {
-        // col 1 — autor + composicao
-        String autor = "👤 " + (l.creator() == null ? "?" : safe(trim(creatorName(l.creator()), 28)));
-        String comp = compIcons(l.comp()) + "  `" + (l.slots() == null ? "?/?" : l.slots()) + "`";
+    /** Adiciona a mensagem pronta na lista; retorna false se ja batemos o limite. */
+    private static boolean flush(List<String> out, StringBuilder sb) {
+        if (out.size() >= MAX_MESSAGES) {
+            return false;
+        }
+        out.add(sb.toString());
+        return true;
+    }
 
-        // col 2 — iLvl + descricao (o DC e sempre Aether, entao nem mostra)
-        String meta = (l.minIL() != null && !l.minIL().isBlank() && !l.minIL().equals("0"))
-                ? "iLvl " + l.minIL() : "​";
-        String desc = (l.description() == null || l.description().isBlank())
-                ? "​" : safe(trim(l.description(), 80));
-
-        // col 3 — tempo
-        String exp = "⌛ " + (l.expires() == null || l.expires().isBlank() ? "?" : shortTime(l.expires()));
-        String upd = "🔄 " + (l.updated() == null || l.updated().isBlank() ? "?" : shortTime(l.updated()));
-
-        return new String[]{autor, comp, meta, desc, exp, upd};
+    /** Uma linha de PF: composicao em icones + vagas, slots, autor e tempo. */
+    private static String formatLine(PfListing l) {
+        StringBuilder b = new StringBuilder();
+        b.append(compIcons(l.comp()));
+        b.append(" **").append(l.slots() == null ? "?/?" : l.slots()).append("**");
+        if (l.minIL() != null && !l.minIL().isBlank() && !l.minIL().equals("0")) {
+            b.append(" · iL").append(l.minIL());
+        }
+        if (l.creator() != null && !l.creator().isBlank()) {
+            b.append(" · 👤 ").append(safe(trim(creatorName(l.creator()), 24)));
+        }
+        if (l.expires() != null && !l.expires().isBlank()) {
+            b.append(" · ⌛ ").append(shortTime(l.expires()));
+        }
+        b.append("\n");
+        if (l.description() != null && !l.description().isBlank()) {
+            b.append("-# ").append(safe(trim(l.description(), 100))).append("\n");
+        }
+        return b.toString();
     }
 
     /**
@@ -314,21 +301,6 @@ public class PartyFinderCommand implements ICommand {
             }
         }
         return b.toString();
-    }
-
-    /** Cor por duty, inspirada no trappingway. */
-    private static Color colorFor(String duty) {
-        if (duty == null) {
-            return new Color(0xf0a057);
-        }
-        if (duty.contains("Unending Coil")) return new Color(0xfce100); // UCOB dourado
-        if (duty.contains("Weapon")) return new Color(0x008bfc);        // UWU azul
-        if (duty.contains("Epic of Alexander")) return new Color(0xfcaa00); // TEA laranja
-        if (duty.contains("Dragonsong")) return new Color(0xf12916);    // DSR vermelho
-        if (duty.contains("Omega Protocol")) return new Color(0x13aa9e); // TOP teal
-        if (duty.contains("Futures Rewritten")) return new Color(0xa05cd6); // FRU roxo
-        if (duty.contains("Dancing Mad")) return new Color(0xc850c0);   // UMAD magenta
-        return new Color(0xf0a057); // savage / outros
     }
 
     private static String dutyEmoji(String duty) {
