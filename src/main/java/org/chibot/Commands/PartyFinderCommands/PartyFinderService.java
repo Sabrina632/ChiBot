@@ -30,8 +30,6 @@ public class PartyFinderService {
             "ChiBot/1.0 (Discord bot; +https://github.com/Sabrina632/ChiBot)";
     private static final Duration CACHE_TTL = Duration.ofMinutes(5);
     private static final int TIMEOUT_MS = 20_000;
-    // O acumulo de strats so considera o Aether (recorte do bot).
-    private static final String STRATS_DATA_CENTER = "Aether";
 
     private final PfRepository repo = new PfRepository();
 
@@ -65,8 +63,6 @@ public class PartyFinderService {
             cache = parse(doc);
             fetchedAt = Instant.now();
             repo.saveSnapshot(cache, fetchedAt);
-            // Acumula os tokens de strat das listagens novas (so Aether), pro /strats.
-            repo.indexTokens(cache, STRATS_DATA_CENTER, fetchedAt);
             log.info("Party Finder atualizado: {} listagem(ns) do xivpf.com.", cache.size());
             return cache;
         } catch (IOException e) {
@@ -82,20 +78,6 @@ public class PartyFinderService {
     /** Quando o cache foi preenchido pela ultima vez (Instant.EPOCH se nunca). */
     public synchronized Instant lastUpdated() {
         return fetchedAt;
-    }
-
-    /**
-     * Top strats (tokens acumulados) das duties cujo nome contem
-     * {@code dutySubstring}. Tenta atualizar o acumulo antes (best-effort): se o
-     * xivpf.com falhar, responde com o que ja houver no banco.
-     */
-    public List<PfRepository.TokenCount> topStrats(String dutySubstring, int limit) {
-        try {
-            getListings(); // refresca o cache e acumula tokens novos
-        } catch (IOException e) {
-            log.warn("Nao deu pra atualizar antes do /strats; usando o acumulo atual.", e);
-        }
-        return repo.topTokens(dutySubstring, limit);
     }
 
     private static List<PfListing> parse(Document doc) {

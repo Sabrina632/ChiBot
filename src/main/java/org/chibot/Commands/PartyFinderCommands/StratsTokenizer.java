@@ -42,10 +42,10 @@ public final class StratsTokenizer {
             "whom", "your", "yours", "you", "they", "them", "their", "theirs",
             "his", "her", "hers", "its", "our", "ours", "him", "she", "dont",
             "youre", "thats", "also", "etc", "yes", "none",
-            // ruido de PF
+            // ruido de PF (porte do _STOP_WORDS do repo)
             "https", "http", "www", "com", "net", "org", "docs", "google",
             "lf", "lf1m", "lf2m", "lf3m", "lf4m", "lf5m", "lf6m",
-            "party", "finder", "item", "ilvl", "ilv",
+            "dc", "oce", "ocg", "pf", "party", "finder", "item", "ilvl", "ilv",
             "prog", "reclear", "clear", "farm", "per", "job", "jobs",
             "one", "player", "players", "ppj", "ppl",
             "must", "please", "know", "knowing", "mech", "mechs", "mechanic",

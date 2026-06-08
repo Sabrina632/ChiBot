@@ -30,7 +30,7 @@ public class StratsCommand implements ICommand {
     private static final int TOP_N = 10;
     private static final int BAR_LEN = 12;
 
-    private final PartyFinderService service = new PartyFinderService();
+    private final StratsService service = new StratsService();
 
     // Sigla -> trecho do nome da duty pra casar; rotulo amigavel; e cor de accent.
     private static final Map<String, String> DUTY_MATCH = new LinkedHashMap<>();
