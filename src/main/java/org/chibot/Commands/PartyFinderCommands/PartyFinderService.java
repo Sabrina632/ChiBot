@@ -89,25 +89,34 @@ public class PartyFinderService {
     }
 
     /**
-     * Le os slots da party na ordem e monta uma string de composicao:
-     * T=tank preenchido, H=healer, D=dps, '-'=vaga aberta. Ex.: "THDDD---".
+     * Le os slots da party na ordem e monta uma lista de tokens separados por
+     * virgula. Slot preenchido vira o codigo do job (ex.: "WAR", "WHM"); vaga
+     * aberta vira "-" + role ("-T", "-H", "-D", ou "-*" pra varias roles).
+     * Ex.: "WAR,WHM,NIN,-D,-D,-*".
      */
     private static String parseComp(Element listing) {
-        StringBuilder comp = new StringBuilder();
+        List<String> tokens = new ArrayList<>();
         for (Element slot : listing.select(".party .slot")) {
             if (slot.hasClass("filled")) {
-                if (slot.hasClass("tank")) {
-                    comp.append('T');
-                } else if (slot.hasClass("healer")) {
-                    comp.append('H');
-                } else {
-                    comp.append('D'); // dps
-                }
+                String job = slot.attr("title").trim(); // ex.: "WAR"
+                tokens.add(job.isEmpty() ? "-" + roleOf(slot) : job);
             } else {
-                comp.append('-'); // vaga aberta
+                tokens.add("-" + roleOf(slot)); // vaga aberta
             }
         }
-        return comp.toString();
+        return String.join(",", tokens);
+    }
+
+    /** Role de um slot a partir das classes: T/H/D, ou '*' se aceitar varias. */
+    private static char roleOf(Element slot) {
+        boolean tank = slot.hasClass("tank");
+        boolean healer = slot.hasClass("healer");
+        boolean dps = slot.hasClass("dps");
+        int n = (tank ? 1 : 0) + (healer ? 1 : 0) + (dps ? 1 : 0);
+        if (n == 1) {
+            return tank ? 'T' : healer ? 'H' : 'D';
+        }
+        return '*';
     }
 
     private static String text(Element e) {

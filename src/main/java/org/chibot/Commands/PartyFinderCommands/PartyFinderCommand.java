@@ -53,6 +53,46 @@ public class PartyFinderCommand implements ICommand {
         DUTY_MATCH.put("umad", "Dancing Mad");      DUTY_LABEL.put("umad", "UMAD");
     }
 
+    // Codigo do job -> emoji custom do bot (application emoji). Inclui as classes
+    // base (GLA, MRD, ...) apontando pro mesmo icone do job, por seguranca.
+    private static final Map<String, String> JOB_EMOJI = new java.util.HashMap<>();
+    static {
+        // Tanks
+        job("PLD", "Paladin", "1513607339939336364", "GLA");
+        job("WAR", "Warrior", "1513607338156757233", "MRD");
+        job("DRK", "DarkKnight", "1513607336650870986");
+        job("GNB", "Gunbreaker", "1513607335510278307");
+        // Healers
+        job("WHM", "WhiteMage", "1513607438245564586", "CNJ");
+        job("SCH", "Scholar", "1513607436966170785");
+        job("AST", "Astrologian", "1513607435682713740");
+        job("SGE", "Sage", "1513607433862512670");
+        // Melee
+        job("MNK", "Monk", "1513607522060337264", "PGL");
+        job("DRG", "Dragoon", "1513607520755777567", "LNC");
+        job("NIN", "Ninja", "1513607515185610914", "ROG");
+        job("SAM", "Samurai", "1513607512514101310");
+        job("RPR", "Reaper", "1513607505958142233");
+        job("VPR", "Viper", "1513607507359170651");
+        // Physical Ranged
+        job("BRD", "Bard", "1513607519375851672", "ARC");
+        job("MCH", "Machinist", "1513607513843437712");
+        job("DNC", "Dancer", "1513607508655345715");
+        // Magical Ranged
+        job("BLM", "BlackMage", "1513607516653883505", "THM");
+        job("SMN", "Summoner", "1513607517652127996", "ACN");
+        job("RDM", "RedMage", "1513607510332932096");
+        job("PCT", "Pictomancer", "1513607504502980705");
+    }
+
+    private static void job(String code, String name, String id, String... aliases) {
+        String emoji = "<:" + name + ":" + id + ">";
+        JOB_EMOJI.put(code, emoji);
+        for (String alias : aliases) {
+            JOB_EMOJI.put(alias, emoji);
+        }
+    }
+
     @Override
     public String getName() {
         return "pf";
@@ -186,7 +226,7 @@ public class PartyFinderCommand implements ICommand {
             EmbedBuilder embed = new EmbedBuilder().setColor(colorFor(duty)).setTitle(titulo);
             totalChars += titulo.length();
             if (first) {
-                String legenda = "🛡️ Tank  ·  💚 Healer  ·  ⚔️ DPS  ·  ▫️ vaga aberta";
+                String legenda = "ícones = job na party  ·  vaga aberta: 🛡️ tank  💚 healer  ⚔️ dps";
                 embed.setDescription(legenda);
                 totalChars += legenda.length();
                 first = false;
@@ -247,19 +287,31 @@ public class PartyFinderCommand implements ICommand {
         return new String[]{autor, comp, meta, desc, exp, upd};
     }
 
-    /** Composicao "THDDD---" em icones de role; vaga aberta vira ▫️. */
+    /**
+     * Renderiza a composicao: tokens de job (ex.: "WAR") viram o emoji custom do
+     * job; vagas abertas ("-T"/"-H"/"-D"/"-*") viram o role em unicode.
+     */
     private static String compIcons(String comp) {
         if (comp == null || comp.isBlank()) {
             return "▫️";
         }
         StringBuilder b = new StringBuilder();
-        for (int i = 0; i < comp.length(); i++) {
-            b.append(switch (comp.charAt(i)) {
-                case 'T' -> "🛡️";
-                case 'H' -> "💚";
-                case 'D' -> "⚔️";
-                default -> "▫️";
-            });
+        for (String tok : comp.split(",")) {
+            if (tok.isEmpty()) {
+                continue;
+            }
+            if (tok.charAt(0) == '-') {
+                char role = tok.length() > 1 ? tok.charAt(1) : '*';
+                b.append(switch (role) {
+                    case 'T' -> "🛡️";
+                    case 'H' -> "💚";
+                    case 'D' -> "⚔️";
+                    default -> "▫️";
+                });
+            } else {
+                String emoji = JOB_EMOJI.get(tok.toUpperCase(Locale.ROOT));
+                b.append(emoji != null ? emoji : "⚔️");
+            }
         }
         return b.toString();
     }
