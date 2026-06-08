@@ -214,7 +214,6 @@ public class PartyFinderCommand implements ICommand {
 
         List<EmbedBuilder> builders = new ArrayList<>();
         int totalChars = 0;
-        boolean first = true;
         boolean truncou = false;
 
         outer:
@@ -230,13 +229,6 @@ public class PartyFinderCommand implements ICommand {
             String titulo = dutyEmoji(duty) + " " + safe(duty);
             EmbedBuilder embed = new EmbedBuilder().setColor(colorFor(duty)).setTitle(titulo);
             totalChars += titulo.length();
-            if (first) {
-                String legenda = "ícones = job na party  ·  vaga aberta: " + ROLE_TANK + " tank  "
-                        + ROLE_HEALER + " healer  " + ROLE_DPS + " dps";
-                embed.setDescription(legenda);
-                totalChars += legenda.length();
-                first = false;
-            }
 
             int fields = 0;
             for (PfListing l : grupo) {
@@ -276,8 +268,8 @@ public class PartyFinderCommand implements ICommand {
 
     /** As 3 colunas (campos inline) de um PF: [nome,val] x3. */
     private static String[] listingFields(PfListing l) {
-        // col 1 — autor + composicao
-        String autor = "👤 " + (l.creator() == null ? "?" : safe(trim(creatorName(l.creator()), 28)));
+        // col 1 — autor (com mundo) + composicao
+        String autor = "👤 " + (l.creator() == null ? "?" : safe(trim(creatorWithWorld(l.creator()), 32)));
         String comp = compIcons(l.comp()) + "  `" + (l.slots() == null ? "?/?" : l.slots()) + "`";
 
         // col 2 — iLvl + descricao (o DC e sempre Aether, entao nem mostra)
@@ -365,10 +357,9 @@ public class PartyFinderCommand implements ICommand {
         return safe(v);
     }
 
-    /** Mantem so o nome do personagem (tira o "@ Mundo"). */
-    private static String creatorName(String creator) {
-        int at = creator.indexOf(" @ ");
-        return at > 0 ? creator.substring(0, at) : creator;
+    /** Formata "Nome @ Mundo" como "Nome@Mundo" (mostra o mundo do personagem). */
+    private static String creatorWithWorld(String creator) {
+        return creator.replace(" @ ", "@");
     }
 
     /** Escapa markdown que quebraria o embed e tira quebras de linha. */
