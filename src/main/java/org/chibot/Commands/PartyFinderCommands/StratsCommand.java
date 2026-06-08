@@ -104,7 +104,12 @@ public class StratsCommand implements ICommand {
             return;
         }
 
-        List<PfRepository.TokenCount> tokens = service.topStrats(sub, TOP_N);
+        // Busca mais que o necessario e descarta ruido (ex.: "one player per job"),
+        // inclusive o que ja foi acumulado, antes de cortar no TOP_N.
+        List<PfRepository.TokenCount> tokens = service.topStrats(sub, TOP_N * 5).stream()
+                .filter(t -> !StratsTokenizer.isNoise(t.token()))
+                .limit(TOP_N)
+                .toList();
         ctx.replyEmbeds(buildEmbed(sel, tokens));
     }
 

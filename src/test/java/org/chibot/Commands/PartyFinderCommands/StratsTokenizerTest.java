@@ -39,6 +39,17 @@ class StratsTokenizerTest {
     }
 
     @Test
+    void isNoiseDetectaOnePlayerPerJob() {
+        assertTrue(StratsTokenizer.isNoise("one"));
+        assertTrue(StratsTokenizer.isNoise("player"));
+        assertTrue(StratsTokenizer.isNoise("one player"));
+        assertTrue(StratsTokenizer.isNoise("per job"));
+        // strats de verdade nao sao ruido
+        assertFalse(StratsTokenizer.isNoise("hector"));
+        assertFalse(StratsTokenizer.isNoise("uptime strat"));
+    }
+
+    @Test
     void descartaNumerosPurosCjkETokensCurtos() {
         List<String> tokens = StratsTokenizer.tokenize("p1 p2 123 ぬけまる ok hectorbin");
         assertFalse(tokens.contains("123"));

@@ -47,6 +47,7 @@ public final class StratsTokenizer {
             "lf", "lf1m", "lf2m", "lf3m", "lf4m", "lf5m", "lf6m",
             "party", "finder", "item", "ilvl", "ilv",
             "prog", "reclear", "clear", "farm", "per", "job", "jobs",
+            "one", "player", "players", "ppj", "ppl",
             "must", "please", "know", "knowing", "mech", "mechs", "mechanic",
             "mechanics", "fill", "spot", "spots", "exp", "experienced", "join",
             "run", "runs", "week", "weekly", "new", "old", "alt", "main",
@@ -72,6 +73,23 @@ public final class StratsTokenizer {
     private static final Pattern CJK = Pattern.compile(
             "[\\p{IsHan}\\p{IsHiragana}\\p{IsKatakana}\\p{IsHangul}]");
     private static final Pattern DIGITS = Pattern.compile("\\d+");
+
+    /**
+     * Diz se um token e puro ruido (todas as palavras sao stopwords), pra
+     * filtrar tambem o que ja foi acumulado no banco na hora de exibir — ex.:
+     * "one", "player", "one player", "per job".
+     */
+    public static boolean isNoise(String token) {
+        if (token == null || token.isBlank()) {
+            return true;
+        }
+        for (String w : token.split(" ")) {
+            if (!STOP_WORDS.contains(w)) {
+                return false;
+            }
+        }
+        return true;
+    }
 
     /** Tokens distintos da descricao (unigramas + bigramas + servicos de URL). */
     public static List<String> tokenize(String description) {
