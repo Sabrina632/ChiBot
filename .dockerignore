@@ -1,0 +1,25 @@
+# Saidas de build (geradas dentro do container)
+.gradle
+build/
+out/
+bin/
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+
+# Docker / git
+.git
+.gitignore
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Config com segredos: NUNCA vai pra imagem (monte como volume na VPS)
+ChiConfig.json
+
+# SO
+.DS_Store

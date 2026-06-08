@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <appender name="KAWAII" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
+            <charset>UTF-8</charset>
+            <layout class="org.chibot.Logging.KawaiiLayout"/>
+        </encoder>
+    </appender>
+
+    <!-- Bibliotecas barulhentas ficam quietinhas~ -->
+    <logger name="net.dv8tion" level="INFO"/>
+    <logger name="okhttp3" level="WARN"/>
+    <logger name="org.apache" level="WARN"/>
+
+    <root level="INFO">
+        <appender-ref ref="KAWAII"/>
+    </root>
+
+</configuration>

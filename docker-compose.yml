@@ -1,0 +1,16 @@
+services:
+  chibot:
+    build: .
+    image: chibot:latest
+    container_name: chibot
+    restart: unless-stopped
+    # Monta o config do host dentro do container. Edite o ChiConfig.json na VPS
+    # (token, prefixo, GuildId) e reinicie o container — sem precisar rebuildar.
+    volumes:
+      - ./ChiConfig.json:/app/ChiConfig.json
+    # Logs ficam acessiveis via "docker logs chibot".
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
