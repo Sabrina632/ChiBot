@@ -1,9 +1,5 @@
 # ChiBot ♡
 
-<p align="center">
-  <img src="Imagem/chibot-banner.png" alt="ChiBot" width="640">
-</p>
-
 > Um bot de Discord fofo e enxuto, feito em Java com a [JDA](https://github.com/discord-jda/JDA), com console kawaii e carregamento automático de comandos~ (｡•ᴗ•｡)♡
 
 ---

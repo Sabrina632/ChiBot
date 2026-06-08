@@ -45,3 +45,6 @@ bin/
 ### ChiBot ###
 # Config com o token do bot — nunca versionar
 ChiConfig.json
+
+# Screenshots de referencia (ex.: IDs dos emojis) ficam so local
+Imagem/Screenshot*.png
