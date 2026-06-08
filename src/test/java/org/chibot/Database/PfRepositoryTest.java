@@ -58,4 +58,41 @@ class PfRepositoryTest {
         assertTrue(repo.loadSnapshot().isEmpty());
         assertEquals(Instant.EPOCH, repo.lastFetchedAt());
     }
+
+    private static PfListing withDesc(String id, String duty, String dc, String desc) {
+        return new PfListing(id, dc, "HighEndDuty", duty, desc,
+                "5/8", 5, 8, "705", "Chi Bot @ Faerie", "Faerie",
+                "in 30 minutes", "now", "WAR,WHM,NIN,-D,-D,-D");
+    }
+
+    @Test
+    void acumulaTokensEContaCadaPfUmaVez() {
+        PfRepository repo = inMemory();
+        Instant now = Instant.now();
+
+        List<PfListing> snapshot = List.of(
+                withDesc("a", "Futures Rewritten (Ultimate)", "Aether", "Hector strat"),
+                withDesc("b", "Futures Rewritten (Ultimate)", "Aether", "hector reclear"));
+        repo.indexTokens(snapshot, "Aether", now);
+        // reindexar o mesmo snapshot nao deve contar de novo (gate por id)
+        repo.indexTokens(snapshot, "Aether", now);
+
+        List<PfRepository.TokenCount> top = repo.topTokens("Futures Rewritten", 10);
+        PfRepository.TokenCount hector = top.stream()
+                .filter(t -> t.token().equals("hector")).findFirst().orElseThrow();
+        assertEquals(2, hector.count(), "hector aparece em 2 PF, contados uma vez cada");
+    }
+
+    @Test
+    void indexacaoRespeitaDataCenter() {
+        PfRepository repo = inMemory();
+        repo.indexTokens(List.of(
+                withDesc("a", "Futures Rewritten (Ultimate)", "Aether", "hector"),
+                withDesc("b", "Futures Rewritten (Ultimate)", "Primal", "hector")),
+                "Aether", Instant.now());
+
+        List<PfRepository.TokenCount> top = repo.topTokens("Futures Rewritten", 10);
+        assertEquals(1, top.stream().filter(t -> t.token().equals("hector"))
+                .findFirst().orElseThrow().count(), "so o PF do Aether conta");
+    }
 }

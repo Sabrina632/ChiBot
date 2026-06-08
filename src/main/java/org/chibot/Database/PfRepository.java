@@ -1,6 +1,7 @@
 package org.chibot.Database;
 
 import org.chibot.Commands.PartyFinderCommands.PfListing;
+import org.chibot.Commands.PartyFinderCommands.StratsTokenizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -117,7 +118,108 @@ public class PfRepository {
                         value TEXT
                     )
                     """);
+            // Acumulo de strats (tokens) ao longo do tempo. Cada PF e tokenizado
+            // uma vez (gate em pf_indexed_listing) e suas contagens somam em
+            // pf_duty_token, que cresce a cada scraping.
+            st.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS pf_indexed_listing (
+                        id TEXT PRIMARY KEY
+                    )
+                    """);
+            st.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS pf_duty_token (
+                        duty       TEXT NOT NULL,
+                        token      TEXT NOT NULL,
+                        count      INTEGER NOT NULL DEFAULT 0,
+                        first_seen TEXT,
+                        last_seen  TEXT,
+                        PRIMARY KEY (duty, token)
+                    )
+                    """);
+            st.executeUpdate(
+                    "CREATE INDEX IF NOT EXISTS idx_pf_duty_token ON pf_duty_token(duty, count DESC)");
         }
+    }
+
+    /** Uma contagem de token (strat) pra uma duty. */
+    public record TokenCount(String token, int count) {}
+
+    /**
+     * Tokeniza as descricoes das listagens ainda nao indexadas e acumula as
+     * contagens por duty. O gate {@code pf_indexed_listing} garante que cada PF
+     * conte uma unica vez, mesmo que apareca em varios scrapings. So indexa
+     * listagens do data center informado (ex.: Aether) com duty conhecida.
+     */
+    public synchronized void indexTokens(List<PfListing> listings, String dataCenter, Instant when) {
+        if (!available()) {
+            return;
+        }
+        String ts = when.toString();
+        try {
+            conn.setAutoCommit(false);
+            try (PreparedStatement gate = conn.prepareStatement(
+                         "INSERT OR IGNORE INTO pf_indexed_listing (id) VALUES (?)");
+                 PreparedStatement upsert = conn.prepareStatement("""
+                         INSERT INTO pf_duty_token (duty, token, count, first_seen, last_seen)
+                         VALUES (?, ?, 1, ?, ?)
+                         ON CONFLICT(duty, token)
+                         DO UPDATE SET count = count + 1, last_seen = excluded.last_seen
+                         """)) {
+                for (PfListing l : listings) {
+                    if (l.id() == null || l.duty() == null
+                            || dataCenter != null && !dataCenter.equalsIgnoreCase(l.dataCentre())) {
+                        continue;
+                    }
+                    gate.setString(1, l.id());
+                    if (gate.executeUpdate() == 0) {
+                        continue; // ja indexado antes
+                    }
+                    for (String token : StratsTokenizer.tokenize(l.description())) {
+                        upsert.setString(1, l.duty());
+                        upsert.setString(2, token);
+                        upsert.setString(3, ts);
+                        upsert.setString(4, ts);
+                        upsert.executeUpdate();
+                    }
+                }
+            }
+            conn.commit();
+        } catch (SQLException e) {
+            log.warn("Falha ao indexar tokens de strat do Party Finder.", e);
+            rollbackQuietly();
+        } finally {
+            restoreAutoCommit();
+        }
+    }
+
+    /**
+     * Top strats (tokens) acumuladas pras duties cujo nome contem
+     * {@code dutySubstring} (case-insensitive), somando entre elas e ordenando
+     * pela contagem. Lista vazia se nao houver dados / banco indisponivel.
+     */
+    public synchronized List<TokenCount> topTokens(String dutySubstring, int limit) {
+        List<TokenCount> out = new ArrayList<>();
+        if (!available()) {
+            return out;
+        }
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT token, SUM(count) AS c FROM pf_duty_token
+                WHERE LOWER(duty) LIKE ?
+                GROUP BY token
+                ORDER BY c DESC
+                LIMIT ?
+                """)) {
+            ps.setString(1, "%" + dutySubstring.toLowerCase(java.util.Locale.ROOT) + "%");
+            ps.setInt(2, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    out.add(new TokenCount(rs.getString("token"), rs.getInt("c")));
+                }
+            }
+        } catch (SQLException e) {
+            log.warn("Falha ao ler as top strats do Party Finder.", e);
+        }
+        return out;
     }
 
     /**
