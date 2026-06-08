@@ -30,6 +30,9 @@ dependencies {
     // JSON
     implementation 'org.json:json:20250107'
 
+    // HTML scraping (Party Finder via xivpf.com)
+    implementation 'org.jsoup:jsoup:1.18.3'
+
     // Logging
     implementation 'ch.qos.logback:logback-classic:1.5.18'
 
