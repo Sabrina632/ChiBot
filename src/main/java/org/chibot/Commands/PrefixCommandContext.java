@@ -76,4 +76,9 @@ public class PrefixCommandContext implements CommandContext {
     public void replyEmbeds(MessageEmbed embed) {
         event.getMessage().replyEmbeds(embed).queue();
     }
+
+    @Override
+    public void replyEmbeds(List<MessageEmbed> embeds) {
+        event.getMessage().replyEmbeds(embeds).queue();
+    }
 }

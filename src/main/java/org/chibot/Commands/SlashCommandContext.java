@@ -92,4 +92,13 @@ public class SlashCommandContext implements CommandContext {
             event.replyEmbeds(embed).queue();
         }
     }
+
+    @Override
+    public void replyEmbeds(List<MessageEmbed> embeds) {
+        if (deferred) {
+            event.getHook().sendMessageEmbeds(embeds).queue();
+        } else {
+            event.replyEmbeds(embeds).queue();
+        }
+    }
 }

@@ -52,4 +52,7 @@ public interface CommandContext {
 
     /** Responde com um embed. */
     void replyEmbeds(MessageEmbed embed);
+
+    /** Responde com varios embeds de uma vez (o Discord aceita ate 10). */
+    void replyEmbeds(List<MessageEmbed> embeds);
 }
