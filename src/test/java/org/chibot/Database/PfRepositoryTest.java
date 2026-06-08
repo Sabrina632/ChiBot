@@ -1,0 +1,61 @@
+package org.chibot.Database;
+
+import org.chibot.Commands.PartyFinderCommands.PfListing;
+import org.junit.jupiter.api.Test;
+
+import java.time.Instant;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class PfRepositoryTest {
+
+    /** Banco em memoria — a mesma conexao vive enquanto o repo viver. */
+    private static PfRepository inMemory() {
+        return new PfRepository("jdbc:sqlite::memory:");
+    }
+
+    private static PfListing sample(String id, String duty) {
+        return new PfListing(id, "Aether", "HighEndDuty", duty, "BiS only",
+                "5/8", 5, 8, "705", "Chi Bot @ Faerie", "Faerie",
+                "in 30 minutes", "now", "WAR,WHM,NIN,-D,-D,-D");
+    }
+
+    @Test
+    void salvaERecuperaSnapshot() {
+        PfRepository repo = inMemory();
+        Instant now = Instant.now();
+
+        repo.saveSnapshot(List.of(sample("a", "FRU (Ultimate)"), sample("b", "M5S (Savage)")), now);
+
+        List<PfListing> loaded = repo.loadSnapshot();
+        assertEquals(2, loaded.size());
+        assertEquals(now.toEpochMilli(), repo.lastFetchedAt().toEpochMilli());
+
+        PfListing a = loaded.stream().filter(l -> l.id().equals("a")).findFirst().orElseThrow();
+        assertEquals("FRU (Ultimate)", a.duty());
+        assertEquals(5, a.filled());
+        assertEquals(8, a.total());
+        assertEquals("WAR,WHM,NIN,-D,-D,-D", a.comp());
+    }
+
+    @Test
+    void snapshotNovoSubstituiOAntigo() {
+        PfRepository repo = inMemory();
+
+        repo.saveSnapshot(List.of(sample("a", "FRU (Ultimate)"), sample("b", "M5S (Savage)")), Instant.now());
+        repo.saveSnapshot(List.of(sample("c", "TOP (Ultimate)")), Instant.now());
+
+        List<PfListing> loaded = repo.loadSnapshot();
+        assertEquals(1, loaded.size());
+        assertEquals("c", loaded.get(0).id());
+    }
+
+    @Test
+    void semSnapshotRetornaVazio() {
+        PfRepository repo = inMemory();
+        assertTrue(repo.loadSnapshot().isEmpty());
+        assertEquals(Instant.EPOCH, repo.lastFetchedAt());
+    }
+}

@@ -33,6 +33,9 @@ dependencies {
     // HTML scraping (Party Finder via xivpf.com)
     implementation 'org.jsoup:jsoup:1.18.3'
 
+    // Banco de dados local (persistencia do Party Finder)
+    implementation 'org.xerial:sqlite-jdbc:3.46.1.3'
+
     // Logging
     implementation 'ch.qos.logback:logback-classic:1.5.18'
 

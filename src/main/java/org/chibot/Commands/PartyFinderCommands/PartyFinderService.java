@@ -1,5 +1,6 @@
 package org.chibot.Commands.PartyFinderCommands;
 
+import org.chibot.Database.PfRepository;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -30,25 +31,48 @@ public class PartyFinderService {
     private static final Duration CACHE_TTL = Duration.ofMinutes(5);
     private static final int TIMEOUT_MS = 20_000;
 
-    private List<PfListing> cache = List.of();
-    private Instant fetchedAt = Instant.EPOCH;
+    private final PfRepository repo = new PfRepository();
 
-    /** Retorna as listagens, usando o cache se ainda estiver fresco (< 5 min). */
+    private List<PfListing> cache;
+    private Instant fetchedAt;
+
+    public PartyFinderService() {
+        // Esquenta o cache com o ultimo snapshot do banco, pra que o /pf ja tenha
+        // o que mostrar logo apos um restart (mesmo antes do primeiro scraping).
+        cache = repo.loadSnapshot();
+        fetchedAt = repo.lastFetchedAt();
+    }
+
+    /**
+     * Retorna as listagens, usando o cache se ainda estiver fresco (&lt; 5 min).
+     * Se o xivpf.com falhar, cai pro ultimo snapshot guardado (banco/cache) em
+     * vez de propagar o erro — so propaga se nao houver nada pra mostrar.
+     */
     public synchronized List<PfListing> getListings() throws IOException {
         boolean fresh = Duration.between(fetchedAt, Instant.now()).compareTo(CACHE_TTL) < 0;
         if (fresh && !cache.isEmpty()) {
             return cache;
         }
 
-        Document doc = Jsoup.connect(URL)
-                .userAgent(USER_AGENT)
-                .timeout(TIMEOUT_MS)
-                .get();
+        try {
+            Document doc = Jsoup.connect(URL)
+                    .userAgent(USER_AGENT)
+                    .timeout(TIMEOUT_MS)
+                    .get();
 
-        cache = parse(doc);
-        fetchedAt = Instant.now();
-        log.info("Party Finder atualizado: {} listagem(ns) do xivpf.com.", cache.size());
-        return cache;
+            cache = parse(doc);
+            fetchedAt = Instant.now();
+            repo.saveSnapshot(cache, fetchedAt);
+            log.info("Party Finder atualizado: {} listagem(ns) do xivpf.com.", cache.size());
+            return cache;
+        } catch (IOException e) {
+            if (!cache.isEmpty()) {
+                log.warn("xivpf.com indisponivel; usando o ultimo snapshot ({} listagem(ns)).",
+                        cache.size(), e);
+                return cache;
+            }
+            throw e; // nada em cache/banco — deixa o comando avisar o usuario
+        }
     }
 
     /** Quando o cache foi preenchido pela ultima vez (Instant.EPOCH se nunca). */

@@ -46,5 +46,10 @@ bin/
 # Config com o token do bot — nunca versionar
 ChiConfig.json
 
+# Banco local do Party Finder (gerado em runtime; inclui -wal/-shm do SQLite)
+ChiData.db
+ChiData.db-wal
+ChiData.db-shm
+
 # Screenshots de referencia (ex.: IDs dos emojis) ficam so local
 Imagem/Screenshot*.png
