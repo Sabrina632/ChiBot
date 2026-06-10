@@ -30,8 +30,9 @@ services:
       - _JAVA_OPTIONS=-Xmx512M
     volumes:
       - ./lavalink/application.yml:/opt/Lavalink/application.yml
-      # Plugins baixados pelo Lavalink (plugin do YouTube) persistem aqui.
-      - lavalink-plugins:/opt/Lavalink/plugins
+      # Sem volume pros plugins: volume nomeado nasce como root e o Lavalink
+      # (uid 322) nao consegue gravar nele. O plugin do YouTube e pequeno e o
+      # servidor baixa de novo sozinho quando o container e recriado.
     # Sem "ports": so o bot precisa alcancar o Lavalink, nao a internet.
     logging:
       driver: json-file
@@ -41,4 +42,3 @@ services:
 
 volumes:
   chibot-data:
-  lavalink-plugins:
