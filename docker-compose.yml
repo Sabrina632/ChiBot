@@ -11,6 +11,12 @@ services:
       # Banco do Party Finder (ChiData.db). Volume nomeado pra persistir entre
       # recriacoes do container (docker compose up --build nao apaga).
       - chibot-data:/app/data
+      # Cookies do YouTube (yt-dlp). Arquivo no host, ao lado do compose, pra
+      # sobreviver a qualquer restart/rebuild/down -v. Crie o yt-cookies.txt
+      # ANTES do "up" (se nao existir, o Docker cria um DIRETORIO com esse nome
+      # e ai e preciso apaga-lo e recriar o container). Atualizar o cookie =
+      # substituir o arquivo no host; o bot le a cada extracao, sem restart.
+      - ./yt-cookies.txt:/app/yt-cookies.txt:ro
     # Logs ficam acessiveis via "docker logs chibot".
     logging:
       driver: json-file
@@ -25,6 +31,8 @@ services:
     environment:
       # yt-dlp pede os poTokens (verificacao anti-bot do YouTube) pra ca.
       - YTDLP_POT_PROVIDER=http://bgutil-provider:4416
+      # Onde o YtDlpResolver procura o cookies.txt (bind mount acima).
+      - YTDLP_COOKIES=/app/yt-cookies.txt
 
   # Gera poTokens (resolve o desafio BotGuard do YouTube) pro yt-dlp do bot.
   # Sem isso o YouTube barra IPs de datacenter com "confirm you're not a bot".

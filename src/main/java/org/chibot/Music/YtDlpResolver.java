@@ -42,7 +42,8 @@ public final class YtDlpResolver {
     private static final Logger log = LoggerFactory.getLogger(YtDlpResolver.class);
     private static final int TIMEOUT_SECONDS = 30;
 
-    // No container, data/ e o volume persistente (mesmo lugar do ChiData.db).
+    // No container, o compose monta o yt-cookies.txt do host e aponta pra ele
+    // via YTDLP_COOKIES; o default cobre execucao local fora do Docker.
     private static final Path COOKIES_PATH = Paths.get(
             System.getenv().getOrDefault("YTDLP_COOKIES", "data/yt-cookies.txt"));
 
@@ -65,8 +66,11 @@ public final class YtDlpResolver {
         // isso da PermissionError e derruba a extracao. Por isso passamos uma
         // copia temporaria descartavel: o yt-dlp escreve nela, o original fica
         // intacto e a permissao dele deixa de importar.
+        // isRegularFile (e nao exists): se o bind mount do compose for criado
+        // sem o arquivo no host, o Docker monta um diretorio vazio nesse
+        // caminho — e ai seguimos sem cookies em vez de quebrar o yt-dlp.
         Path cookiesCopy = null;
-        if (Files.exists(COOKIES_PATH)) {
+        if (Files.isRegularFile(COOKIES_PATH)) {
             try {
                 cookiesCopy = Files.createTempFile("yt-cookies", ".txt");
                 Files.copy(COOKIES_PATH, cookiesCopy,
@@ -216,7 +220,7 @@ public final class YtDlpResolver {
             return "vídeo com restrição de idade — esse só com cookies.txt de conta logada.";
         }
         if (lower.contains("sign in to confirm") || lower.contains("not a bot")) {
-            return "o YouTube pediu verificação anti-bot — precisa de um cookies.txt (veja data/yt-cookies.txt).";
+            return "o YouTube pediu verificação anti-bot — precisa de um cookies.txt (veja o yt-cookies.txt no docker-compose.yml).";
         }
         if (lower.contains("video unavailable")) {
             return "vídeo indisponível (removido, privado ou bloqueado na região).";

@@ -46,6 +46,10 @@ bin/
 # Config com o token do bot — nunca versionar
 ChiConfig.json
 
+# Cookies do YouTube (sessao logada — nunca versionar)
+yt-cookies.txt
+data/yt-cookies.txt
+
 # Banco local do Party Finder (gerado em runtime; inclui -wal/-shm do SQLite)
 ChiData.db
 ChiData.db-wal
