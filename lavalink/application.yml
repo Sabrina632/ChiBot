@@ -37,9 +37,11 @@ plugins:
       # refreshToken: "1//..."
       # skipInitialization: true
     # Ordem de clientes usados pra resolver streams/buscas.
-    # TV e o client que de fato usa o login do OAuth pro playback.
+    # TVHTML5EMBEDDED e o que carrega videos usando o login do OAuth
+    # (os outros nao usam o token e continuam bloqueados em IP de datacenter).
     clients:
       - MUSIC
+      - TVHTML5EMBEDDED
       - TV
       - ANDROID_VR
       - WEB
