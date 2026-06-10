@@ -26,14 +26,12 @@ FROM eclipse-temurin:17-jre AS runtime
 # Roda como usuario sem privilegios.
 RUN useradd --system --create-home --shell /usr/sbin/nologin chibot
 
-# yt-dlp + plugin de poToken (bgutil): extrai a URL direta do audio do YouTube
-# passando pela verificacao anti-bot. O plugin pede o token pro container
-# bgutil-provider (veja docker-compose.yml). Instalado via pip num venv pra
-# nao brigar com o python do sistema; atualiza junto com o rebuild da imagem.
+# yt-dlp: extrai a URL direta do audio do YouTube. Instalado via pip num venv
+# pra nao brigar com o python do sistema; atualiza junto com o rebuild da imagem.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends python3 python3-venv curl unzip ca-certificates \
  && python3 -m venv /opt/yt-dlp \
- && /opt/yt-dlp/bin/pip install --no-cache-dir -U yt-dlp bgutil-ytdlp-pot-provider \
+ && /opt/yt-dlp/bin/pip install --no-cache-dir -U yt-dlp \
  && ln -s /opt/yt-dlp/bin/yt-dlp /usr/local/bin/yt-dlp \
  # deno: runtime de JS que o yt-dlp usa pros desafios de assinatura dos
  # clients web (sem ele faltam formatos e a extracao esta deprecated).

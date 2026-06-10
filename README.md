@@ -12,7 +12,7 @@
 - **Auto-load de comandos** — basta criar uma classe que implementa `ICommand` no pacote `org.chibot.Commands`; ela é descoberta e registrada sozinha por reflection, sem precisar editar nada.
 - **Console kawaii** — banner com degradê pastel e logs coloridos em truecolor (veja [`KawaiiLayout`](src/main/java/org/chibot/Logging/KawaiiLayout.java)).
 - **Configuração simples** — um único `ChiConfig.json` que é criado automaticamente na primeira execução.
-- **Pronto pra Docker** — build multi-stage e `docker-compose` com bot + Lavalink + gerador de poToken, tudo na rede interna.
+- **Pronto pra Docker** — build multi-stage e `docker-compose` com bot + Lavalink, tudo na rede interna.
 
 ## 📦 Requisitos
 
@@ -51,7 +51,6 @@ Na primeira execução, o ChiBot cria um `ChiConfig.json` padrão no diretório 
 | Variável             | Para quê serve                                                                       | Padrão                |
 |----------------------|---------------------------------------------------------------------------------------|-----------------------|
 | `CHIBOT_DB_PATH`     | Caminho do banco SQLite do Party Finder.                                              | `ChiData.db`          |
-| `YTDLP_POT_PROVIDER` | URL do [bgutil-ytdlp-pot-provider](https://github.com/Brainicism/bgutil-ytdlp-pot-provider) (poTokens da verificação anti-bot). | *(desligado)*         |
 
 No Docker, o `Dockerfile` e o `docker-compose.yml` já configuram tudo isso.
 
@@ -82,13 +81,12 @@ Rodar os testes:
 
 ## 🐳 Rodando com Docker
 
-O `docker-compose.yml` sobe **três serviços** na rede interna (nenhuma porta exposta pra fora):
+O `docker-compose.yml` sobe **dois serviços** na rede interna (nenhuma porta exposta pra fora):
 
 | Serviço           | O que faz                                                                                     |
 |-------------------|-----------------------------------------------------------------------------------------------|
 | `chibot`          | O bot em si (build multi-stage: compila com JDK, roda só com JRE, usuário sem privilégios). A imagem já inclui **yt-dlp** + **deno**. |
 | `lavalink`        | Servidor de áudio (Lavalink v4 + plugin do YouTube). É quem de fato toca a música.            |
-| `bgutil-provider` | Gera os **poTokens** da verificação anti-bot do YouTube pro yt-dlp.                            |
 
 ```bash
 # Edite o ChiConfig.json com seu token antes de subir
@@ -106,7 +104,7 @@ O que é montado do host (sobrevive a restart, rebuild e `down -v`):
 
 E o volume nomeado `chibot-data` (`/app/data`) guarda o banco do Party Finder (`ChiData.db`) e o cache do yt-dlp entre recriações do container.
 
-A verificação anti-bot do YouTube ("confirm you're not a bot" em IP de datacenter) é resolvida pelos poTokens do serviço `bgutil-provider` do compose — sem conta nem cookies. Vídeos com restrição de idade tocam quando permitem embed; os demais ficam de fora.
+Vídeos com restrição de idade tocam quando permitem embed; os demais ficam de fora. Se o YouTube barrar o IP com "confirm you're not a bot", a extração falha — sem conta nem cookies não há contorno configurado.
 
 ## 🧩 Criando um novo comando
 
@@ -204,7 +202,7 @@ src/main/java/org/chibot/
     ├── GuildMusicManager.java  # player + fila de um servidor
     ├── AudioLoader.java        # callbacks de carregamento (tocando/enfileirado/erro)
     ├── MusicUi.java            # embeds fofos da música
-    ├── YtDlpResolver.java      # roda o yt-dlp: URL direta do áudio + poToken
+    ├── YtDlpResolver.java      # roda o yt-dlp: URL direta do áudio
     └── YtMeta.java
 src/main/resources/
 ├── banner.txt                  # arte ASCII do boot
@@ -221,7 +219,7 @@ O **`ChiConfig.json`** guarda credenciais em texto puro (token do bot, chave da 
 
 - [JDA 6.4.2](https://github.com/discord-jda/JDA) — Java Discord API
 - [lavalink-client 3.4.0](https://github.com/lavalink-devs/lavalink-client) — cliente do servidor [Lavalink v4](https://github.com/lavalink-devs/Lavalink) (+ [youtube-plugin](https://github.com/lavalink-devs/youtube-source))
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp) + [bgutil-ytdlp-pot-provider](https://github.com/Brainicism/bgutil-ytdlp-pot-provider) + [deno](https://deno.com/) — extração do YouTube (fora da JVM; já incluídos na imagem Docker)
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp) + [deno](https://deno.com/) — extração do YouTube (fora da JVM; já incluídos na imagem Docker)
 - [jsoup 1.18.3](https://jsoup.org/) — scraping do xivpf.com
 - [sqlite-jdbc 3.46](https://github.com/xerial/sqlite-jdbc) — persistência do Party Finder
 - [logback-classic 1.5.18](https://logback.qos.ch/) — logging

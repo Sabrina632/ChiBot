@@ -15,9 +15,6 @@ import java.util.concurrent.TimeUnit;
  * Resolve videos do YouTube com o yt-dlp: extrai a URL direta do audio
  * (googlevideo.com) pro Lavalink tocar como stream HTTP comum, sem passar
  * pelo plugin do YouTube (que sofre bloqueio anti-bot em IP de datacenter).
- *
- * A verificacao anti-bot e resolvida pelos poTokens do bgutil-ytdlp-pot-provider
- * (variavel {@code YTDLP_POT_PROVIDER}), sem conta nem cookies.
  */
 public final class YtDlpResolver {
 
@@ -38,10 +35,6 @@ public final class YtDlpResolver {
 
     private static final Logger log = LoggerFactory.getLogger(YtDlpResolver.class);
     private static final int TIMEOUT_SECONDS = 30;
-
-    // URL do bgutil-ytdlp-pot-provider: gera os poTokens que satisfazem a
-    // verificacao anti-bot do YouTube sem precisar de conta/cookies.
-    private static final String POT_PROVIDER = System.getenv("YTDLP_POT_PROVIDER");
 
     private YtDlpResolver() {
     }
@@ -72,10 +65,6 @@ public final class YtDlpResolver {
                 // Baixa (e cacheia) o script EJS que resolve os desafios de
                 // assinatura no deno; sem ele o YouTube so entrega storyboards.
                 "--remote-components", "ejs:github"));
-        if (POT_PROVIDER != null && !POT_PROVIDER.isBlank()) {
-            cmd.add("--extractor-args");
-            cmd.add("youtubepot-bgutilhttp:base_url=" + POT_PROVIDER);
-        }
         cmd.add("--");
         cmd.add(identifier);
 
@@ -175,7 +164,7 @@ public final class YtDlpResolver {
             return "vídeo com restrição de idade — esse eu não consigo tocar~";
         }
         if (lower.contains("sign in to confirm") || lower.contains("not a bot")) {
-            return "o YouTube pediu verificação anti-bot — confira se o bgutil-provider (poTokens) está rodando.";
+            return "o YouTube pediu verificação anti-bot e barrou a extração~";
         }
         if (lower.contains("video unavailable")) {
             return "vídeo indisponível (removido, privado ou bloqueado na região).";
