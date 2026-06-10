@@ -27,9 +27,20 @@ plugins:
     allowSearch: true
     allowDirectVideoIds: true
     allowDirectPlaylistIds: true
+    # OAuth: o YouTube bloqueia IPs de datacenter sem login ("This video
+    # requires login"). Na primeira subida com oauth ligado, o log mostra um
+    # codigo pra ativar em https://www.google.com/device — use uma conta
+    # GOOGLE DESCARTAVEL (ha risco de ban). Depois de autorizar, o log imprime
+    # um refresh token: cole ele abaixo pra nao precisar logar de novo.
+    oauth:
+      enabled: true
+      # refreshToken: "1//..."
+      # skipInitialization: true
     # Ordem de clientes usados pra resolver streams/buscas.
+    # TV e o client que de fato usa o login do OAuth pro playback.
     clients:
       - MUSIC
+      - TV
       - ANDROID_VR
       - WEB
       - WEBEMBEDDED
