@@ -60,6 +60,36 @@ public final class YtDlpResolver {
      * @param identifier URL do YouTube ou {@code ytsearch1:termo de busca}
      */
     public static Resolved resolve(String identifier) throws YtDlpException {
+        // O yt-dlp regrava os cookies atualizados no proprio arquivo ao terminar.
+        // Se o arquivo for de outro dono (ex.: copiado via "docker cp" como root),
+        // isso da PermissionError e derruba a extracao. Por isso passamos uma
+        // copia temporaria descartavel: o yt-dlp escreve nela, o original fica
+        // intacto e a permissao dele deixa de importar.
+        Path cookiesCopy = null;
+        if (Files.exists(COOKIES_PATH)) {
+            try {
+                cookiesCopy = Files.createTempFile("yt-cookies", ".txt");
+                Files.copy(COOKIES_PATH, cookiesCopy,
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException e) {
+                log.warn("Nao consegui copiar o cookies; seguindo sem ele.", e);
+                cookiesCopy = null;
+            }
+        }
+        try {
+            return runYtDlp(identifier, cookiesCopy);
+        } finally {
+            if (cookiesCopy != null) {
+                try {
+                    Files.deleteIfExists(cookiesCopy);
+                } catch (IOException e) {
+                    log.debug("Nao consegui apagar a copia temporaria do cookies.", e);
+                }
+            }
+        }
+    }
+
+    private static Resolved runYtDlp(String identifier, Path cookies) throws YtDlpException {
         List<String> cmd = new ArrayList<>(List.of(
                 "yt-dlp",
                 "--no-playlist",
@@ -83,9 +113,9 @@ public final class YtDlpResolver {
             cmd.add("--extractor-args");
             cmd.add("youtubepot-bgutilhttp:base_url=" + POT_PROVIDER);
         }
-        if (Files.exists(COOKIES_PATH)) {
+        if (cookies != null) {
             cmd.add("--cookies");
-            cmd.add(COOKIES_PATH.toString());
+            cmd.add(cookies.toString());
         }
         cmd.add("--");
         cmd.add(identifier);
