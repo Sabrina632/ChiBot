@@ -75,7 +75,10 @@ public final class YtDlpResolver {
                 // web_embedded/tv_simply contornam restricao de idade sem login
                 // quando o video permite embed ("default" mantem os clients
                 // normais). Restricao com embed bloqueado so com cookies.txt.
-                "--extractor-args", "youtube:player_client=default,web_embedded,tv_simply"));
+                "--extractor-args", "youtube:player_client=default,web_embedded,tv_simply",
+                // Baixa (e cacheia) o script EJS que resolve os desafios de
+                // assinatura no deno; sem ele o YouTube so entrega storyboards.
+                "--remote-components", "ejs:github"));
         if (POT_PROVIDER != null && !POT_PROVIDER.isBlank()) {
             cmd.add("--extractor-args");
             cmd.add("youtubepot-bgutilhttp:base_url=" + POT_PROVIDER);

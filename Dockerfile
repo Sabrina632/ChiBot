@@ -56,6 +56,9 @@ COPY --from=builder /build/build/install/ChiBot /app/ChiBot
 # Montado como volume no docker-compose.yml pra persistir entre recriacoes.
 RUN mkdir -p /app/data && chown -R chibot:chibot /app/data
 ENV CHIBOT_DB_PATH=/app/data/ChiData.db
+# Cache do yt-dlp (script EJS de desafios do YouTube) no volume persistente,
+# pra nao precisar rebaixar a cada recriacao do container.
+ENV XDG_CACHE_HOME=/app/data/cache
 
 USER chibot
 
