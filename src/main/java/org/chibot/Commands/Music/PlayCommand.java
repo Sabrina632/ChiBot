@@ -7,7 +7,9 @@ import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import org.chibot.Commands.CommandContext;
 import org.chibot.Music.AudioLoader;
 import org.chibot.Music.GuildMusicManager;
+import org.chibot.Music.MusicService;
 import org.chibot.Music.YtDlpResolver;
+import org.chibot.Music.YtSearch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,11 +85,11 @@ public class PlayCommand extends MusicCommand {
         // YouTube (link ou busca) passa pelo yt-dlp: o plugin do Lavalink sofre
         // bloqueio anti-bot em IP de datacenter; o yt-dlp extrai a URL direta
         // do audio e o Lavalink toca como stream HTTP comum.
-        String identifier = isYoutube ? query : "ytsearch1:" + query;
         String finalQuery = query;
         CompletableFuture.runAsync(() -> {
             try {
-                YtDlpResolver.Resolved resolved = YtDlpResolver.resolve(identifier);
+                YtDlpResolver.Resolved resolved =
+                        YtDlpResolver.resolve(resolveIdentifier(finalQuery, isYoutube));
                 manager.loadAndPlay(resolved.streamUrl(),
                         new AudioLoader(ctx, manager, resolved.toMeta()));
             } catch (YtDlpResolver.YtDlpException e) {
@@ -97,5 +99,24 @@ public class PlayCommand extends MusicCommand {
                 ctx.reply("Ops, algo deu errado procurando essa música~ (；△；)");
             }
         });
+    }
+
+    /**
+     * Links vao direto pro yt-dlp. Busca por nome tenta primeiro a Data API
+     * (mais rapida e precisa, se tiver chave configurada); se nao achar ou
+     * falhar, cai no ytsearch do proprio yt-dlp.
+     */
+    private static String resolveIdentifier(String query, boolean isYoutube) {
+        if (isYoutube) {
+            return query;
+        }
+        YtSearch search = MusicService.get().getYtSearch();
+        if (search != null) {
+            String url = search.findVideoUrl(query);
+            if (url != null) {
+                return url;
+            }
+        }
+        return "ytsearch1:" + query;
     }
 }

@@ -20,14 +20,16 @@ public class ChiConfig {
     private final String guildId;
     private final String lavalinkUri;
     private final String lavalinkPassword;
+    private final String youtubeApiKey;
 
     private ChiConfig(String token, String prefix, String guildId,
-                      String lavalinkUri, String lavalinkPassword) {
+                      String lavalinkUri, String lavalinkPassword, String youtubeApiKey) {
         this.token = token;
         this.prefix = prefix;
         this.guildId = guildId;
         this.lavalinkUri = lavalinkUri;
         this.lavalinkPassword = lavalinkPassword;
+        this.youtubeApiKey = youtubeApiKey;
     }
 
     public static ChiConfig load() throws IOException {
@@ -45,8 +47,9 @@ public class ChiConfig {
         String guildId = json.optString("GuildId", "");
         String lavalinkUri = json.optString("LavalinkUri", "ws://localhost:2333");
         String lavalinkPassword = json.optString("LavalinkPassword", "youshallnotpass");
+        String youtubeApiKey = json.optString("YoutubeApiKey", "");
 
-        return new ChiConfig(token, prefix, guildId, lavalinkUri, lavalinkPassword);
+        return new ChiConfig(token, prefix, guildId, lavalinkUri, lavalinkPassword, youtubeApiKey);
     }
 
     private static void createDefault() throws IOException {
@@ -57,6 +60,9 @@ public class ChiConfig {
         // Servidor Lavalink (musica). No Docker da VPS use ws://lavalink:2333.
         json.put("LavalinkUri", "ws://localhost:2333");
         json.put("LavalinkPassword", "youshallnotpass");
+        // Chave da YouTube Data API v3 (opcional): melhora a busca por nome.
+        // Sem ela, a busca cai no ytsearch do yt-dlp.
+        json.put("YoutubeApiKey", "");
         Files.writeString(CONFIG_PATH, json.toString(4), StandardCharsets.UTF_8);
     }
 
@@ -82,5 +88,9 @@ public class ChiConfig {
 
     public String getLavalinkPassword() {
         return lavalinkPassword;
+    }
+
+    public String getYoutubeApiKey() {
+        return youtubeApiKey;
     }
 }

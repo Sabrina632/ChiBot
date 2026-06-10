@@ -29,9 +29,12 @@ public final class MusicService {
     private static MusicService instance;
 
     private final LavalinkClient client;
+    private final YtSearch ytSearch;
     private final Map<Long, GuildMusicManager> managers = new ConcurrentHashMap<>();
 
     private MusicService(ChiConfig config) {
+        String apiKey = config.getYoutubeApiKey();
+        ytSearch = apiKey == null || apiKey.isBlank() ? null : new YtSearch(apiKey);
         client = new LavalinkClient(Helpers.getUserIdFromToken(config.getToken()));
         client.addNode(new NodeOptions.Builder()
                 .setName("principal")
@@ -75,6 +78,11 @@ public final class MusicService {
                 log.warn("Erro ao tocar '{}' no servidor {}: {}",
                         event.getTrack().getInfo().getTitle(), event.getGuildId(),
                         event.getException().getMessage()));
+    }
+
+    /** Busca via YouTube Data API, ou null se nao tiver chave configurada. */
+    public YtSearch getYtSearch() {
+        return ytSearch;
     }
 
     /** Interceptor que desvia os eventos de voz do JDA pro Lavalink. */
