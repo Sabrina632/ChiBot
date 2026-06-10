@@ -21,11 +21,16 @@ tasks.withType(JavaCompile).configureEach {
 
 repositories {
     mavenCentral()
+    // Releases do lavalink-client (musica via servidor Lavalink)
+    maven { url 'https://maven.lavalink.dev/releases' }
 }
 
 dependencies {
     // JDA - Java Discord API
     implementation 'net.dv8tion:JDA:5.3.0'
+
+    // Cliente Lavalink v4 (player de musica roda no servidor Lavalink, nao no bot)
+    implementation 'dev.arbjerg:lavalink-client:3.4.0'
 
     // JSON
     implementation 'org.json:json:20250107'

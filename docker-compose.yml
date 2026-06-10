@@ -17,6 +17,28 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    # Musica: o bot fala com o Lavalink pela rede interna do compose.
+    # No ChiConfig.json da VPS, use "LavalinkUri": "ws://lavalink:2333".
+    depends_on:
+      - lavalink
+
+  lavalink:
+    image: ghcr.io/lavalink-devs/lavalink:4
+    container_name: lavalink
+    restart: unless-stopped
+    environment:
+      - _JAVA_OPTIONS=-Xmx512M
+    volumes:
+      - ./lavalink/application.yml:/opt/Lavalink/application.yml
+      # Plugins baixados pelo Lavalink (plugin do YouTube) persistem aqui.
+      - lavalink-plugins:/opt/Lavalink/plugins
+    # Sem "ports": so o bot precisa alcancar o Lavalink, nao a internet.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   chibot-data:
+  lavalink-plugins:

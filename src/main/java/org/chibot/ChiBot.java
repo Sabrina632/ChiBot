@@ -8,6 +8,7 @@ import net.dv8tion.jda.api.requests.GatewayIntent;
 import org.chibot.Commands.CommandListener;
 import org.chibot.Commands.CommandManager;
 import org.chibot.Config.ChiConfig;
+import org.chibot.Music.MusicService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,8 +29,13 @@ public class ChiBot
     public void start() throws InterruptedException {
         CommandManager commandManager = new CommandManager();
 
+        // Musica via Lavalink: o servico precisa existir antes do JDA por causa
+        // do interceptor de voz (e dos comandos, que o acessam como singleton).
+        MusicService musicService = MusicService.init(config);
+
         jda = JDABuilder.createDefault(config.getToken())
                 .enableIntents(GatewayIntent.MESSAGE_CONTENT)
+                .setVoiceDispatchInterceptor(musicService.getVoiceInterceptor())
                 .addEventListeners(new CommandListener(config, commandManager))
                 .build()
                 .awaitReady();

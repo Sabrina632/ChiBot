@@ -1,0 +1,40 @@
+# Configuracao do servidor Lavalink v4 (audio do ChiBot).
+# A senha precisa bater com o "LavalinkPassword" do ChiConfig.json.
+server:
+  port: 2333
+  address: 0.0.0.0
+
+lavalink:
+  plugins:
+    # Fonte do YouTube mantida como plugin (a embutida foi descontinuada).
+    - dependency: "dev.lavalink.youtube:youtube-plugin:1.18.1"
+      repository: "https://maven.lavalink.dev/releases"
+  server:
+    password: "youshallnotpass"
+    sources:
+      # YouTube embutido desligado: quem cuida disso e o plugin acima.
+      youtube: false
+      bandcamp: true
+      soundcloud: true
+      twitch: true
+      vimeo: true
+      http: true
+      local: false
+
+plugins:
+  youtube:
+    enabled: true
+    allowSearch: true
+    allowDirectVideoIds: true
+    allowDirectPlaylistIds: true
+    # Ordem de clientes usados pra resolver streams/buscas.
+    clients:
+      - MUSIC
+      - ANDROID_VR
+      - WEB
+      - WEBEMBEDDED
+
+logging:
+  level:
+    root: INFO
+    lavalink: INFO
