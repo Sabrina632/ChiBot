@@ -46,6 +46,10 @@ public final class YtDlpResolver {
     private static final Path COOKIES_PATH = Paths.get(
             System.getenv().getOrDefault("YTDLP_COOKIES", "data/yt-cookies.txt"));
 
+    // URL do bgutil-ytdlp-pot-provider: gera os poTokens que satisfazem a
+    // verificacao anti-bot do YouTube sem precisar de conta/cookies.
+    private static final String POT_PROVIDER = System.getenv("YTDLP_POT_PROVIDER");
+
     private YtDlpResolver() {
     }
 
@@ -68,6 +72,10 @@ public final class YtDlpResolver {
                 "--print", "%(webpage_url)s",
                 "--print", "%(thumbnail)s",
                 "--print", "%(url)s"));
+        if (POT_PROVIDER != null && !POT_PROVIDER.isBlank()) {
+            cmd.add("--extractor-args");
+            cmd.add("youtubepot-bgutilhttp:base_url=" + POT_PROVIDER);
+        }
         if (Files.exists(COOKIES_PATH)) {
             cmd.add("--cookies");
             cmd.add(COOKIES_PATH.toString());

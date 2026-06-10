@@ -26,16 +26,15 @@ FROM eclipse-temurin:17-jre AS runtime
 # Roda como usuario sem privilegios.
 RUN useradd --system --create-home --shell /usr/sbin/nologin chibot
 
-# yt-dlp (binario standalone, nao precisa de python): extrai a URL direta do
-# audio do YouTube, ja que o plugin do Lavalink sofre bloqueio anti-bot em IP
-# de datacenter. Atualiza junto com o rebuild da imagem.
+# yt-dlp + plugin de poToken (bgutil): extrai a URL direta do audio do YouTube
+# passando pela verificacao anti-bot. O plugin pede o token pro container
+# bgutil-provider (veja docker-compose.yml). Instalado via pip num venv pra
+# nao brigar com o python do sistema; atualiza junto com o rebuild da imagem.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends curl ca-certificates \
- && curl -fsSL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux \
-      -o /usr/local/bin/yt-dlp \
- && chmod +x /usr/local/bin/yt-dlp \
- && apt-get purge -y curl \
- && apt-get autoremove -y \
+ && apt-get install -y --no-install-recommends python3 python3-venv \
+ && python3 -m venv /opt/yt-dlp \
+ && /opt/yt-dlp/bin/pip install --no-cache-dir -U yt-dlp bgutil-ytdlp-pot-provider \
+ && ln -s /opt/yt-dlp/bin/yt-dlp /usr/local/bin/yt-dlp \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

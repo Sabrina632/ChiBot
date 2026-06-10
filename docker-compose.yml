@@ -21,6 +21,24 @@ services:
     # No ChiConfig.json da VPS, use "LavalinkUri": "ws://lavalink:2333".
     depends_on:
       - lavalink
+      - bgutil-provider
+    environment:
+      # yt-dlp pede os poTokens (verificacao anti-bot do YouTube) pra ca.
+      - YTDLP_POT_PROVIDER=http://bgutil-provider:4416
+
+  # Gera poTokens (resolve o desafio BotGuard do YouTube) pro yt-dlp do bot.
+  # Sem isso o YouTube barra IPs de datacenter com "confirm you're not a bot".
+  bgutil-provider:
+    image: brainicism/bgutil-ytdlp-pot-provider
+    container_name: bgutil-provider
+    restart: unless-stopped
+    init: true
+    # Sem "ports": so o bot precisa alcancar o provider.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   lavalink:
     image: ghcr.io/lavalink-devs/lavalink:4
