@@ -26,8 +26,24 @@ public final class MusicUi {
 
     /** "[Titulo](url) `(3:07)`" pra usar em embeds. */
     public static String trackLine(Track track) {
+        YtMeta meta = ytMeta(track);
+        if (meta != null) {
+            String duration = meta.durationMs <= 0 ? "ao vivo" : formatDuration(meta.durationMs);
+            return "[" + meta.title + "](" + meta.pageUrl + ") `(" + duration + ")`";
+        }
         var info = track.getInfo();
         String duration = info.isStream() ? "ao vivo" : formatDuration(info.getLength());
         return "[" + info.getTitle() + "](" + info.getUri() + ") `(" + duration + ")`";
+    }
+
+    /** Metadados do yt-dlp anexados na track, ou null se nao for um stream resolvido. */
+    public static YtMeta ytMeta(Track track) {
+        try {
+            YtMeta meta = track.getUserData(YtMeta.class);
+            return meta != null && meta.title != null ? meta : null;
+        } catch (Exception e) {
+            // userData ausente ou com formato diferente: usa o TrackInfo padrao
+            return null;
+        }
     }
 }

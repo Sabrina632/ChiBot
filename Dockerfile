@@ -26,6 +26,18 @@ FROM eclipse-temurin:17-jre AS runtime
 # Roda como usuario sem privilegios.
 RUN useradd --system --create-home --shell /usr/sbin/nologin chibot
 
+# yt-dlp (binario standalone, nao precisa de python): extrai a URL direta do
+# audio do YouTube, ja que o plugin do Lavalink sofre bloqueio anti-bot em IP
+# de datacenter. Atualiza junto com o rebuild da imagem.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends curl ca-certificates \
+ && curl -fsSL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux \
+      -o /usr/local/bin/yt-dlp \
+ && chmod +x /usr/local/bin/yt-dlp \
+ && apt-get purge -y curl \
+ && apt-get autoremove -y \
+ && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Copia a distribuicao gerada no estagio de build.
