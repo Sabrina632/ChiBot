@@ -7,9 +7,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -19,8 +16,8 @@ import java.util.concurrent.TimeUnit;
  * (googlevideo.com) pro Lavalink tocar como stream HTTP comum, sem passar
  * pelo plugin do YouTube (que sofre bloqueio anti-bot em IP de datacenter).
  *
- * Se existir um cookies.txt (exportado do navegador) em {@link #COOKIES_PATH},
- * ele e usado — e o jeito mais confiavel de fugir do "confirm you're not a bot".
+ * A verificacao anti-bot e resolvida pelos poTokens do bgutil-ytdlp-pot-provider
+ * (variavel {@code YTDLP_POT_PROVIDER}), sem conta nem cookies.
  */
 public final class YtDlpResolver {
 
@@ -42,11 +39,6 @@ public final class YtDlpResolver {
     private static final Logger log = LoggerFactory.getLogger(YtDlpResolver.class);
     private static final int TIMEOUT_SECONDS = 30;
 
-    // No container, o compose monta o yt-cookies.txt do host e aponta pra ele
-    // via YTDLP_COOKIES; o default cobre execucao local fora do Docker.
-    private static final Path COOKIES_PATH = Paths.get(
-            System.getenv().getOrDefault("YTDLP_COOKIES", "data/yt-cookies.txt"));
-
     // URL do bgutil-ytdlp-pot-provider: gera os poTokens que satisfazem a
     // verificacao anti-bot do YouTube sem precisar de conta/cookies.
     private static final String POT_PROVIDER = System.getenv("YTDLP_POT_PROVIDER");
@@ -61,39 +53,6 @@ public final class YtDlpResolver {
      * @param identifier URL do YouTube ou {@code ytsearch1:termo de busca}
      */
     public static Resolved resolve(String identifier) throws YtDlpException {
-        // O yt-dlp regrava os cookies atualizados no proprio arquivo ao terminar.
-        // Se o arquivo for de outro dono (ex.: copiado via "docker cp" como root),
-        // isso da PermissionError e derruba a extracao. Por isso passamos uma
-        // copia temporaria descartavel: o yt-dlp escreve nela, o original fica
-        // intacto e a permissao dele deixa de importar.
-        // isRegularFile (e nao exists): se o bind mount do compose for criado
-        // sem o arquivo no host, o Docker monta um diretorio vazio nesse
-        // caminho — e ai seguimos sem cookies em vez de quebrar o yt-dlp.
-        Path cookiesCopy = null;
-        if (Files.isRegularFile(COOKIES_PATH)) {
-            try {
-                cookiesCopy = Files.createTempFile("yt-cookies", ".txt");
-                Files.copy(COOKIES_PATH, cookiesCopy,
-                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-            } catch (IOException e) {
-                log.warn("Nao consegui copiar o cookies; seguindo sem ele.", e);
-                cookiesCopy = null;
-            }
-        }
-        try {
-            return runYtDlp(identifier, cookiesCopy);
-        } finally {
-            if (cookiesCopy != null) {
-                try {
-                    Files.deleteIfExists(cookiesCopy);
-                } catch (IOException e) {
-                    log.debug("Nao consegui apagar a copia temporaria do cookies.", e);
-                }
-            }
-        }
-    }
-
-    private static Resolved runYtDlp(String identifier, Path cookies) throws YtDlpException {
         List<String> cmd = new ArrayList<>(List.of(
                 "yt-dlp",
                 "--no-playlist",
@@ -108,7 +67,7 @@ public final class YtDlpResolver {
                 "--print", "%(url)s",
                 // web_embedded/tv_simply contornam restricao de idade sem login
                 // quando o video permite embed ("default" mantem os clients
-                // normais). Restricao com embed bloqueado so com cookies.txt.
+                // normais). Restricao com embed bloqueado nao da pra tocar.
                 "--extractor-args", "youtube:player_client=default,web_embedded,tv_simply",
                 // Baixa (e cacheia) o script EJS que resolve os desafios de
                 // assinatura no deno; sem ele o YouTube so entrega storyboards.
@@ -116,10 +75,6 @@ public final class YtDlpResolver {
         if (POT_PROVIDER != null && !POT_PROVIDER.isBlank()) {
             cmd.add("--extractor-args");
             cmd.add("youtubepot-bgutilhttp:base_url=" + POT_PROVIDER);
-        }
-        if (cookies != null) {
-            cmd.add("--cookies");
-            cmd.add(cookies.toString());
         }
         cmd.add("--");
         cmd.add(identifier);
@@ -217,10 +172,10 @@ public final class YtDlpResolver {
         // "Sign in to confirm your age" tambem contem "sign in to confirm",
         // entao a restricao de idade precisa ser checada antes do anti-bot.
         if (lower.contains("confirm your age") || lower.contains("age-restricted")) {
-            return "vídeo com restrição de idade — esse só com cookies.txt de conta logada.";
+            return "vídeo com restrição de idade — esse eu não consigo tocar~";
         }
         if (lower.contains("sign in to confirm") || lower.contains("not a bot")) {
-            return "o YouTube pediu verificação anti-bot — precisa de um cookies.txt (veja o yt-cookies.txt no docker-compose.yml).";
+            return "o YouTube pediu verificação anti-bot — confira se o bgutil-provider (poTokens) está rodando.";
         }
         if (lower.contains("video unavailable")) {
             return "vídeo indisponível (removido, privado ou bloqueado na região).";

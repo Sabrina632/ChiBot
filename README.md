@@ -51,7 +51,6 @@ Na primeira execução, o ChiBot cria um `ChiConfig.json` padrão no diretório 
 | Variável             | Para quê serve                                                                       | Padrão                |
 |----------------------|---------------------------------------------------------------------------------------|-----------------------|
 | `CHIBOT_DB_PATH`     | Caminho do banco SQLite do Party Finder.                                              | `ChiData.db`          |
-| `YTDLP_COOKIES`      | Caminho do cookies.txt do YouTube (veja [Cookies do YouTube](#-cookies-do-youtube)). | `data/yt-cookies.txt` |
 | `YTDLP_POT_PROVIDER` | URL do [bgutil-ytdlp-pot-provider](https://github.com/Brainicism/bgutil-ytdlp-pot-provider) (poTokens da verificação anti-bot). | *(desligado)*         |
 
 No Docker, o `Dockerfile` e o `docker-compose.yml` já configuram tudo isso.
@@ -103,25 +102,11 @@ docker compose logs -f chibot
 O que é montado do host (sobrevive a restart, rebuild e `down -v`):
 
 - **`ChiConfig.json`** → `/app/ChiConfig.json` — trocar token/prefixo/servidor é só editar e `docker compose restart chibot`, sem rebuildar.
-- **`yt-cookies.txt`** → `/app/yt-cookies.txt` (read-only) — cookies do YouTube; veja a seção abaixo. **Crie o arquivo antes do primeiro `up`** (se não existir, o Docker cria um *diretório* com esse nome e aí é preciso apagá-lo e recriar o container).
 - **`lavalink/application.yml`** → config do Lavalink.
 
 E o volume nomeado `chibot-data` (`/app/data`) guarda o banco do Party Finder (`ChiData.db`) e o cache do yt-dlp entre recriações do container.
 
-## 🍪 Cookies do YouTube
-
-Sem login, o YouTube barra IPs de datacenter ("confirm you're not a bot") e vídeos com restrição de idade. O caminho mais confiável é um **cookies.txt** de conta logada, que o yt-dlp usa automaticamente se existir (caminho do `YTDLP_COOKIES`; no compose, o `yt-cookies.txt` ao lado do `docker-compose.yml`).
-
-Pra exportar um cookie que **dure** (e não expire em horas):
-
-1. Abra uma **janela anônima** e faça login no YouTube — de preferência com uma **conta descartável** (há risco de bloqueio).
-2. Nessa janela, navegue até `https://www.youtube.com/robots.txt` (página que não rotaciona o token).
-3. Exporte o cookies.txt com uma extensão (ex.: "Get cookies.txt LOCALLY") **a partir dessa aba**.
-4. **Feche a janela anônima sem fazer logout** e nunca mais use essa sessão no navegador — assim ninguém rotaciona os tokens por fora.
-
-Renovar o cookie depois = só substituir o `yt-cookies.txt` no host (scp, por exemplo). O bot lê o arquivo a cada extração — **não precisa reiniciar nada**.
-
-> O cookies.txt é uma sessão logada: trate como senha. Ele já está no `.gitignore`.
+A verificação anti-bot do YouTube ("confirm you're not a bot" em IP de datacenter) é resolvida pelos poTokens do serviço `bgutil-provider` do compose — sem conta nem cookies. Vídeos com restrição de idade tocam quando permitem embed; os demais ficam de fora.
 
 ## 🧩 Criando um novo comando
 
@@ -219,7 +204,7 @@ src/main/java/org/chibot/
     ├── GuildMusicManager.java  # player + fila de um servidor
     ├── AudioLoader.java        # callbacks de carregamento (tocando/enfileirado/erro)
     ├── MusicUi.java            # embeds fofos da música
-    ├── YtDlpResolver.java      # roda o yt-dlp: URL direta do áudio + cookies + poToken
+    ├── YtDlpResolver.java      # roda o yt-dlp: URL direta do áudio + poToken
     └── YtMeta.java
 src/main/resources/
 ├── banner.txt                  # arte ASCII do boot
@@ -230,10 +215,7 @@ lavalink/application.yml        # config do servidor Lavalink (plugin do YouTube
 
 ## 🔐 Segurança
 
-Dois arquivos guardam credenciais em texto puro e **não devem ir pro versionamento** (ambos já estão no `.gitignore`):
-
-- **`ChiConfig.json`** — token do bot. Se um token for exposto (commitado, compartilhado...), **regenere-o imediatamente** no Discord Developer Portal — revogar é a única forma segura de invalidar o antigo.
-- **`yt-cookies.txt`** — sessão logada do YouTube. Se vazar, deslogue a sessão na conta Google (ou troque a senha) e exporte um novo.
+O **`ChiConfig.json`** guarda credenciais em texto puro (token do bot, chave da API do YouTube) e **não deve ir pro versionamento** (já está no `.gitignore`). Se o token for exposto (commitado, compartilhado...), **regenere-o imediatamente** no Discord Developer Portal — revogar é a única forma segura de invalidar o antigo.
 
 ## 🛠️ Stack
 
