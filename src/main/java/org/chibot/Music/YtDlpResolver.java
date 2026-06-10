@@ -83,6 +83,8 @@ public final class YtDlpResolver {
         cmd.add("--");
         cmd.add(identifier);
 
+        log.info("Rodando yt-dlp: {}", String.join(" ", cmd));
+
         Process process;
         try {
             process = new ProcessBuilder(cmd).start();
@@ -171,14 +173,16 @@ public final class YtDlpResolver {
             return "o yt-dlp falhou sem detalhes.";
         }
         String lower = stderr.toLowerCase();
+        // "Sign in to confirm your age" tambem contem "sign in to confirm",
+        // entao a restricao de idade precisa ser checada antes do anti-bot.
+        if (lower.contains("confirm your age") || lower.contains("age-restricted")) {
+            return "vídeo com restrição de idade — esse só com cookies.txt de conta logada.";
+        }
         if (lower.contains("sign in to confirm") || lower.contains("not a bot")) {
             return "o YouTube pediu verificação anti-bot — precisa de um cookies.txt (veja data/yt-cookies.txt).";
         }
         if (lower.contains("video unavailable")) {
             return "vídeo indisponível (removido, privado ou bloqueado na região).";
-        }
-        if (lower.contains("age")) {
-            return "vídeo com restrição de idade.";
         }
         if (lower.contains("no video results") || lower.contains("did not get any data")) {
             return "não achei resultados pra essa busca.";
