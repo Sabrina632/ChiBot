@@ -31,10 +31,19 @@ RUN useradd --system --create-home --shell /usr/sbin/nologin chibot
 # bgutil-provider (veja docker-compose.yml). Instalado via pip num venv pra
 # nao brigar com o python do sistema; atualiza junto com o rebuild da imagem.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends python3 python3-venv \
+ && apt-get install -y --no-install-recommends python3 python3-venv curl unzip ca-certificates \
  && python3 -m venv /opt/yt-dlp \
  && /opt/yt-dlp/bin/pip install --no-cache-dir -U yt-dlp bgutil-ytdlp-pot-provider \
  && ln -s /opt/yt-dlp/bin/yt-dlp /usr/local/bin/yt-dlp \
+ # deno: runtime de JS que o yt-dlp usa pros desafios de assinatura dos
+ # clients web (sem ele faltam formatos e a extracao esta deprecated).
+ && curl -fsSL https://github.com/denoland/deno/releases/latest/download/deno-x86_64-unknown-linux-gnu.zip \
+      -o /tmp/deno.zip \
+ && unzip -q /tmp/deno.zip -d /usr/local/bin \
+ && chmod +x /usr/local/bin/deno \
+ && rm /tmp/deno.zip \
+ && apt-get purge -y curl unzip \
+ && apt-get autoremove -y \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
