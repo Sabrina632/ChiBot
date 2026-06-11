@@ -85,12 +85,13 @@ Rodar os testes:
 
 ## 🐳 Rodando com Docker
 
-O `docker-compose.yml` sobe **dois serviços** na rede interna (nenhuma porta exposta pra fora):
+O `docker-compose.yml` sobe **três serviços** na rede interna (nenhuma porta exposta pra fora):
 
 | Serviço           | O que faz                                                                                     |
 |-------------------|-----------------------------------------------------------------------------------------------|
 | `chibot`          | O bot em si (build multi-stage: compila com JDK, roda só com JRE, usuário sem privilégios). |
 | `lavalink`        | Servidor de áudio (Lavalink v4 + plugin do YouTube). É quem de fato toca a música.            |
+| `yt-cipher`       | Resolve os desafios de assinatura do player do YouTube pro plugin — sem ele o playback quebra quando o YouTube troca o `base.js`. |
 
 ```bash
 # Edite o ChiConfig.json com seu token antes de subir

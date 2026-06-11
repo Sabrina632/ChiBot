@@ -37,6 +37,24 @@ services:
       - PLUGINS_YOUTUBE_OAUTH_ENABLED=${YOUTUBE_OAUTH_ENABLED:-false}
       - PLUGINS_YOUTUBE_OAUTH_REFRESHTOKEN=${YOUTUBE_REFRESH_TOKEN:-}
       - PLUGINS_YOUTUBE_OAUTH_SKIPINITIALIZATION=true
+    depends_on:
+      - yt-cipher
+
+  # Resolve os desafios de assinatura do player do YouTube (base.js) pro
+  # plugin do Lavalink. Sem ele, quando o YouTube muda o script, o playback
+  # quebra com "Must find sig function from script".
+  yt-cipher:
+    image: ghcr.io/kikkia/yt-cipher:master
+    container_name: yt-cipher
+    restart: unless-stopped
+    environment:
+      - OVERRIDE_PLAYER_VARIANT=IAS
+    # Sem "ports": so o Lavalink precisa alcancar (rede interna do compose).
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     volumes:
       - ./lavalink/application.yml:/opt/Lavalink/application.yml
       # Sem volume pros plugins: volume nomeado nasce como root e o Lavalink

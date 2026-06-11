@@ -36,6 +36,11 @@ plugins:
     # As variaveis PLUGINS_YOUTUBE_OAUTH_* do compose sobrescrevem isto aqui.
     oauth:
       enabled: false
+    # Decifrador remoto de assinaturas (servico yt-cipher do compose): quando
+    # o YouTube muda o base.js, e ele quem mantem o playback funcionando
+    # (o decifrador local do plugin quebra com "Must find sig function").
+    remoteCipher:
+      url: "http://yt-cipher:8001"
     # Ordem de clientes usados pra resolver streams/buscas.
     # TV e o unico que usa o login do OAuth (os outros nao usam o token e
     # podem ser bloqueados em IP de datacenter).
