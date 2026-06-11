@@ -15,6 +15,8 @@ public class ChiConfig {
     private static final Logger log = LoggerFactory.getLogger(ChiConfig.class);
     private static final Path CONFIG_PATH = Paths.get("ChiConfig.json");
 
+    private static volatile ChiConfig loaded;
+
     private final String token;
     private final String prefix;
     private final String guildId;
@@ -58,8 +60,15 @@ public class ChiConfig {
             youtubeRefreshToken = System.getenv().getOrDefault("YOUTUBE_REFRESH_TOKEN", "");
         }
 
-        return new ChiConfig(token, prefix, guildId, lavalinkUri, lavalinkPassword,
+        ChiConfig config = new ChiConfig(token, prefix, guildId, lavalinkUri, lavalinkPassword,
                 youtubeApiKey, youtubeRefreshToken);
+        loaded = config;
+        return config;
+    }
+
+    /** Config carregada no boot (pro help mostrar o prefixo), ou null antes do load. */
+    public static ChiConfig get() {
+        return loaded;
     }
 
     /**

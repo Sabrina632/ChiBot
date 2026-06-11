@@ -29,10 +29,18 @@ public class CommandManager {
     private static final Logger log = LoggerFactory.getLogger(CommandManager.class);
     private static final String COMMANDS_PACKAGE = "org.chibot.Commands";
 
+    private static volatile CommandManager instance;
+
     private final Map<String, ICommand> commands = new HashMap<>();
 
     public CommandManager() {
         autoLoad(COMMANDS_PACKAGE);
+        instance = this;
+    }
+
+    /** Instancia unica criada no boot (pro help conseguir listar os comandos). */
+    public static CommandManager get() {
+        return instance;
     }
 
     public void register(ICommand command) {
