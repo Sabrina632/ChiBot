@@ -20,17 +20,10 @@ public class AudioLoader extends AbstractAudioLoadResultHandler {
 
     private final CommandContext ctx;
     private final GuildMusicManager manager;
-    private final YtMeta meta;
 
     public AudioLoader(CommandContext ctx, GuildMusicManager manager) {
-        this(ctx, manager, null);
-    }
-
-    /** Com metadados do yt-dlp: a track e um stream HTTP cru e nao sabe o proprio titulo. */
-    public AudioLoader(CommandContext ctx, GuildMusicManager manager, YtMeta meta) {
         this.ctx = ctx;
         this.manager = manager;
-        this.meta = meta;
     }
 
     @Override
@@ -71,16 +64,13 @@ public class AudioLoader extends AbstractAudioLoadResultHandler {
     }
 
     private void enqueueAndReply(Track track) {
-        if (meta != null) {
-            track.setUserData(meta);
-        }
         boolean queued = manager.enqueue(track);
         EmbedBuilder embed = new EmbedBuilder()
                 .setColor(MusicUi.KAWAII_PINK)
                 .setTitle(queued ? "ﾟ･✧ Entrou na fila! ✧･ﾟ" : "ﾟ･✧ Tocando agora! ✧･ﾟ")
                 .setDescription(MusicUi.trackLine(track) + (queued ? "\nposição na fila: `"
                         + manager.getQueueSnapshot().size() + "` ♡" : "\nbora dançar~ ♪(´▽｀)"));
-        String artwork = meta != null ? meta.thumbnail : track.getInfo().getArtworkUrl();
+        String artwork = track.getInfo().getArtworkUrl();
         if (artwork != null) {
             embed.setThumbnail(artwork);
         }

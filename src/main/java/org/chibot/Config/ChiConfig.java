@@ -61,7 +61,7 @@ public class ChiConfig {
         json.put("LavalinkUri", "ws://localhost:2333");
         json.put("LavalinkPassword", "youshallnotpass");
         // Chave da YouTube Data API v3 (opcional): melhora a busca por nome.
-        // Sem ela, a busca cai no ytsearch do yt-dlp.
+        // Sem ela, a busca cai no ytsearch do Lavalink.
         json.put("YoutubeApiKey", "");
         Files.writeString(CONFIG_PATH, json.toString(4), StandardCharsets.UTF_8);
     }

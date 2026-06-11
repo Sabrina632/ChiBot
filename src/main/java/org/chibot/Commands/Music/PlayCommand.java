@@ -8,7 +8,6 @@ import org.chibot.Commands.CommandContext;
 import org.chibot.Music.AudioLoader;
 import org.chibot.Music.GuildMusicManager;
 import org.chibot.Music.MusicService;
-import org.chibot.Music.YtDlpResolver;
 import org.chibot.Music.YtSearch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,28 +71,19 @@ public class PlayCommand extends MusicCommand {
         ctx.deferReply();
         GuildMusicManager manager = getManager(ctx);
 
-        boolean isUrl = query.startsWith("http://") || query.startsWith("https://");
-        boolean isYoutube = isUrl && (query.contains("youtube.com") || query.contains("youtu.be"));
-
-        // Links de outras fontes (SoundCloud, Bandcamp, MP3 direto...) vao
-        // direto pro Lavalink, que resolve sozinho.
-        if (isUrl && !isYoutube) {
+        // Links (YouTube, SoundCloud, MP3 direto...) vao direto pro Lavalink,
+        // que resolve sozinho.
+        if (query.startsWith("http://") || query.startsWith("https://")) {
             manager.loadAndPlay(query, new AudioLoader(ctx, manager));
             return;
         }
 
-        // YouTube (link ou busca) passa pelo yt-dlp: o plugin do Lavalink sofre
-        // bloqueio anti-bot em IP de datacenter; o yt-dlp extrai a URL direta
-        // do audio e o Lavalink toca como stream HTTP comum.
+        // Busca por nome: a Data API e uma chamada de rede, entao fora da
+        // thread de eventos do JDA.
         String finalQuery = query;
         CompletableFuture.runAsync(() -> {
             try {
-                YtDlpResolver.Resolved resolved =
-                        YtDlpResolver.resolve(resolveIdentifier(finalQuery, isYoutube));
-                manager.loadAndPlay(resolved.streamUrl(),
-                        new AudioLoader(ctx, manager, resolved.toMeta()));
-            } catch (YtDlpResolver.YtDlpException e) {
-                ctx.reply("Deu ruim no YouTube~ (；△；) " + e.getMessage());
+                manager.loadAndPlay(resolveIdentifier(finalQuery), new AudioLoader(ctx, manager));
             } catch (Exception e) {
                 log.error("Erro inesperado resolvendo '{}'", finalQuery, e);
                 ctx.reply("Ops, algo deu errado procurando essa música~ (；△；)");
@@ -102,14 +92,11 @@ public class PlayCommand extends MusicCommand {
     }
 
     /**
-     * Links vao direto pro yt-dlp. Busca por nome tenta primeiro a Data API
-     * (mais rapida e precisa, se tiver chave configurada); se nao achar ou
-     * falhar, cai no ytsearch do proprio yt-dlp.
+     * Busca por nome tenta primeiro a Data API (mais rapida e precisa, se
+     * tiver chave configurada); se nao achar ou falhar, cai no ytsearch do
+     * proprio Lavalink.
      */
-    private static String resolveIdentifier(String query, boolean isYoutube) {
-        if (isYoutube) {
-            return query;
-        }
+    private static String resolveIdentifier(String query) {
         YtSearch search = MusicService.get().getYtSearch();
         if (search != null) {
             String url = search.findVideoUrl(query);
@@ -117,6 +104,6 @@ public class PlayCommand extends MusicCommand {
                 return url;
             }
         }
-        return "ytsearch1:" + query;
+        return "ytsearch:" + query;
     }
 }

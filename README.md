@@ -1,12 +1,12 @@
 # ChiBot ♡
 
-> Um bot de Discord fofo e enxuto, feito em Java com a [JDA](https://github.com/discord-jda/JDA): música via Lavalink + yt-dlp, Party Finder de FFXIV, console kawaii e carregamento automático de comandos~ (｡•ᴗ•｡)♡
+> Um bot de Discord fofo e enxuto, feito em Java com a [JDA](https://github.com/discord-jda/JDA): música via Lavalink, Party Finder de FFXIV, console kawaii e carregamento automático de comandos~ (｡•ᴗ•｡)♡
 
 ---
 
 ## ✨ Features
 
-- **Música** — toca do YouTube (link ou busca), SoundCloud, Bandcamp, Twitch e streams HTTP. O áudio roda num servidor [Lavalink](https://github.com/lavalink-devs/Lavalink); o YouTube passa pelo **yt-dlp** pra driblar o bloqueio anti-bot de IP de datacenter.
+- **Música** — toca do YouTube (link ou busca), SoundCloud, Bandcamp, Twitch e streams HTTP. O áudio roda num servidor [Lavalink](https://github.com/lavalink-devs/Lavalink), que resolve e toca tudo; a busca por nome pode usar a **YouTube Data API** (chave opcional no config).
 - **Party Finder de FFXIV** — `/pf` lista os PF de Ultimates e Savage do data center Aether (via [xivpf.com](https://xivpf.com)), com emojis de job e composição; `/strats` mostra as strats mais citadas nas descrições dos PF de cada duty (acumuladas em SQLite ao longo do tempo).
 - **Comandos por prefixo e por slash (`/`)** — o mesmo comando funciona dos dois jeitos.
 - **Auto-load de comandos** — basta criar uma classe que implementa `ICommand` no pacote `org.chibot.Commands`; ela é descoberta e registrada sozinha por reflection, sem precisar editar nada.
@@ -19,7 +19,7 @@
 - **Java 17+**
 - Um **bot do Discord** com seu token ([Discord Developer Portal](https://discord.com/developers/applications))
 - Intent **MESSAGE CONTENT** habilitado no portal (necessário para os comandos por prefixo)
-- Para **música**: um servidor **Lavalink v4** acessível (o `docker-compose.yml` já sobe um) e, fora do Docker, **yt-dlp** + **deno** no PATH
+- Para **música**: um servidor **Lavalink v4** acessível (o `docker-compose.yml` já sobe um)
 - (Opcional) **Docker** + **Docker Compose** para deploy — recomendado, porque já amarra tudo
 
 ## ⚙️ Configuração
@@ -85,7 +85,7 @@ O `docker-compose.yml` sobe **dois serviços** na rede interna (nenhuma porta ex
 
 | Serviço           | O que faz                                                                                     |
 |-------------------|-----------------------------------------------------------------------------------------------|
-| `chibot`          | O bot em si (build multi-stage: compila com JDK, roda só com JRE, usuário sem privilégios). A imagem já inclui **yt-dlp** + **deno**. |
+| `chibot`          | O bot em si (build multi-stage: compila com JDK, roda só com JRE, usuário sem privilégios). |
 | `lavalink`        | Servidor de áudio (Lavalink v4 + plugin do YouTube). É quem de fato toca a música.            |
 
 ```bash
@@ -102,9 +102,9 @@ O que é montado do host (sobrevive a restart, rebuild e `down -v`):
 - **`ChiConfig.json`** → `/app/ChiConfig.json` — trocar token/prefixo/servidor é só editar e `docker compose restart chibot`, sem rebuildar.
 - **`lavalink/application.yml`** → config do Lavalink.
 
-E o volume nomeado `chibot-data` (`/app/data`) guarda o banco do Party Finder (`ChiData.db`) e o cache do yt-dlp entre recriações do container.
+E o volume nomeado `chibot-data` (`/app/data`) guarda o banco do Party Finder (`ChiData.db`) entre recriações do container.
 
-Vídeos com restrição de idade tocam quando permitem embed; os demais ficam de fora. Se o YouTube barrar o IP com "confirm you're not a bot", a extração falha — sem conta nem cookies não há contorno configurado.
+Quem resolve o YouTube é o plugin do Lavalink. Em IP de datacenter o YouTube pode exigir login ("This video requires login") — o [`lavalink/application.yml`](lavalink/application.yml) tem o OAuth do plugin pra isso (veja os comentários no arquivo).
 
 ## 🧩 Criando um novo comando
 
@@ -202,8 +202,7 @@ src/main/java/org/chibot/
     ├── GuildMusicManager.java  # player + fila de um servidor
     ├── AudioLoader.java        # callbacks de carregamento (tocando/enfileirado/erro)
     ├── MusicUi.java            # embeds fofos da música
-    ├── YtDlpResolver.java      # roda o yt-dlp: URL direta do áudio
-    └── YtMeta.java
+    └── YtSearch.java           # busca por nome via YouTube Data API (opcional)
 src/main/resources/
 ├── banner.txt                  # arte ASCII do boot
 └── logback.xml                 # configuração de logging
@@ -219,7 +218,6 @@ O **`ChiConfig.json`** guarda credenciais em texto puro (token do bot, chave da 
 
 - [JDA 6.4.2](https://github.com/discord-jda/JDA) — Java Discord API
 - [lavalink-client 3.4.0](https://github.com/lavalink-devs/lavalink-client) — cliente do servidor [Lavalink v4](https://github.com/lavalink-devs/Lavalink) (+ [youtube-plugin](https://github.com/lavalink-devs/youtube-source))
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp) + [deno](https://deno.com/) — extração do YouTube (fora da JVM; já incluídos na imagem Docker)
 - [jsoup 1.18.3](https://jsoup.org/) — scraping do xivpf.com
 - [sqlite-jdbc 3.46](https://github.com/xerial/sqlite-jdbc) — persistência do Party Finder
 - [logback-classic 1.5.18](https://logback.qos.ch/) — logging

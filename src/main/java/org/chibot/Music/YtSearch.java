@@ -16,8 +16,8 @@ import java.time.Duration;
 /**
  * Busca por nome usando a YouTube Data API v3 (so a chave de API; busca
  * publica nao precisa de OAuth). E mais rapida e precisa que o ytsearch do
- * yt-dlp, mas so encontra o video — a extracao do stream continua com o
- * yt-dlp (a Data API nao da acesso ao audio).
+ * Lavalink, mas so encontra o video — quem toca continua sendo o Lavalink
+ * (a Data API nao da acesso ao audio).
  *
  * Qualquer falha (quota estourada, rede, chave invalida) devolve null e o
  * chamador cai no ytsearch como antes.
