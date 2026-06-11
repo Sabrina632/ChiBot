@@ -17,6 +17,10 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    # Limita a heap do bot: sem isso a JVM pega ate 25% da RAM da VPS e
+    # espreme o Lavalink (que e quem nao pode engasgar).
+    environment:
+      - _JAVA_OPTIONS=-Xmx256M
     # Musica: o bot fala com o Lavalink pela rede interna do compose.
     # No ChiConfig.json da VPS, use "LavalinkUri": "ws://lavalink:2333".
     depends_on:
@@ -27,7 +31,8 @@ services:
     container_name: lavalink
     restart: unless-stopped
     environment:
-      - _JAVA_OPTIONS=-Xmx512M
+      # G1 com pausa-alvo curta: pausas longas de GC viram travada no audio.
+      - _JAVA_OPTIONS=-Xmx512M -XX:+UseG1GC -XX:MaxGCPauseMillis=40
       # Login do YouTube no NODE: necessario pro loadtracks (busca/resolucao)
       # em IP de datacenter — o token por track que o bot manda cobre so o
       # play. Crie um arquivo .env ao lado deste compose (NUNCA versionar):

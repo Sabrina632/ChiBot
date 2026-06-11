@@ -11,6 +11,13 @@ lavalink:
       repository: "https://maven.lavalink.dev/releases"
   server:
     password: "youshallnotpass"
+    # Anti-travada em VPS pequena: buffers maiores absorvem picos de CPU/rede
+    # (custo: ~10s de audio pre-decodificado na memoria, alguns MB so).
+    bufferDurationMs: 1000        # padrao 400: quanto o Lavalink envia adiantado
+    frameBufferDurationMs: 10000  # padrao 5000: quanto fica pre-decodificado
+    opusEncodingQuality: 10
+    resamplingQuality: LOW        # resampling barato; HIGH come CPU a toa aqui
+    useSeekGhosting: true
     sources:
       # YouTube embutido desligado: quem cuida disso e o plugin acima.
       youtube: false
