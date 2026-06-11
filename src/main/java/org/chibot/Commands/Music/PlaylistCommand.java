@@ -12,8 +12,6 @@ import java.util.List;
 
 public class PlaylistCommand extends MusicCommand {
 
-    private static final int MAX_SHOWN = 10;
-
     @Override
     public String getName() {
         return "playlist";
@@ -61,23 +59,13 @@ public class PlaylistCommand extends MusicCommand {
 
         EmbedBuilder embed = new EmbedBuilder()
                 .setColor(MusicUi.KAWAII_PINK)
-                .setTitle("ﾟ･✧ Fila de musiquinhas ✧･ﾟ")
-                .addField("♪ Tocando agora", MusicUi.trackLine(current.get()), false);
+                .setTitle("ﾟ･✧ Fila de musiquinhas ✧･ﾟ");
 
         List<Track> queue = manager.getQueueSnapshot();
         if (queue.isEmpty()) {
             embed.setDescription("A fila tá vazia~ aproveita a música! ♡");
-        } else {
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < queue.size() && i < MAX_SHOWN; i++) {
-                sb.append('`').append(i + 1).append(".` ")
-                        .append(MusicUi.trackLine(queue.get(i))).append('\n');
-            }
-            if (queue.size() > MAX_SHOWN) {
-                sb.append("...e mais **").append(queue.size() - MAX_SHOWN).append("** musiquinha(s)~ ♡");
-            }
-            embed.addField("☆ Na fila (" + queue.size() + ")", sb.toString(), false);
         }
+        MusicUi.withNowPlaying(embed, current.get(), queue);
 
         ctx.replyEmbeds(embed.build());
     }

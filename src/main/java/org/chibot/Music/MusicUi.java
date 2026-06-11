@@ -4,11 +4,18 @@ import dev.arbjerg.lavalink.client.player.Track;
 import net.dv8tion.jda.api.EmbedBuilder;
 
 import java.awt.Color;
+import java.util.List;
 
 /** Pedacinhos visuais compartilhados pelos comandos de musica. */
 public final class MusicUi {
 
     public static final Color KAWAII_PINK = new Color(0xFFB6C1);
+
+    /** Quantas faixas da fila aparecem na lista dos embeds. */
+    private static final int QUEUE_SHOWN = 10;
+
+    /** Campo da fila tem limite de 1024 chars no Discord; paramos antes disso. */
+    private static final int QUEUE_FIELD_BUDGET = 900;
 
     private MusicUi() {
     }
@@ -39,5 +46,40 @@ public final class MusicUi {
         var info = track.getInfo();
         String duration = info.isStream() ? "ao vivo" : formatDuration(info.getLength());
         return "[" + info.getTitle() + "](" + info.getUri() + ") `(" + duration + ")`";
+    }
+
+    /**
+     * Acrescenta no embed o "Tocando agora" (com a capa como thumbnail) e a
+     * lista das proximas da fila. Compartilhado pelo comando playlist e pela
+     * resposta de playlist adicionada.
+     */
+    public static EmbedBuilder withNowPlaying(EmbedBuilder embed, Track current, List<Track> queue) {
+        embed.addField("♪ Tocando agora", trackLine(current), false);
+        String artwork = current.getInfo().getArtworkUrl();
+        if (artwork != null) {
+            embed.setThumbnail(artwork);
+        }
+        if (queue.isEmpty()) {
+            return embed;
+        }
+        StringBuilder sb = new StringBuilder();
+        int shown = 0;
+        for (Track track : queue) {
+            if (shown >= QUEUE_SHOWN) {
+                break;
+            }
+            String line = "`" + (shown + 1) + ".` " + trackLine(track) + "\n";
+            if (sb.length() + line.length() > QUEUE_FIELD_BUDGET) {
+                break;
+            }
+            sb.append(line);
+            shown++;
+        }
+        int rest = queue.size() - shown;
+        if (rest > 0) {
+            sb.append("...e mais **").append(rest).append("** musiquinha(s)~ ♡");
+        }
+        embed.addField("☆ Na fila (" + queue.size() + ")", sb.toString(), false);
+        return embed;
     }
 }

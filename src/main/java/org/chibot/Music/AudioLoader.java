@@ -46,14 +46,18 @@ public class AudioLoader extends AbstractAudioLoadResultHandler {
             tracks = tracks.subList(0, MAX_PLAYLIST_TRACKS);
         }
         manager.enqueuePlaylist(tracks);
-        ctx.replyEmbeds(new EmbedBuilder()
+        EmbedBuilder embed = new EmbedBuilder()
                 .setColor(MusicUi.KAWAII_PINK)
                 .setTitle("ﾟ･✧ Playlist na fila! ✧･ﾟ")
                 .setDescription("Adicionei **" + tracks.size() + "** musiquinhas de *"
                         + result.getInfo().getName() + "*~ (≧◡≦) ♡"
                         + (truncated ? "\n(a playlist tinha mais, mas o limite é "
-                        + MAX_PLAYLIST_TRACKS + " por vez~)" : ""))
-                .build());
+                        + MAX_PLAYLIST_TRACKS + " por vez~)" : ""));
+        // Se a fila estava parada, o player ainda pode nao ter confirmado a
+        // primeira faixa (e assincrono); ela e a que esta comecando agora.
+        Track current = manager.getCurrentTrack().orElse(tracks.get(0));
+        MusicUi.withNowPlaying(embed, current, manager.getQueueSnapshot());
+        ctx.replyEmbeds(embed.build());
     }
 
     @Override
