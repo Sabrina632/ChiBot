@@ -38,8 +38,20 @@ public final class YtSearch {
 
     /** Devolve a URL do primeiro resultado (watch?v=...) ou null se nao achou/falhou. */
     public String findVideoUrl(String query) {
+        String videoId = searchFirstId(query, "video", "videoId");
+        return videoId == null ? null : "https://www.youtube.com/watch?v=" + videoId;
+    }
+
+    /** Devolve a URL da primeira playlist encontrada (playlist?list=...) ou null. */
+    public String findPlaylistUrl(String query) {
+        String playlistId = searchFirstId(query, "playlist", "playlistId");
+        return playlistId == null ? null : "https://www.youtube.com/playlist?list=" + playlistId;
+    }
+
+    /** Primeiro resultado da busca do tipo pedido; idField e o campo do id (videoId/playlistId). */
+    private String searchFirstId(String query, String type, String idField) {
         String url = "https://www.googleapis.com/youtube/v3/search"
-                + "?part=snippet&type=video&maxResults=1"
+                + "?part=snippet&type=" + type + "&maxResults=1"
                 + "&q=" + URLEncoder.encode(query, StandardCharsets.UTF_8)
                 + "&key=" + apiKey;
 
@@ -59,10 +71,10 @@ public final class YtSearch {
             if (items == null || items.isEmpty()) {
                 return null;
             }
-            String videoId = items.getJSONObject(0)
+            String id = items.getJSONObject(0)
                     .optJSONObject("id", new JSONObject())
-                    .optString("videoId", "");
-            return videoId.isBlank() ? null : "https://www.youtube.com/watch?v=" + videoId;
+                    .optString(idField, "");
+            return id.isBlank() ? null : id;
         } catch (Exception e) {
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();

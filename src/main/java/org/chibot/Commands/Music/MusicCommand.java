@@ -57,14 +57,73 @@ public abstract class MusicCommand implements ICommand {
     }
 
     /**
-     * Fluxo completo de tocar: exige o autor num canal de voz, conecta o bot
-     * se preciso e manda o link/busca pro Lavalink. Usado pelo play e pelo
-     * playlist add.
+     * Fluxo completo de tocar uma musica: exige o autor num canal de voz,
+     * conecta o bot se preciso e manda o link/busca pro Lavalink. Busca por
+     * nome encontra UM video. Usado pelo play.
      */
     protected void loadAndPlayQuery(CommandContext ctx, String query) {
+        GuildMusicManager manager = preparePlayback(ctx);
+        if (manager == null) {
+            return;
+        }
+
+        // Links (YouTube, SoundCloud, MP3 direto...) vao direto pro Lavalink,
+        // que resolve sozinho.
+        if (isUrl(query)) {
+            manager.loadAndPlay(query, new AudioLoader(ctx, manager));
+            return;
+        }
+
+        // Busca por nome: a Data API e uma chamada de rede, entao fora da
+        // thread de eventos do JDA.
+        CompletableFuture.runAsync(() -> {
+            try {
+                manager.loadAndPlay(resolveVideoIdentifier(query), new AudioLoader(ctx, manager));
+            } catch (Exception e) {
+                log.error("Erro inesperado resolvendo '{}'", query, e);
+                ctx.reply("Ops, algo deu errado procurando essa música~ (；△；)");
+            }
+        });
+    }
+
+    /**
+     * Igual ao {@link #loadAndPlayQuery}, mas busca por nome procura uma
+     * PLAYLIST inteira no YouTube (e enfileira as musicas dela). Usado pelo
+     * playlist add.
+     */
+    protected void loadAndPlayPlaylistQuery(CommandContext ctx, String query) {
+        GuildMusicManager manager = preparePlayback(ctx);
+        if (manager == null) {
+            return;
+        }
+
+        if (isUrl(query)) {
+            manager.loadAndPlay(query, new AudioLoader(ctx, manager));
+            return;
+        }
+
+        CompletableFuture.runAsync(() -> {
+            try {
+                YtSearch search = MusicService.get().getYtSearch();
+                String url = search == null ? null : search.findPlaylistUrl(query);
+                if (url == null) {
+                    ctx.reply("Não achei uma playlist com esse nome~ "
+                            + "tenta outro nome ou me manda o link dela? (・_・;)");
+                    return;
+                }
+                manager.loadAndPlay(url, new AudioLoader(ctx, manager));
+            } catch (Exception e) {
+                log.error("Erro inesperado procurando playlist '{}'", query, e);
+                ctx.reply("Ops, algo deu errado procurando essa playlist~ (；△；)");
+            }
+        });
+    }
+
+    /** Canal de voz + conexao + defer. Devolve o manager, ou null se o autor nao pode tocar. */
+    private GuildMusicManager preparePlayback(CommandContext ctx) {
         AudioChannelUnion authorChannel = requireAuthorVoiceChannel(ctx);
         if (authorChannel == null) {
-            return;
+            return null;
         }
 
         // Conecta no canal do autor se ainda nao estiver em nenhum. Tem que ser pelo
@@ -75,25 +134,11 @@ public abstract class MusicCommand implements ICommand {
         }
 
         ctx.deferReply();
-        GuildMusicManager manager = getManager(ctx);
+        return getManager(ctx);
+    }
 
-        // Links (YouTube, SoundCloud, MP3 direto...) vao direto pro Lavalink,
-        // que resolve sozinho.
-        if (query.startsWith("http://") || query.startsWith("https://")) {
-            manager.loadAndPlay(query, new AudioLoader(ctx, manager));
-            return;
-        }
-
-        // Busca por nome: a Data API e uma chamada de rede, entao fora da
-        // thread de eventos do JDA.
-        CompletableFuture.runAsync(() -> {
-            try {
-                manager.loadAndPlay(resolveIdentifier(query), new AudioLoader(ctx, manager));
-            } catch (Exception e) {
-                log.error("Erro inesperado resolvendo '{}'", query, e);
-                ctx.reply("Ops, algo deu errado procurando essa música~ (；△；)");
-            }
-        });
+    private static boolean isUrl(String query) {
+        return query.startsWith("http://") || query.startsWith("https://");
     }
 
     /**
@@ -101,7 +146,7 @@ public abstract class MusicCommand implements ICommand {
      * tiver chave configurada); se nao achar ou falhar, cai no ytsearch do
      * proprio Lavalink.
      */
-    private static String resolveIdentifier(String query) {
+    private static String resolveVideoIdentifier(String query) {
         YtSearch search = MusicService.get().getYtSearch();
         if (search != null) {
             String url = search.findVideoUrl(query);

@@ -37,7 +37,7 @@ public class PlaylistCommand extends MusicCommand {
     @Override
     public List<OptionData> getOptions() {
         return List.of(new OptionData(OptionType.STRING, "add",
-                "Link ou busca pra adicionar na fila (playlists entram até 100 músicas)", false));
+                "Nome ou link de uma playlist do YouTube (entram até 100 músicas)", false));
     }
 
     @Override
@@ -45,10 +45,10 @@ public class PlaylistCommand extends MusicCommand {
         String addQuery = resolveAddQuery(ctx);
         if (addQuery != null) {
             if (addQuery.isBlank()) {
-                ctx.reply("Me fala o que adicionar~ um link ou o nome da música! (・∀・)");
+                ctx.reply("Me fala o que adicionar~ o nome ou o link de uma playlist! (・∀・)");
                 return;
             }
-            loadAndPlayQuery(ctx, addQuery);
+            loadAndPlayPlaylistQuery(ctx, addQuery);
             return;
         }
 
