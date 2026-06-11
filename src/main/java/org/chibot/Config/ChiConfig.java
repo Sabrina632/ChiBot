@@ -21,15 +21,18 @@ public class ChiConfig {
     private final String lavalinkUri;
     private final String lavalinkPassword;
     private final String youtubeApiKey;
+    private final String youtubeRefreshToken;
 
     private ChiConfig(String token, String prefix, String guildId,
-                      String lavalinkUri, String lavalinkPassword, String youtubeApiKey) {
+                      String lavalinkUri, String lavalinkPassword,
+                      String youtubeApiKey, String youtubeRefreshToken) {
         this.token = token;
         this.prefix = prefix;
         this.guildId = guildId;
         this.lavalinkUri = lavalinkUri;
         this.lavalinkPassword = lavalinkPassword;
         this.youtubeApiKey = youtubeApiKey;
+        this.youtubeRefreshToken = youtubeRefreshToken;
     }
 
     public static ChiConfig load() throws IOException {
@@ -48,8 +51,10 @@ public class ChiConfig {
         String lavalinkUri = json.optString("LavalinkUri", "ws://localhost:2333");
         String lavalinkPassword = json.optString("LavalinkPassword", "youshallnotpass");
         String youtubeApiKey = json.optString("YoutubeApiKey", "");
+        String youtubeRefreshToken = json.optString("YoutubeRefreshToken", "");
 
-        return new ChiConfig(token, prefix, guildId, lavalinkUri, lavalinkPassword, youtubeApiKey);
+        return new ChiConfig(token, prefix, guildId, lavalinkUri, lavalinkPassword,
+                youtubeApiKey, youtubeRefreshToken);
     }
 
     private static void createDefault() throws IOException {
@@ -63,6 +68,10 @@ public class ChiConfig {
         // Chave da YouTube Data API v3 (opcional): melhora a busca por nome.
         // Sem ela, a busca cai no ytsearch do Lavalink.
         json.put("YoutubeApiKey", "");
+        // Login do YouTube (opcional, mas necessario em IP de datacenter):
+        // deixe vazio e o bot mostra no log o codigo do google.com/device e
+        // depois o refresh token pra colar aqui (veja YtOauth).
+        json.put("YoutubeRefreshToken", "");
         Files.writeString(CONFIG_PATH, json.toString(4), StandardCharsets.UTF_8);
     }
 
@@ -92,5 +101,9 @@ public class ChiConfig {
 
     public String getYoutubeApiKey() {
         return youtubeApiKey;
+    }
+
+    public String getYoutubeRefreshToken() {
+        return youtubeRefreshToken;
     }
 }

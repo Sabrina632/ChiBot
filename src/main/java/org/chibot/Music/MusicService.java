@@ -30,11 +30,14 @@ public final class MusicService {
 
     private final LavalinkClient client;
     private final YtSearch ytSearch;
+    private final YtOauth ytOauth;
     private final Map<Long, GuildMusicManager> managers = new ConcurrentHashMap<>();
 
     private MusicService(ChiConfig config) {
         String apiKey = config.getYoutubeApiKey();
         ytSearch = apiKey == null || apiKey.isBlank() ? null : new YtSearch(apiKey);
+        ytOauth = new YtOauth(config.getYoutubeRefreshToken());
+        ytOauth.startDeviceFlowIfNeeded();
         client = new LavalinkClient(Helpers.getUserIdFromToken(config.getToken()));
         client.addNode(new NodeOptions.Builder()
                 .setName("principal")
@@ -91,6 +94,6 @@ public final class MusicService {
     }
 
     public GuildMusicManager getManager(long guildId) {
-        return managers.computeIfAbsent(guildId, id -> new GuildMusicManager(id, client));
+        return managers.computeIfAbsent(guildId, id -> new GuildMusicManager(id, client, ytOauth));
     }
 }

@@ -7,6 +7,7 @@ import dev.arbjerg.lavalink.client.player.Track;
 import dev.arbjerg.lavalink.protocol.v4.Message.EmittedEvent.TrackEndEvent.AudioTrackEndReason;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -21,11 +22,13 @@ public class GuildMusicManager {
 
     private final long guildId;
     private final LavalinkClient client;
+    private final YtOauth oauth;
     private final Queue<Track> queue = new ConcurrentLinkedQueue<>();
 
-    GuildMusicManager(long guildId, LavalinkClient client) {
+    GuildMusicManager(long guildId, LavalinkClient client, YtOauth oauth) {
         this.guildId = guildId;
         this.client = client;
+        this.oauth = oauth;
     }
 
     private Link getLink() {
@@ -110,6 +113,15 @@ public class GuildMusicManager {
     }
 
     private void startTrack(Track track) {
+        // Modo "client-provided token" do youtube-source: a track leva o
+        // access token da conta logada no userData e o node streama como
+        // usuario autenticado (contorna o bloqueio de IP de datacenter).
+        if ("youtube".equals(track.getInfo().getSourceName())) {
+            String token = oauth.accessToken();
+            if (token != null) {
+                track.setUserData(Map.of("oauth-token", token));
+            }
+        }
         getLink().createOrUpdatePlayer()
                 .setTrack(track)
                 .setVolume(DEFAULT_VOLUME)

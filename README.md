@@ -32,17 +32,21 @@ Na primeira execução, o ChiBot cria um `ChiConfig.json` padrão no diretório 
     "Prefix": "!",
     "GuildId": "",
     "LavalinkUri": "ws://localhost:2333",
-    "LavalinkPassword": "youshallnotpass"
+    "LavalinkPassword": "youshallnotpass",
+    "YoutubeApiKey": "",
+    "YoutubeRefreshToken": ""
 }
 ```
 
-| Campo              | Descrição                                                                                                  |
-|--------------------|------------------------------------------------------------------------------------------------------------|
-| `Token`            | Token do bot (obrigatório).                                                                                |
-| `Prefix`           | Prefixo dos comandos de texto. Padrão: `!`.                                                                 |
-| `GuildId`          | Se preenchido, os slash commands são registrados **só nesse servidor** e aparecem na hora (ótimo pra dev). Vazio = registro **global** (pode levar até ~1h pra propagar). |
-| `LavalinkUri`      | Endereço do servidor Lavalink. Local: `ws://localhost:2333`; no compose: `ws://lavalink:2333`.              |
-| `LavalinkPassword` | Senha do Lavalink — precisa bater com a do [`lavalink/application.yml`](lavalink/application.yml).          |
+| Campo                 | Descrição                                                                                                  |
+|-----------------------|------------------------------------------------------------------------------------------------------------|
+| `Token`               | Token do bot (obrigatório).                                                                                |
+| `Prefix`              | Prefixo dos comandos de texto. Padrão: `!`.                                                                 |
+| `GuildId`             | Se preenchido, os slash commands são registrados **só nesse servidor** e aparecem na hora (ótimo pra dev). Vazio = registro **global** (pode levar até ~1h pra propagar). |
+| `LavalinkUri`         | Endereço do servidor Lavalink. Local: `ws://localhost:2333`; no compose: `ws://lavalink:2333`.              |
+| `LavalinkPassword`    | Senha do Lavalink — precisa bater com a do [`lavalink/application.yml`](lavalink/application.yml).          |
+| `YoutubeApiKey`       | (Opcional) Chave da YouTube Data API v3 — melhora a busca por nome. Vazio = busca pelo `ytsearch` do Lavalink. |
+| `YoutubeRefreshToken` | (Opcional) Login do YouTube via OAuth — necessário em IP de datacenter (veja [Login do YouTube](#-login-do-youtube-oauth)). |
 
 > ⚠️ **Nunca compartilhe nem commite seu token.** Ele dá controle total sobre o bot. Veja [Segurança](#-segurança).
 
@@ -104,7 +108,19 @@ O que é montado do host (sobrevive a restart, rebuild e `down -v`):
 
 E o volume nomeado `chibot-data` (`/app/data`) guarda o banco do Party Finder (`ChiData.db`) entre recriações do container.
 
-Quem resolve o YouTube é o plugin do Lavalink. Em IP de datacenter o YouTube pode exigir login ("This video requires login") — o [`lavalink/application.yml`](lavalink/application.yml) tem o OAuth do plugin pra isso (veja os comentários no arquivo).
+Quem resolve o YouTube é o plugin do Lavalink. Em IP de datacenter o YouTube pode exigir login ("This video requires login") — veja a seção abaixo.
+
+## 🔑 Login do YouTube (OAuth)
+
+O login é gerenciado **pelo bot** (modo [client-provided token](https://github.com/lavalink-devs/youtube-source#using-oauth-tokens) do youtube-source): o bot troca um refresh token por access tokens e anexa o token no `userData` de cada track do YouTube na hora do play. O node não precisa de OAuth no `application.yml`.
+
+Pra fazer o login uma única vez:
+
+1. Suba o bot com `"YoutubeRefreshToken": ""` no `ChiConfig.json`.
+2. O log do bot (`docker logs chibot`) mostra um código pra ativar em <https://www.google.com/device> — autorize com uma **conta Google descartável** (há risco de bloqueio).
+3. Depois de autorizar, o log imprime o refresh token: cole no `ChiConfig.json` (`"YoutubeRefreshToken": "1//..."`) e reinicie. Pronto pra sempre.
+
+Sem o login, o bot toca normalmente em IP residencial; em VPS (IP de datacenter) a maioria dos vídeos falha com pedido de login do YouTube.
 
 ## 🧩 Criando um novo comando
 
@@ -202,6 +218,7 @@ src/main/java/org/chibot/
     ├── GuildMusicManager.java  # player + fila de um servidor
     ├── AudioLoader.java        # callbacks de carregamento (tocando/enfileirado/erro)
     ├── MusicUi.java            # embeds fofos da música
+    ├── YtOauth.java            # login do YouTube: refresh token -> access token por track
     └── YtSearch.java           # busca por nome via YouTube Data API (opcional)
 src/main/resources/
 ├── banner.txt                  # arte ASCII do boot
