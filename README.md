@@ -8,6 +8,8 @@
 
 - **Música** — toca do YouTube (link ou busca), SoundCloud, Bandcamp, Twitch e streams HTTP. O áudio roda num servidor [Lavalink](https://github.com/lavalink-devs/Lavalink), que resolve e toca tudo; a busca por nome pode usar a **YouTube Data API** (chave opcional no config).
 - **Party Finder de FFXIV** — `/pf` lista os PF de Ultimates e Savage do data center Aether (via [xivpf.com](https://xivpf.com)), com emojis de job e composição; `/strats` mostra as strats mais citadas nas descrições dos PF de cada duty (acumuladas em SQLite ao longo do tempo).
+- **Moderação** — `ban`, `kick`, `mute` (timeout do Discord: bloqueia voz **e** chat, com duração e expiração automática), `unmute` e `clear`, tudo em embed, com checagem de hierarquia de cargos e motivo no audit log.
+- **Ajuda embutida** — `/help` lista os comandos por categoria num embed fofo; `/help <comando>` mostra uso e atalhos.
 - **Comandos por prefixo e por slash (`/`)** — o mesmo comando funciona dos dois jeitos.
 - **Auto-load de comandos** — basta criar uma classe que implementa `ICommand` no pacote `org.chibot.Commands`; ela é descoberta e registrada sozinha por reflection, sem precisar editar nada.
 - **Console kawaii** — banner com degradê pastel e logs coloridos em truecolor (veja [`KawaiiLayout`](src/main/java/org/chibot/Logging/KawaiiLayout.java)).
@@ -52,9 +54,10 @@ Na primeira execução, o ChiBot cria um `ChiConfig.json` padrão no diretório 
 
 ### Variáveis de ambiente (opcionais)
 
-| Variável             | Para quê serve                                                                       | Padrão                |
-|----------------------|---------------------------------------------------------------------------------------|-----------------------|
-| `CHIBOT_DB_PATH`     | Caminho do banco SQLite do Party Finder.                                              | `ChiData.db`          |
+| Variável                | Para quê serve                                                                       | Padrão                |
+|--------------------------|---------------------------------------------------------------------------------------|-----------------------|
+| `CHIBOT_DB_PATH`         | Caminho do banco SQLite do Party Finder.                                              | `ChiData.db`          |
+| `YOUTUBE_REFRESH_TOKEN`  | Fallback do `YoutubeRefreshToken` quando ele está vazio no config (o compose repassa o valor do `.env` — veja [Login do YouTube](#-login-do-youtube-oauth)). | —                     |
 
 No Docker, o `Dockerfile` e o `docker-compose.yml` já configuram tudo isso.
 
@@ -171,7 +174,7 @@ A interface `ICommand` ainda oferece, via métodos `default`, recursos opcionais
 |----------------------------|-----------------------------------------------------------------------|
 | `getAliases()`             | Nomes alternativos (só no prefixo).                                   |
 | `getDescription()`         | Texto curto (usado na descrição do slash command).                   |
-| `getUsage()` / `getCategory()` | Metadados pra um futuro comando de ajuda.                       |
+| `getUsage()` / `getCategory()` | Metadados exibidos pelo comando `help`.                         |
 | `isGuildOnly()`            | Bloqueia o uso em DM.                                                  |
 | `getRequiredPermissions()` | Exige permissões do autor (ex.: `Permission.BAN_MEMBERS`).            |
 | `getOptions()`             | Parâmetros do slash command.                                          |
@@ -181,17 +184,23 @@ O contexto ([`CommandContext`](src/main/java/org/chibot/Commands/CommandContext.
 
 ### Comandos incluídos
 
-| Comando     | Aliases                  | Categoria  | Descrição                                                                 |
-|-------------|--------------------------|------------|----------------------------------------------------------------------------|
-| `ping`      | —                        | Utilidades | Mostra a latência de gateway e API num embed fofo~                          |
-| `play`      | `p`, `tocar`             | Música     | Toca um link (YouTube, SoundCloud...) ou busca no YouTube.                  |
-| `pause`     | `pausar`                 | Música     | Pausa a música atual.                                                       |
-| `resume`    | `continuar`, `unpause`   | Música     | Continua de onde parou.                                                     |
-| `skip`      | `pular`, `s`             | Música     | Pula pra próxima da fila.                                                   |
-| `stop`      | `parar`, `leave`, `sair` | Música     | Para tudo, limpa a fila e sai do canal de voz.                              |
-| `playlist`  | `queue`, `fila`, `q`     | Música     | Mostra o que tá tocando e a fila.                                           |
-| `pf`        | `partyfinder`            | FFXIV      | Lista os PF de Ultimates/Savage do Aether (filtro por duty: `ucob`, `uwu`, `tea`, `dsr`, `top`, `fru`, `umad`...). |
-| `strats`    | `strat`, `strategies`    | FFXIV      | Ranking das strats mais citadas nos PF de uma duty (ex.: `/strats fru`).    |
+| Comando     | Aliases                          | Categoria  | Descrição                                                                 |
+|-------------|----------------------------------|------------|----------------------------------------------------------------------------|
+| `help`      | `ajuda`, `comandos`              | Geral      | Lista os comandos por categoria; `help <comando>` mostra os detalhes.       |
+| `ping`      | —                                | Utilidades | Mostra a latência de gateway e API num embed fofo~                          |
+| `play`      | `p`, `tocar`                     | Música     | Toca um link (YouTube, SoundCloud...) ou busca no YouTube.                  |
+| `pause`     | `pausar`                         | Música     | Pausa a música atual.                                                       |
+| `resume`    | `continuar`, `unpause`           | Música     | Continua de onde parou.                                                     |
+| `skip`      | `pular`, `s`                     | Música     | Pula pra próxima da fila.                                                   |
+| `stop`      | `parar`, `leave`, `sair`         | Música     | Para tudo, limpa a fila e sai do canal de voz.                              |
+| `playlist`  | `queue`, `fila`, `q`             | Música     | Mostra o que tá tocando e a fila; `playlist add` enfileira uma playlist inteira do YouTube (até 100 músicas). |
+| `pf`        | `partyfinder`                    | FFXIV      | Lista os PF de Ultimates/Savage do Aether (filtro por duty: `ucob`, `uwu`, `tea`, `dsr`, `top`, `fru`, `umad`...). |
+| `strats`    | `strat`, `strategies`            | FFXIV      | Ranking das strats mais citadas nos PF de uma duty (ex.: `/strats fru`).    |
+| `clear`     | `limpar`, `purge`                | Moderação  | Apaga até 100 mensagens do canal (exige Gerenciar Mensagens).               |
+| `ban`       | `banir`                          | Moderação  | Bane um usuário, com motivo opcional — funciona até por ID de quem nem está no servidor (exige Banir Membros). |
+| `kick`      | `expulsar`                       | Moderação  | Expulsa um usuário, com motivo opcional (exige Expulsar Membros).           |
+| `mute`      | `mutar`, `silenciar`, `castigo`  | Moderação  | Timeout do Discord: sem falar na voz nem no chat. Duração tipo `30s`, `10m`, `2h`, `7d` (padrão 10m, máx. 28d), expira sozinha (exige Castigar Membros). |
+| `unmute`    | `desmutar`                       | Moderação  | Tira o mute antes da hora (exige Castigar Membros).                         |
 
 ## 🗂️ Estrutura do projeto
 
@@ -207,7 +216,10 @@ src/main/java/org/chibot/
 │   ├── PrefixCommandContext.java
 │   ├── SlashCommandContext.java
 │   ├── PingCommand.java
-│   ├── Music/                  # play, pause, resume, skip, stop, playlist
+│   ├── Core/                   # help (lista por categoria) e clear (faxina do canal)
+│   ├── Admin/                  # ban, kick, mute (timeout), unmute
+│   │   └── ModUtils.java       # alvo/motivo/hierarquia + embed compartilhados
+│   ├── Music/                  # play, pause, resume, skip, stop, playlist (+ add)
 │   │   └── MusicCommand.java   # base: guild-only + atalhos de voz
 │   └── PartyFinderCommands/
 │       ├── PartyFinderCommand.java  # /pf — embeds por duty com emojis de job
