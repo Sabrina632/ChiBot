@@ -78,9 +78,13 @@ public final class MusicService {
         });
 
         client.on(TrackExceptionEvent.class).subscribe(event ->
-                log.warn("Erro ao tocar '{}' no servidor {}: {}",
+                // A mensagem do Lavalink e generica ("Something broke...");
+                // a causa e quem diz o motivo real (403, sign-in, etc).
+                log.warn("Erro ao tocar '{}' no servidor {} [{}]: {} — causa: {}",
                         event.getTrack().getInfo().getTitle(), event.getGuildId(),
-                        event.getException().getMessage()));
+                        event.getException().getSeverity(),
+                        event.getException().getMessage(),
+                        event.getException().getCause()));
     }
 
     /** Busca via YouTube Data API, ou null se nao tiver chave configurada. */

@@ -37,7 +37,10 @@ public class GuildMusicManager {
 
     /** Pede pro Lavalink resolver um link/busca e entrega o resultado pro handler. */
     public void loadAndPlay(String identifier, AudioLoader loader) {
-        getLink().loadItem(identifier).subscribe(loader);
+        // Sem o segundo argumento, erros como "Node is not available" (node
+        // fora/reiniciando) estouram como onErrorDropped e o usuario fica sem
+        // resposta nenhuma no Discord.
+        getLink().loadItem(identifier).subscribe(loader, loader::onLoadError);
     }
 
     /** Player em cache (null/empty se nunca tocou nada nesse servidor). */
