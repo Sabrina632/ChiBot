@@ -37,12 +37,12 @@ plugins:
     oauth:
       enabled: false
     # Ordem de clientes usados pra resolver streams/buscas.
-    # TVHTML5EMBEDDED e o que carrega videos usando o login do OAuth
-    # (os outros nao usam o token e continuam bloqueados em IP de datacenter).
+    # TV e o unico que usa o login do OAuth (os outros nao usam o token e
+    # podem ser bloqueados em IP de datacenter).
     clients:
       - MUSIC
-      - TVHTML5EMBEDDED
       - TV
+      - TVHTML5_SIMPLY
       - ANDROID_VR
       - WEB
       - WEBEMBEDDED
