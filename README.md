@@ -120,16 +120,18 @@ Em IP residencial nada disso é necessário. Em VPS (IP de datacenter) o YouTube
 
 Passo a passo (uma vez só):
 
-1. Suba o bot com `"YoutubeRefreshToken": ""` no `ChiConfig.json`. O log (`docker logs chibot`) mostra um código pra ativar em <https://www.google.com/device> — autorize com uma **conta Google descartável** (há risco de bloqueio).
-2. Depois de autorizar, o log imprime o refresh token (`1//...`). Cole no `ChiConfig.json` (`"YoutubeRefreshToken": "1//..."`).
-3. Crie um arquivo `.env` ao lado do `docker-compose.yml` (já está no `.gitignore`) com **o mesmo token**:
+1. Suba tudo sem token. O log do bot (`docker logs chibot`) mostra um código pra ativar em <https://www.google.com/device> — autorize com uma **conta Google descartável** (há risco de bloqueio).
+2. O bot salva o refresh token sozinho no `ChiConfig.json` (se não conseguir escrever no arquivo, imprime o token no log pra você colar manualmente).
+3. Copie o token pro `.env` ao lado do `docker-compose.yml` (já está no `.gitignore`), pro **node** usar também:
 
    ```env
    YOUTUBE_OAUTH_ENABLED=true
    YOUTUBE_REFRESH_TOKEN=1//...
    ```
 
-4. `docker compose up -d` — o compose recria o `lavalink` com o login e reinicia o bot.
+4. `docker compose up -d` — recria o `lavalink` logado e reinicia o bot.
+
+O `.env` vale pelos dois lados: o compose repassa o `YOUTUBE_REFRESH_TOKEN` pro bot também, usado quando o `YoutubeRefreshToken` do `ChiConfig.json` está vazio — então com o token no `.env` nada mais pede login, nunca.
 
 ## 🧩 Criando um novo comando
 

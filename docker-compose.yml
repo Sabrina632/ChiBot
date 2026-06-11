@@ -21,6 +21,9 @@ services:
     # espreme o Lavalink (que e quem nao pode engasgar).
     environment:
       - _JAVA_OPTIONS=-Xmx256M
+      # Mesmo token do node (vem do .env): usado quando o YoutubeRefreshToken
+      # do ChiConfig.json esta vazio — assim o login fica num lugar so.
+      - YOUTUBE_REFRESH_TOKEN=${YOUTUBE_REFRESH_TOKEN:-}
     # Musica: o bot fala com o Lavalink pela rede interna do compose.
     # No ChiConfig.json da VPS, use "LavalinkUri": "ws://lavalink:2333".
     depends_on:

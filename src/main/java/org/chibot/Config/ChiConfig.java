@@ -52,9 +52,24 @@ public class ChiConfig {
         String lavalinkPassword = json.optString("LavalinkPassword", "youshallnotpass");
         String youtubeApiKey = json.optString("YoutubeApiKey", "");
         String youtubeRefreshToken = json.optString("YoutubeRefreshToken", "");
+        if (youtubeRefreshToken.isBlank()) {
+            // Mesmo token que o node Lavalink usa: o compose repassa o
+            // YOUTUBE_REFRESH_TOKEN do .env pro container do bot tambem.
+            youtubeRefreshToken = System.getenv().getOrDefault("YOUTUBE_REFRESH_TOKEN", "");
+        }
 
         return new ChiConfig(token, prefix, guildId, lavalinkUri, lavalinkPassword,
                 youtubeApiKey, youtubeRefreshToken);
+    }
+
+    /**
+     * Persiste o refresh token do YouTube no ChiConfig.json — chamado pelo
+     * YtOauth depois do device flow, pra nao pedir login a cada restart.
+     */
+    public static synchronized void saveYoutubeRefreshToken(String refreshToken) throws IOException {
+        JSONObject json = new JSONObject(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8));
+        json.put("YoutubeRefreshToken", refreshToken);
+        Files.writeString(CONFIG_PATH, json.toString(4), StandardCharsets.UTF_8);
     }
 
     private static void createDefault() throws IOException {

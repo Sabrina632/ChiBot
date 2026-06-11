@@ -1,5 +1,6 @@
 package org.chibot.Music;
 
+import org.chibot.Config.ChiConfig;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -134,8 +135,8 @@ public final class YtOauth {
                     validUntil = System.currentTimeMillis()
                             + res.getLong("expires_in") * 1000 - 60_000;
                 }
-                log.info("YouTube autorizado! Salve no ChiConfig.json pra nao logar de novo:");
-                log.info("\"YoutubeRefreshToken\": \"{}\"", res.getString("refresh_token"));
+                log.info("YouTube autorizado!");
+                persistRefreshToken(res.getString("refresh_token"));
                 return;
             }
             log.warn("Device flow do YouTube expirou sem autorizacao; reinicie o bot pra tentar de novo.");
@@ -143,6 +144,22 @@ public final class YtOauth {
             Thread.currentThread().interrupt();
         } catch (Exception e) {
             log.warn("Device flow do YouTube falhou.", e);
+        }
+    }
+
+    /**
+     * Salva o token no ChiConfig.json pra sobreviver a restarts. Se nao der
+     * (ex.: bind mount sem permissao de escrita pro usuario do container),
+     * imprime o token pro usuario salvar manualmente.
+     */
+    private void persistRefreshToken(String token) {
+        try {
+            ChiConfig.saveYoutubeRefreshToken(token);
+            log.info("Refresh token salvo no ChiConfig.json — nao vai pedir login de novo.");
+        } catch (Exception e) {
+            log.warn("Nao consegui salvar o refresh token no ChiConfig.json ({}). "
+                    + "Salve manualmente pra nao logar a cada restart:", e.toString());
+            log.warn("\"YoutubeRefreshToken\": \"{}\"", token);
         }
     }
 
