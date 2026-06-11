@@ -80,9 +80,10 @@ public class AudioLoader extends AbstractAudioLoadResultHandler {
                 .setTitle(queued ? "ﾟ･✧ Entrou na fila! ✧･ﾟ" : "ﾟ･✧ Tocando agora! ✧･ﾟ")
                 .setDescription(MusicUi.trackLine(track) + (queued ? "\nposição na fila: `"
                         + manager.getQueueSnapshot().size() + "` ♡" : "\nbora dançar~ ♪(´▽｀)"));
+        // setImage (e nao setThumbnail): capa em largura cheia no embed.
         String artwork = track.getInfo().getArtworkUrl();
         if (artwork != null) {
-            embed.setThumbnail(artwork);
+            embed.setImage(artwork);
         }
         ctx.replyEmbeds(embed.build());
     }
