@@ -28,6 +28,15 @@ services:
     restart: unless-stopped
     environment:
       - _JAVA_OPTIONS=-Xmx512M
+      # Login do YouTube no NODE: necessario pro loadtracks (busca/resolucao)
+      # em IP de datacenter — o token por track que o bot manda cobre so o
+      # play. Crie um arquivo .env ao lado deste compose (NUNCA versionar):
+      #   YOUTUBE_OAUTH_ENABLED=true
+      #   YOUTUBE_REFRESH_TOKEN=1//...   (o mesmo do ChiConfig.json)
+      # Spring mapeia estas variaveis por cima do application.yml montado.
+      - PLUGINS_YOUTUBE_OAUTH_ENABLED=${YOUTUBE_OAUTH_ENABLED:-false}
+      - PLUGINS_YOUTUBE_OAUTH_REFRESHTOKEN=${YOUTUBE_REFRESH_TOKEN:-}
+      - PLUGINS_YOUTUBE_OAUTH_SKIPINITIALIZATION=true
     volumes:
       - ./lavalink/application.yml:/opt/Lavalink/application.yml
       # Sem volume pros plugins: volume nomeado nasce como root e o Lavalink

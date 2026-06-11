@@ -46,6 +46,9 @@ bin/
 # Config com o token do bot — nunca versionar
 ChiConfig.json
 
+# Segredos do compose (refresh token do YouTube etc.) — nunca versionar
+.env
+
 # Banco local do Party Finder (gerado em runtime; inclui -wal/-shm do SQLite)
 ChiData.db
 ChiData.db-wal

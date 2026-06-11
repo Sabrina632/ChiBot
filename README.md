@@ -112,15 +112,23 @@ Quem resolve o YouTube é o plugin do Lavalink. Em IP de datacenter o YouTube po
 
 ## 🔑 Login do YouTube (OAuth)
 
-O login é gerenciado **pelo bot** (modo [client-provided token](https://github.com/lavalink-devs/youtube-source#using-oauth-tokens) do youtube-source): o bot troca um refresh token por access tokens e anexa o token no `userData` de cada track do YouTube na hora do play. O node não precisa de OAuth no `application.yml`.
+Em IP residencial nada disso é necessário. Em VPS (IP de datacenter) o YouTube exige login em **duas etapas diferentes**, e cada uma tem seu lado:
 
-Pra fazer o login uma única vez:
+- **Play (streamar o áudio)** — gerenciado **pelo bot** (modo [client-provided token](https://github.com/lavalink-devs/youtube-source#using-oauth-tokens) do youtube-source): o `YtOauth` troca o refresh token por access tokens e anexa `{"oauth-token": ...}` no `userData` de cada track do YouTube.
+- **Load (busca/resolução de link)** — roda no **node**, antes de existir track, então o token por track não alcança: o plugin precisa do login dele. Pra não editar o `application.yml` versionado (conflito a cada `git pull`), o login entra por variável de ambiente.
 
-1. Suba o bot com `"YoutubeRefreshToken": ""` no `ChiConfig.json`.
-2. O log do bot (`docker logs chibot`) mostra um código pra ativar em <https://www.google.com/device> — autorize com uma **conta Google descartável** (há risco de bloqueio).
-3. Depois de autorizar, o log imprime o refresh token: cole no `ChiConfig.json` (`"YoutubeRefreshToken": "1//..."`) e reinicie. Pronto pra sempre.
+Passo a passo (uma vez só):
 
-Sem o login, o bot toca normalmente em IP residencial; em VPS (IP de datacenter) a maioria dos vídeos falha com pedido de login do YouTube.
+1. Suba o bot com `"YoutubeRefreshToken": ""` no `ChiConfig.json`. O log (`docker logs chibot`) mostra um código pra ativar em <https://www.google.com/device> — autorize com uma **conta Google descartável** (há risco de bloqueio).
+2. Depois de autorizar, o log imprime o refresh token (`1//...`). Cole no `ChiConfig.json` (`"YoutubeRefreshToken": "1//..."`).
+3. Crie um arquivo `.env` ao lado do `docker-compose.yml` (já está no `.gitignore`) com **o mesmo token**:
+
+   ```env
+   YOUTUBE_OAUTH_ENABLED=true
+   YOUTUBE_REFRESH_TOKEN=1//...
+   ```
+
+4. `docker compose up -d` — o compose recria o `lavalink` com o login e reinicia o bot.
 
 ## 🧩 Criando um novo comando
 

@@ -27,9 +27,13 @@ plugins:
     allowSearch: true
     allowDirectVideoIds: true
     allowDirectPlaylistIds: true
-    # OAuth desligado no node: quem gerencia o login e o BOT (YtOauth), que
-    # manda o access token no userData de cada track ({"oauth-token": ...}).
-    # Configure o "YoutubeRefreshToken" no ChiConfig.json do bot.
+    # O login do play e gerenciado pelo BOT (YtOauth manda o access token no
+    # userData de cada track), mas o loadtracks (busca/resolucao) roda no node
+    # e em IP de datacenter tambem precisa de login. Em vez de editar este
+    # arquivo (gera conflito no git pull), ligue via .env ao lado do compose:
+    #   YOUTUBE_OAUTH_ENABLED=true
+    #   YOUTUBE_REFRESH_TOKEN=1//...
+    # As variaveis PLUGINS_YOUTUBE_OAUTH_* do compose sobrescrevem isto aqui.
     oauth:
       enabled: false
     # Ordem de clientes usados pra resolver streams/buscas.
