@@ -22,6 +22,9 @@ public class AudioLoader extends AbstractAudioLoadResultHandler {
 
     private static final Logger log = LoggerFactory.getLogger(AudioLoader.class);
 
+    /** Maximo de faixas que uma playlist pode colocar na fila de uma vez. */
+    private static final int MAX_PLAYLIST_TRACKS = 100;
+
     private final CommandContext ctx;
     private final GuildMusicManager manager;
 
@@ -38,12 +41,18 @@ public class AudioLoader extends AbstractAudioLoadResultHandler {
     @Override
     public void onPlaylistLoaded(@NotNull PlaylistLoaded result) {
         List<Track> tracks = result.getTracks();
+        boolean truncated = tracks.size() > MAX_PLAYLIST_TRACKS;
+        if (truncated) {
+            tracks = tracks.subList(0, MAX_PLAYLIST_TRACKS);
+        }
         manager.enqueuePlaylist(tracks);
         ctx.replyEmbeds(new EmbedBuilder()
                 .setColor(MusicUi.KAWAII_PINK)
                 .setTitle("ﾟ･✧ Playlist na fila! ✧･ﾟ")
                 .setDescription("Adicionei **" + tracks.size() + "** musiquinhas de *"
-                        + result.getInfo().getName() + "*~ (≧◡≦) ♡")
+                        + result.getInfo().getName() + "*~ (≧◡≦) ♡"
+                        + (truncated ? "\n(a playlist tinha mais, mas o limite é "
+                        + MAX_PLAYLIST_TRACKS + " por vez~)" : ""))
                 .build());
     }
 
