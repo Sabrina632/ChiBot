@@ -184,23 +184,45 @@ O contexto ([`CommandContext`](src/main/java/org/chibot/Commands/CommandContext.
 
 ### Comandos incluídos
 
-| Comando     | Aliases                          | Categoria  | Descrição                                                                 |
-|-------------|----------------------------------|------------|----------------------------------------------------------------------------|
-| `help`      | `ajuda`, `comandos`              | Geral      | Lista os comandos por categoria; `help <comando>` mostra os detalhes.       |
-| `ping`      | —                                | Utilidades | Mostra a latência de gateway e API num embed fofo~                          |
-| `play`      | `p`, `tocar`                     | Música     | Toca um link (YouTube, SoundCloud...) ou busca no YouTube.                  |
-| `pause`     | `pausar`                         | Música     | Pausa a música atual.                                                       |
-| `resume`    | `continuar`, `unpause`           | Música     | Continua de onde parou.                                                     |
-| `skip`      | `pular`, `s`                     | Música     | Pula pra próxima da fila.                                                   |
-| `stop`      | `parar`, `leave`, `sair`         | Música     | Para tudo, limpa a fila e sai do canal de voz.                              |
-| `playlist`  | `queue`, `fila`, `q`             | Música     | Mostra o que tá tocando e a fila; `playlist add` enfileira uma playlist inteira do YouTube (até 100 músicas). |
-| `pf`        | `partyfinder`                    | FFXIV      | Lista os PF de Ultimates/Savage do Aether (filtro por duty: `ucob`, `uwu`, `tea`, `dsr`, `top`, `fru`, `umad`...). |
-| `strats`    | `strat`, `strategies`            | FFXIV      | Ranking das strats mais citadas nos PF de uma duty (ex.: `/strats fru`).    |
-| `clear`     | `limpar`, `purge`                | Moderação  | Apaga até 100 mensagens do canal (exige Gerenciar Mensagens).               |
-| `ban`       | `banir`                          | Moderação  | Bane um usuário, com motivo opcional — funciona até por ID de quem nem está no servidor (exige Banir Membros). |
-| `kick`      | `expulsar`                       | Moderação  | Expulsa um usuário, com motivo opcional (exige Expulsar Membros).           |
-| `mute`      | `mutar`, `silenciar`, `castigo`  | Moderação  | Timeout do Discord: sem falar na voz nem no chat. Duração tipo `30s`, `10m`, `2h`, `7d` (padrão 10m, máx. 28d), expira sozinha (exige Castigar Membros). |
-| `unmute`    | `desmutar`                       | Moderação  | Tira o mute antes da hora (exige Castigar Membros).                         |
+#### ★ Geral
+
+| Comando     | Aliases                  | Descrição                                                                 |
+|-------------|--------------------------|----------------------------------------------------------------------------|
+| `help`      | `ajuda`, `comandos`      | Lista os comandos por categoria; `help <comando>` mostra os detalhes.       |
+
+#### ★ Utilidades
+
+| Comando     | Aliases                  | Descrição                                                                 |
+|-------------|--------------------------|----------------------------------------------------------------------------|
+| `ping`      | —                        | Mostra a latência de gateway e API num embed fofo~                          |
+
+#### ★ Música
+
+| Comando     | Aliases                  | Descrição                                                                 |
+|-------------|--------------------------|----------------------------------------------------------------------------|
+| `play`      | `p`, `tocar`             | Toca um link (YouTube, SoundCloud...) ou busca no YouTube.                  |
+| `pause`     | `pausar`                 | Pausa a música atual.                                                       |
+| `resume`    | `continuar`, `unpause`   | Continua de onde parou.                                                     |
+| `skip`      | `pular`, `s`             | Pula pra próxima da fila.                                                   |
+| `stop`      | `parar`, `leave`, `sair` | Para tudo, limpa a fila e sai do canal de voz.                              |
+| `playlist`  | `queue`, `fila`, `q`     | Mostra o que tá tocando e a fila; `playlist add` enfileira uma playlist inteira do YouTube (até 100 músicas). |
+
+#### ★ FFXIV
+
+| Comando     | Aliases                  | Descrição                                                                 |
+|-------------|--------------------------|----------------------------------------------------------------------------|
+| `pf`        | `partyfinder`            | Lista os PF de Ultimates/Savage do Aether (filtro por duty: `ucob`, `uwu`, `tea`, `dsr`, `top`, `fru`, `umad`...). |
+| `strats`    | `strat`, `strategies`    | Ranking das strats mais citadas nos PF de uma duty (ex.: `/strats fru`).    |
+
+#### ★ Moderação
+
+| Comando     | Aliases                          | Descrição                                                                 |
+|-------------|----------------------------------|----------------------------------------------------------------------------|
+| `clear`     | `limpar`, `purge`                | Apaga até 100 mensagens do canal (exige Gerenciar Mensagens).               |
+| `ban`       | `banir`                          | Bane um usuário, com motivo opcional — funciona até por ID de quem nem está no servidor (exige Banir Membros). |
+| `kick`      | `expulsar`                       | Expulsa um usuário, com motivo opcional (exige Expulsar Membros).           |
+| `mute`      | `mutar`, `silenciar`, `castigo`  | Timeout do Discord: sem falar na voz nem no chat. Duração tipo `30s`, `10m`, `2h`, `7d` (padrão 10m, máx. 28d), expira sozinha (exige Castigar Membros). |
+| `unmute`    | `desmutar`                       | Tira o mute antes da hora (exige Castigar Membros).                         |
 
 ## 🗂️ Estrutura do projeto
 
