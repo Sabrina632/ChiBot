@@ -33,7 +33,10 @@ services:
       # Sem volume pros plugins: volume nomeado nasce como root e o Lavalink
       # (uid 322) nao consegue gravar nele. O plugin do YouTube e pequeno e o
       # servidor baixa de novo sozinho quando o container e recriado.
-    # Sem "ports": so o bot precisa alcancar o Lavalink, nao a internet.
+    # Porta exposta SO no loopback: o bot rodando fora do Docker (dev local)
+    # alcanca em ws://localhost:2333, mas nada fica aberto pra internet.
+    ports:
+      - "127.0.0.1:2333:2333"
     logging:
       driver: json-file
       options:
