@@ -1,6 +1,7 @@
 package org.chibot.Music;
 
 import dev.arbjerg.lavalink.client.player.Track;
+import net.dv8tion.jda.api.EmbedBuilder;
 
 import java.awt.Color;
 
@@ -22,6 +23,15 @@ public final class MusicUi {
             return String.format("%d:%02d:%02d", hours, minutes, seconds);
         }
         return String.format("%d:%02d", minutes, seconds);
+    }
+
+    /** Aplica a capa da track como imagem grande do embed (se houver). */
+    public static EmbedBuilder withArtwork(EmbedBuilder embed, Track track) {
+        String artwork = track.getInfo().getArtworkUrl();
+        if (artwork != null) {
+            embed.setImage(artwork);
+        }
+        return embed;
     }
 
     /** "[Titulo](url) `(3:07)`" pra usar em embeds. */

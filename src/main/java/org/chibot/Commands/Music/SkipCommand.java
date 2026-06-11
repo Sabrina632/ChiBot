@@ -29,10 +29,10 @@ public class SkipCommand extends MusicCommand {
             return;
         }
         getManager(ctx).skip().ifPresentOrElse(
-                next -> ctx.replyEmbeds(new EmbedBuilder()
-                        .setColor(MusicUi.KAWAII_PINK)
-                        .setTitle("ﾟ･✧ Pulei! ✧･ﾟ")
-                        .setDescription("Agora vai: " + MusicUi.trackLine(next) + " ♡")
+                next -> ctx.replyEmbeds(MusicUi.withArtwork(new EmbedBuilder()
+                                .setColor(MusicUi.KAWAII_PINK)
+                                .setTitle("ﾟ･✧ Pulei! ✧･ﾟ")
+                                .setDescription("Agora vai: " + MusicUi.trackLine(next) + " ♡"), next)
                         .build()),
                 () -> ctx.reply("Pulei, mas a fila acabou~ era a última (´•ω•̥`)"));
     }
