@@ -1,6 +1,8 @@
 package org.chibot.Commands;
 
 import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.components.actionrow.ActionRow;
+import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.MessageEmbed;
@@ -99,6 +101,29 @@ public class SlashCommandContext implements CommandContext {
             event.getHook().sendMessageEmbeds(embeds).queue();
         } else {
             event.replyEmbeds(embeds).queue();
+        }
+    }
+
+    @Override
+    public void replyEmbedWithButtons(String content, MessageEmbed embed, List<Button> buttons) {
+        if (deferred) {
+            var action = event.getHook().sendMessageEmbeds(embed);
+            if (content != null && !content.isBlank()) {
+                action.setContent(content);
+            }
+            if (!buttons.isEmpty()) {
+                action.setComponents(ActionRow.of(buttons));
+            }
+            action.queue();
+        } else {
+            var action = event.replyEmbeds(embed);
+            if (content != null && !content.isBlank()) {
+                action.setContent(content);
+            }
+            if (!buttons.isEmpty()) {
+                action.setComponents(ActionRow.of(buttons));
+            }
+            action.queue();
         }
     }
 }

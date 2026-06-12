@@ -1,6 +1,7 @@
 package org.chibot.Commands;
 
 import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.MessageEmbed;
@@ -55,4 +56,10 @@ public interface CommandContext {
 
     /** Responde com varios embeds de uma vez (o Discord aceita ate 10). */
     void replyEmbeds(List<MessageEmbed> embeds);
+
+    /**
+     * Responde com um embed acompanhado de botoes, com um texto opcional acima
+     * do embed (ex.: mencoes de wishlist). Lista de botoes vazia = so o embed.
+     */
+    void replyEmbedWithButtons(String content, MessageEmbed embed, List<Button> buttons);
 }

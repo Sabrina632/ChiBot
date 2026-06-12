@@ -7,6 +7,7 @@
 ## ✨ Features
 
 - **Música** — toca do YouTube (link ou busca), SoundCloud, Bandcamp, Twitch e streams HTTP. O áudio roda num servidor [Lavalink](https://github.com/lavalink-devs/Lavalink), que resolve e toca tudo; a busca por nome pode usar a **YouTube Data API** (chave opcional no config).
+- **Harém (estilo Mudae)** — rola waifus/husbandos reais de anime (via [AniList](https://anilist.co)), casa clicando no 💗 dentro de 45s (um dono por personagem por servidor), kakera por popularidade, harém, divórcio, trocas com confirmação por botão, daily, torre de kakera com perks, rolls extras comprados com kakera, lista de desejos com ping e timers — tudo persistido em SQLite.
 - **Party Finder de FFXIV** — `/pf` lista os PF de Ultimates e Savage do data center Aether (via [xivpf.com](https://xivpf.com)), com emojis de job e composição; `/strats` mostra as strats mais citadas nas descrições dos PF de cada duty (acumuladas em SQLite ao longo do tempo).
 - **Moderação** — `ban`, `kick`, `mute` (timeout do Discord: bloqueia voz **e** chat, com duração e expiração automática), `unmute` e `clear`, tudo em embed, com checagem de hierarquia de cargos e motivo no audit log.
 - **Ajuda embutida** — `/help` lista os comandos por categoria num embed fofo; `/help <comando>` mostra uso e atalhos.
@@ -56,7 +57,7 @@ Na primeira execução, o ChiBot cria um `ChiConfig.json` padrão no diretório 
 
 | Variável                | Para quê serve                                                                       | Padrão                |
 |--------------------------|---------------------------------------------------------------------------------------|-----------------------|
-| `CHIBOT_DB_PATH`         | Caminho do banco SQLite do Party Finder.                                              | `ChiData.db`          |
+| `CHIBOT_DB_PATH`         | Caminho do banco SQLite (Party Finder + harém).                                       | `ChiData.db`          |
 | `YOUTUBE_REFRESH_TOKEN`  | Fallback do `YoutubeRefreshToken` quando ele está vazio no config (o compose repassa o valor do `.env` — veja [Login do YouTube](#-login-do-youtube-oauth)). | —                     |
 
 No Docker, o `Dockerfile` e o `docker-compose.yml` já configuram tudo isso.
@@ -214,6 +215,24 @@ O contexto ([`CommandContext`](src/main/java/org/chibot/Commands/CommandContext.
 | `pf`        | `partyfinder`            | Lista os PF de Ultimates/Savage do Aether (filtro por duty: `ucob`, `uwu`, `tea`, `dsr`, `top`, `fru`, `umad`...). |
 | `strats`    | `strat`, `strategies`    | Ranking das strats mais citadas nos PF de uma duty (ex.: `/strats fru`).    |
 
+#### ★ Harém
+
+| Comando     | Aliases                  | Descrição                                                                 |
+|-------------|--------------------------|----------------------------------------------------------------------------|
+| `waifu`     | `w`, `wa`                | Rola uma waifu aleatória — clica no 💗 em até 45s pra casar (10 rolls/hora). |
+| `husbando`  | `h`, `ha`                | Rola um husbando aleatório.                                                 |
+| `roll`      | `m`, `mx`                | Rola qualquer personagem (waifu ou husbando).                               |
+| `harem`     | `mm`, `meuharem`         | Mostra seu harém (ou o de outra pessoa: `harem @user`), ordenado por valor.  |
+| `divorce`   | `divorciar`              | Se divorcia de um personagem (devolve metade do valor em kakera).           |
+| `trade`     | `trocar`                 | Propõe troca: `trade @user <seu personagem> por <o dele>` — a outra pessoa aceita/recusa por botão (expira em 2 min). |
+| `daily`     | `diario`, `dk`           | Coleta kakera diário (a cada 20h, com bônus da torre).                      |
+| `buyrolls`  | `comprarrolls`, `br`     | Compra rolls extras com kakera (30 💎 cada; não expiram).                    |
+| `tower`     | `torre`, `badges`        | Torre de kakera (6 níveis): cada nível dá +1 roll/hora, +15% de saque e +50 no daily; `tower up` pra subir. |
+| `wish`      | `desejo`, `wishlist`     | Lista de desejos (até 5): te menciona quando o personagem aparecer num roll. |
+| `timers`    | `tu`, `tempos`           | Rolls restantes, casamento, daily, kakera, torre e desejos.                 |
+
+> Personagens já casados aparecem com borda laranja e um botão 💎 — o primeiro a clicar coleta kakera. O claim fica disponível a cada 3 horas; os rolls resetam a cada hora cheia.
+
 #### ★ Moderação
 
 | Comando     | Aliases                          | Descrição                                                                 |
@@ -241,6 +260,7 @@ src/main/java/org/chibot/
 │   ├── Core/                   # help (lista por categoria) e clear (faxina do canal)
 │   ├── Admin/                  # ban, kick, mute (timeout), unmute
 │   │   └── ModUtils.java       # alvo/motivo/hierarquia + embed compartilhados
+│   ├── Harem/                  # waifu, husbando, roll, harem, divorce, trade, daily, buyrolls, tower, wish, timers
 │   ├── Music/                  # play, pause, resume, skip, stop, playlist (+ add)
 │   │   └── MusicCommand.java   # base: guild-only + atalhos de voz
 │   └── PartyFinderCommands/
@@ -255,7 +275,12 @@ src/main/java/org/chibot/
 ├── Config/
 │   └── ChiConfig.java          # leitura/criação do ChiConfig.json
 ├── Database/
-│   └── PfRepository.java       # SQLite: snapshot dos PF + contagem de strats
+│   ├── PfRepository.java       # SQLite: snapshot dos PF + contagem de strats
+│   └── HaremRepository.java    # SQLite: casamentos, kakera/cooldowns e desejos
+├── Harem/
+│   ├── HaremService.java       # singleton: pools de personagens + botões de claim/kakera
+│   ├── AniListClient.java      # API GraphQL do AniList (personagens populares)
+│   └── AnimeCharacter.java
 ├── Logging/
 │   └── KawaiiLayout.java       # layout de log pastel em truecolor
 └── Music/

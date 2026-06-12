@@ -1,6 +1,8 @@
 package org.chibot.Commands;
 
 import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.components.actionrow.ActionRow;
+import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.MessageEmbed;
@@ -80,5 +82,17 @@ public class PrefixCommandContext implements CommandContext {
     @Override
     public void replyEmbeds(List<MessageEmbed> embeds) {
         event.getMessage().replyEmbeds(embeds).queue();
+    }
+
+    @Override
+    public void replyEmbedWithButtons(String content, MessageEmbed embed, List<Button> buttons) {
+        var action = event.getMessage().replyEmbeds(embed);
+        if (content != null && !content.isBlank()) {
+            action.setContent(content);
+        }
+        if (!buttons.isEmpty()) {
+            action.setComponents(ActionRow.of(buttons));
+        }
+        action.queue();
     }
 }

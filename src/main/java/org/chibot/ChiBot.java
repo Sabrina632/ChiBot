@@ -8,6 +8,7 @@ import net.dv8tion.jda.api.requests.GatewayIntent;
 import org.chibot.Commands.CommandListener;
 import org.chibot.Commands.CommandManager;
 import org.chibot.Config.ChiConfig;
+import org.chibot.Harem.HaremService;
 import org.chibot.Music.MusicService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,10 +34,13 @@ public class ChiBot
         // do interceptor de voz (e dos comandos, que o acessam como singleton).
         MusicService musicService = MusicService.init(config);
 
+        // Sistema de waifu/husbando: o servico escuta os botoes de claim/kakera.
+        HaremService haremService = HaremService.init();
+
         jda = JDABuilder.createDefault(config.getToken())
                 .enableIntents(GatewayIntent.MESSAGE_CONTENT)
                 .setVoiceDispatchInterceptor(musicService.getVoiceInterceptor())
-                .addEventListeners(new CommandListener(config, commandManager))
+                .addEventListeners(new CommandListener(config, commandManager), haremService)
                 .build()
                 .awaitReady();
 
