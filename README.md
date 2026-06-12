@@ -228,6 +228,7 @@ O contexto ([`CommandContext`](src/main/java/org/chibot/Commands/CommandContext.
 | `daily`     | `diario`, `dk`           | Coleta kakera diário (a cada 20h, com bônus da torre).                      |
 | `buyrolls`  | `comprarrolls`, `br`     | Compra rolls extras com kakera (30 💎 cada; não expiram).                    |
 | `tower`     | `torre`, `badges`        | Torre de kakera (6 níveis): cada nível dá +1 roll/hora, +15% de saque e +50 no daily; `tower up` pra subir. |
+| `profile`   | `perfil`                 | Perfil do harém (seu ou de alguém): stats, rank do servidor, torre e favorito; personaliza com `profile cor <hex>`, `profile bio <texto>` e `profile fav <personagem>`. |
 | `wish`      | `desejo`, `wishlist`     | Lista de desejos (até 5): te menciona quando o personagem aparecer num roll. |
 | `timers`    | `tu`, `tempos`           | Rolls restantes, casamento, daily, kakera, torre e desejos.                 |
 

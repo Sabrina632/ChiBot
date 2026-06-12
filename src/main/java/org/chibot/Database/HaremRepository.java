@@ -38,6 +38,12 @@ public class HaremRepository {
     /** Resultado de {@link #addWish}. */
     public enum WishResult { OK, DUPLICADO, CHEIO }
 
+    /** Personalizacao do perfil de um jogador ({@code color} -1 = padrao). */
+    public record Profile(int color, String bio, long favCharId) {}
+
+    /** Estatisticas do harem de um jogador num servidor. */
+    public record HaremStats(int count, long valorTotal, long primeiroClaimMs) {}
+
     private Connection conn;
 
     public HaremRepository() {
@@ -111,6 +117,16 @@ public class HaremRepository {
                         user_id    TEXT NOT NULL,
                         name_lower TEXT NOT NULL,
                         PRIMARY KEY (guild_id, user_id, name_lower)
+                    )
+                    """);
+            st.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS harem_profile (
+                        guild_id    TEXT    NOT NULL,
+                        user_id     TEXT    NOT NULL,
+                        color       INTEGER NOT NULL DEFAULT -1,
+                        bio         TEXT,
+                        fav_char_id INTEGER NOT NULL DEFAULT 0,
+                        PRIMARY KEY (guild_id, user_id)
                     )
                     """);
         }
@@ -576,6 +592,118 @@ public class HaremRepository {
                 // idem
             }
         }
+    }
+
+    /** Personalizacao do perfil (cor/bio/favorito padrao se nunca mexeu / banco indisponivel). */
+    public synchronized Profile getProfile(String guildId, String userId) {
+        if (!available()) {
+            return new Profile(-1, null, 0);
+        }
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT color, bio, fav_char_id FROM harem_profile WHERE guild_id = ? AND user_id = ?")) {
+            ps.setString(1, guildId);
+            ps.setString(2, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return new Profile(rs.getInt("color"), rs.getString("bio"), rs.getLong("fav_char_id"));
+                }
+            }
+        } catch (SQLException e) {
+            log.warn("Falha ao ler o perfil de {}/{}.", guildId, userId, e);
+        }
+        return new Profile(-1, null, 0);
+    }
+
+    public synchronized void setProfileColor(String guildId, String userId, int color) {
+        setProfileField(guildId, userId, "color", ps -> ps.setInt(1, color));
+    }
+
+    public synchronized void setProfileBio(String guildId, String userId, String bio) {
+        setProfileField(guildId, userId, "bio", ps -> ps.setString(1, bio));
+    }
+
+    public synchronized void setProfileFav(String guildId, String userId, long charId) {
+        setProfileField(guildId, userId, "fav_char_id", ps -> ps.setLong(1, charId));
+    }
+
+    private interface ParamSetter {
+        void set(PreparedStatement ps) throws SQLException;
+    }
+
+    private void setProfileField(String guildId, String userId, String column, ParamSetter setter) {
+        if (!available()) {
+            return;
+        }
+        try {
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "INSERT OR IGNORE INTO harem_profile (guild_id, user_id) VALUES (?, ?)")) {
+                ps.setString(1, guildId);
+                ps.setString(2, userId);
+                ps.executeUpdate();
+            }
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "UPDATE harem_profile SET " + column + " = ? WHERE guild_id = ? AND user_id = ?")) {
+                setter.set(ps);
+                ps.setString(2, guildId);
+                ps.setString(3, userId);
+                ps.executeUpdate();
+            }
+        } catch (SQLException e) {
+            log.warn("Falha ao salvar {} do perfil de {}/{}.", column, guildId, userId, e);
+        }
+    }
+
+    /** Quantidade, valor total e data do primeiro casamento do jogador. */
+    public synchronized HaremStats haremStats(String guildId, String userId) {
+        if (!available()) {
+            return new HaremStats(0, 0, 0);
+        }
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT COUNT(*) AS n, COALESCE(SUM(kakera), 0) AS total, COALESCE(MIN(claimed_at), 0) AS primeiro
+                FROM harem_claim WHERE guild_id = ? AND owner_id = ?
+                """)) {
+            ps.setString(1, guildId);
+            ps.setString(2, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return new HaremStats(rs.getInt("n"), rs.getLong("total"), rs.getLong("primeiro"));
+                }
+            }
+        } catch (SQLException e) {
+            log.warn("Falha ao ler as estatisticas do harem de {}/{}.", guildId, userId, e);
+        }
+        return new HaremStats(0, 0, 0);
+    }
+
+    /**
+     * Posicao do jogador no ranking do servidor por valor total do harem
+     * (1 = maior harem). Retorna 0 se o jogador nao tem personagens.
+     */
+    public synchronized int haremRank(String guildId, String userId) {
+        if (!available()) {
+            return 0;
+        }
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT COUNT(*) + 1 FROM (
+                    SELECT owner_id, SUM(kakera) AS s FROM harem_claim
+                    WHERE guild_id = ? GROUP BY owner_id
+                ) WHERE s > (
+                    SELECT COALESCE(SUM(kakera), -1) FROM harem_claim
+                    WHERE guild_id = ? AND owner_id = ?
+                )
+                """)) {
+            ps.setString(1, guildId);
+            ps.setString(2, guildId);
+            ps.setString(3, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next() && haremStats(guildId, userId).count() > 0) {
+                    return rs.getInt(1);
+                }
+            }
+        } catch (SQLException e) {
+            log.warn("Falha ao calcular o rank de {}/{}.", guildId, userId, e);
+        }
+        return 0;
     }
 
     private Claim readClaim(ResultSet rs) throws SQLException {

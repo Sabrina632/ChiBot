@@ -161,6 +161,43 @@ class HaremRepositoryTest {
     }
 
     @Test
+    void perfilGuardaCorBioEFavorito() {
+        HaremRepository repo = inMemory();
+
+        // Sem nada salvo, vem o padrao.
+        HaremRepository.Profile vazio = repo.getProfile(GUILD, ANA);
+        assertEquals(-1, vazio.color());
+        assertNull(vazio.bio());
+        assertEquals(0, vazio.favCharId());
+
+        repo.setProfileColor(GUILD, ANA, 0xFF66AA);
+        repo.setProfileBio(GUILD, ANA, "oi, sou a Ana~");
+        repo.setProfileFav(GUILD, ANA, 42);
+
+        HaremRepository.Profile perfil = repo.getProfile(GUILD, ANA);
+        assertEquals(0xFF66AA, perfil.color());
+        assertEquals("oi, sou a Ana~", perfil.bio());
+        assertEquals(42, perfil.favCharId());
+    }
+
+    @Test
+    void statsERankConsideramOValorDoHarem() {
+        HaremRepository repo = inMemory();
+        repo.tryClaim(GUILD, claim(1, "Rem", 300, ANA), 5000);
+        repo.tryClaim(GUILD, claim(2, "Megumin", 700, ANA), 9000);
+        repo.tryClaim(GUILD, claim(3, "Aqua", 5000, BIA), 1000);
+
+        HaremRepository.HaremStats stats = repo.haremStats(GUILD, ANA);
+        assertEquals(2, stats.count());
+        assertEquals(1000, stats.valorTotal());
+        assertEquals(5000, stats.primeiroClaimMs());
+
+        assertEquals(1, repo.haremRank(GUILD, BIA)); // 5000 > 1000
+        assertEquals(2, repo.haremRank(GUILD, ANA));
+        assertEquals(0, repo.haremRank(GUILD, "u-sem-harem"));
+    }
+
+    @Test
     void desejosTemLimiteEAvisamQuemDeseja() {
         HaremRepository repo = inMemory();
 
