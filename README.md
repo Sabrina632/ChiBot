@@ -1,6 +1,35 @@
+<div align="center">
+
 # ChiBot ♡
 
-> Um bot de Discord fofo e enxuto, feito em Java com a [JDA](https://github.com/discord-jda/JDA): música via Lavalink, Party Finder de FFXIV, console kawaii e carregamento automático de comandos~ (｡•ᴗ•｡)♡
+**Um bot de Discord fofo e enxuto, feito em Java com a [JDA](https://github.com/discord-jda/JDA).**
+
+Música via Lavalink · Harém estilo Mudae · Party Finder de FFXIV · console kawaii~ (｡•ᴗ•｡)♡
+
+[![Java 17](https://img.shields.io/badge/Java-17-ED8B00?style=flat-square&logo=openjdk&logoColor=white)](https://adoptium.net/)
+[![JDA](https://img.shields.io/badge/JDA-6.4.2-5865F2?style=flat-square&logo=discord&logoColor=white)](https://github.com/discord-jda/JDA)
+[![Lavalink v4](https://img.shields.io/badge/Lavalink-v4-FB7299?style=flat-square)](https://github.com/lavalink-devs/Lavalink)
+[![SQLite](https://img.shields.io/badge/SQLite-3-003B57?style=flat-square&logo=sqlite&logoColor=white)](https://www.sqlite.org/)
+[![Docker](https://img.shields.io/badge/Docker-ready-2496ED?style=flat-square&logo=docker&logoColor=white)](#-rodando-com-docker)
+[![Gradle](https://img.shields.io/badge/build-Gradle-02303A?style=flat-square&logo=gradle&logoColor=white)](https://gradle.org/)
+
+</div>
+
+---
+
+## 📑 Índice
+
+- [✨ Features](#-features)
+- [📦 Requisitos](#-requisitos)
+- [🔧 Configuração](#-configuração)
+- [🚀 Rodando localmente](#-rodando-localmente)
+- [🐳 Rodando com Docker](#-rodando-com-docker)
+- [🔑 Login do YouTube (OAuth)](#-login-do-youtube-oauth)
+- [🧩 Criando um novo comando](#-criando-um-novo-comando)
+- [📖 Comandos incluídos](#-comandos-incluídos)
+- [📂 Estrutura do projeto](#-estrutura-do-projeto)
+- [🔐 Segurança](#-segurança)
+- [🧰 Stack](#-stack)
 
 ---
 
@@ -25,7 +54,7 @@
 - Para **música**: um servidor **Lavalink v4** acessível (o `docker-compose.yml` já sobe um)
 - (Opcional) **Docker** + **Docker Compose** para deploy — recomendado, porque já amarra tudo
 
-## ⚙️ Configuração
+## 🔧 Configuração
 
 Na primeira execução, o ChiBot cria um `.env` padrão no diretório de trabalho e encerra pedindo o token (ou copie o [`.env.example`](.env.example)). Preencha:
 
@@ -183,21 +212,21 @@ A interface `ICommand` ainda oferece, via métodos `default`, recursos opcionais
 
 O contexto ([`CommandContext`](src/main/java/org/chibot/Commands/CommandContext.java)) abstrai a origem (prefixo ou slash), então o mesmo `execute` funciona para os dois.
 
-### Comandos incluídos
+## 📖 Comandos incluídos
 
-#### ★ Geral
+### ★ Geral
 
 | Comando     | Aliases                  | Descrição                                                                 |
 |-------------|--------------------------|----------------------------------------------------------------------------|
 | `help`      | `ajuda`, `comandos`      | Lista os comandos por categoria; `help <comando>` mostra os detalhes.       |
 
-#### ★ Utilidades
+### ★ Utilidades
 
 | Comando     | Aliases                  | Descrição                                                                 |
 |-------------|--------------------------|----------------------------------------------------------------------------|
 | `ping`      | —                        | Mostra a latência de gateway e API num embed fofo~                          |
 
-#### ★ Música
+### ★ Música
 
 | Comando     | Aliases                  | Descrição                                                                 |
 |-------------|--------------------------|----------------------------------------------------------------------------|
@@ -208,14 +237,14 @@ O contexto ([`CommandContext`](src/main/java/org/chibot/Commands/CommandContext.
 | `stop`      | `parar`, `leave`, `sair` | Para tudo, limpa a fila e sai do canal de voz.                              |
 | `playlist`  | `queue`, `fila`, `q`     | Mostra o que tá tocando e a fila; `playlist add` enfileira uma playlist inteira do YouTube (até 100 músicas). |
 
-#### ★ FFXIV
+### ★ FFXIV
 
 | Comando     | Aliases                  | Descrição                                                                 |
 |-------------|--------------------------|----------------------------------------------------------------------------|
 | `pf`        | `partyfinder`            | Lista os PF de Ultimates/Savage do Aether (filtro por duty: `ucob`, `uwu`, `tea`, `dsr`, `top`, `fru`, `umad`...). |
 | `strats`    | `strat`, `strategies`    | Ranking das strats mais citadas nos PF de uma duty (ex.: `/strats fru`).    |
 
-#### ★ Harém
+### ★ Harém
 
 | Comando     | Aliases                  | Descrição                                                                 |
 |-------------|--------------------------|----------------------------------------------------------------------------|
@@ -234,7 +263,7 @@ O contexto ([`CommandContext`](src/main/java/org/chibot/Commands/CommandContext.
 
 > Personagens já casados aparecem com borda laranja e um botão 💎 — o primeiro a clicar coleta kakera. O claim fica disponível a cada 3 horas; os rolls resetam a cada hora cheia.
 
-#### ★ Moderação
+### ★ Moderação
 
 | Comando     | Aliases                          | Descrição                                                                 |
 |-------------|----------------------------------|----------------------------------------------------------------------------|
@@ -244,7 +273,7 @@ O contexto ([`CommandContext`](src/main/java/org/chibot/Commands/CommandContext.
 | `mute`      | `mutar`, `silenciar`, `castigo`  | Timeout do Discord: sem falar na voz nem no chat. Duração tipo `30s`, `10m`, `2h`, `7d` (padrão 10m, máx. 28d), expira sozinha (exige Castigar Membros). |
 | `unmute`    | `desmutar`                       | Tira o mute antes da hora (exige Castigar Membros).                         |
 
-## 🗂️ Estrutura do projeto
+## 📂 Estrutura do projeto
 
 ```
 src/main/java/org/chibot/
@@ -302,15 +331,19 @@ lavalink/application.yml        # config do servidor Lavalink (plugin do YouTube
 
 O **`.env`** guarda credenciais em texto puro (token do bot, chave da API do YouTube) e **não deve ir pro versionamento** (já está no `.gitignore`). Se o token for exposto (commitado, compartilhado...), **regenere-o imediatamente** no Discord Developer Portal — revogar é a única forma segura de invalidar o antigo.
 
-## 🛠️ Stack
+## 🧰 Stack
 
 - [JDA 6.4.2](https://github.com/discord-jda/JDA) — Java Discord API
 - [lavalink-client 3.4.0](https://github.com/lavalink-devs/lavalink-client) — cliente do servidor [Lavalink v4](https://github.com/lavalink-devs/Lavalink) (+ [youtube-plugin](https://github.com/lavalink-devs/youtube-source))
 - [jsoup 1.18.3](https://jsoup.org/) — scraping do xivpf.com
 - [sqlite-jdbc 3.46](https://github.com/xerial/sqlite-jdbc) — persistência do Party Finder
 - [logback-classic 1.5.18](https://logback.qos.ch/) — logging
-- [org.json](https://github.com/stleary/JSON-java) — leitura do config
+- [org.json](https://github.com/stleary/JSON-java) — parsing das respostas JSON das APIs (OAuth do YouTube, AniList, xivpf)
 - JUnit 5 — testes
 - Gradle (wrapper incluído) + plugin `application`
 
 ---
+
+<div align="center">
+<sub>Feito com ♡ em Java · (｡•ᴗ•｡)♡</sub>
+</div>
