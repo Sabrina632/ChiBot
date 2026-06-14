@@ -70,7 +70,7 @@ public class ChiBot
                         err -> log.error("Falha ao registrar slash commands no servidor.", err));
                 return;
             }
-            log.warn("GuildId '{}' configurado, mas o bot nao esta nesse servidor. " +
+            log.warn("GUILD_ID '{}' configurado, mas o bot nao esta nesse servidor. " +
                     "Registrando slash commands globalmente.", guildId);
         }
 

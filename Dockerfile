@@ -39,6 +39,6 @@ ENV CHIBOT_DB_PATH=/app/data/ChiData.db
 
 USER chibot
 
-# O bot le o ChiConfig.json a partir do diretorio de trabalho (/app).
+# O bot le o .env a partir do diretorio de trabalho (/app).
 # Monte esse arquivo como volume (veja docker-compose.yml).
 ENTRYPOINT ["/app/ChiBot/bin/ChiBot"]

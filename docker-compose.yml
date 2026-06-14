@@ -4,10 +4,10 @@ services:
     image: chibot:latest
     container_name: chibot
     restart: unless-stopped
-    # Monta o config do host dentro do container. Edite o ChiConfig.json na VPS
-    # (token, prefixo, GuildId) e reinicie o container — sem precisar rebuildar.
+    # Monta o config do host dentro do container. Edite o .env na VPS
+    # (DISCORD_TOKEN, PREFIX, GUILD_ID) e reinicie o container — sem rebuildar.
     volumes:
-      - ./ChiConfig.json:/app/ChiConfig.json
+      - ./.env:/app/.env
       # Banco do Party Finder (ChiData.db). Volume nomeado pra persistir entre
       # recriacoes do container (docker compose up --build nao apaga).
       - chibot-data:/app/data
@@ -21,11 +21,8 @@ services:
     # espreme o Lavalink (que e quem nao pode engasgar).
     environment:
       - _JAVA_OPTIONS=-Xmx256M
-      # Mesmo token do node (vem do .env): usado quando o YoutubeRefreshToken
-      # do ChiConfig.json esta vazio — assim o login fica num lugar so.
-      - YOUTUBE_REFRESH_TOKEN=${YOUTUBE_REFRESH_TOKEN:-}
     # Musica: o bot fala com o Lavalink pela rede interna do compose.
-    # No ChiConfig.json da VPS, use "LavalinkUri": "ws://lavalink:2333".
+    # No .env da VPS, use LAVALINK_URI=ws://lavalink:2333.
     depends_on:
       - lavalink
 
@@ -40,7 +37,7 @@ services:
       # em IP de datacenter — o token por track que o bot manda cobre so o
       # play. Crie um arquivo .env ao lado deste compose (NUNCA versionar):
       #   YOUTUBE_OAUTH_ENABLED=true
-      #   YOUTUBE_REFRESH_TOKEN=1//...   (o mesmo do ChiConfig.json)
+      #   YOUTUBE_REFRESH_TOKEN=1//...   (o mesmo que o bot usa)
       # Spring mapeia estas variaveis por cima do application.yml montado.
       - PLUGINS_YOUTUBE_OAUTH_ENABLED=${YOUTUBE_OAUTH_ENABLED:-false}
       - PLUGINS_YOUTUBE_OAUTH_REFRESHTOKEN=${YOUTUBE_REFRESH_TOKEN:-}

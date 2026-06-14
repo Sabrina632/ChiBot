@@ -1,5 +1,5 @@
 # Configuracao do servidor Lavalink v4 (audio do ChiBot).
-# A senha precisa bater com o "LavalinkPassword" do ChiConfig.json.
+# A senha precisa bater com o LAVALINK_PASSWORD do .env.
 server:
   port: 2333
   address: 0.0.0.0

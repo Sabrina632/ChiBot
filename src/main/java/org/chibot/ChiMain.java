@@ -24,12 +24,12 @@ public class ChiMain {
         try {
             config = ChiConfig.load();
         } catch (IOException e) {
-            log.error("Falha ao ler/criar ChiConfig.json", e);
+            log.error("Falha ao ler/criar .env", e);
             return;
         }
 
         if (!config.isTokenPresent()) {
-            log.warn("Token nao configurado em ChiConfig.json. Preencha o token e reinicie o bot.");
+            log.warn("DISCORD_TOKEN nao configurado no .env. Preencha o token e reinicie o bot.");
             return;
         }
 

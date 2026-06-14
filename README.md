@@ -14,7 +14,7 @@
 - **Comandos por prefixo e por slash (`/`)** — o mesmo comando funciona dos dois jeitos.
 - **Auto-load de comandos** — basta criar uma classe que implementa `ICommand` no pacote `org.chibot.Commands`; ela é descoberta e registrada sozinha por reflection, sem precisar editar nada.
 - **Console kawaii** — banner com degradê pastel e logs coloridos em truecolor (veja [`KawaiiLayout`](src/main/java/org/chibot/Logging/KawaiiLayout.java)).
-- **Configuração simples** — um único `ChiConfig.json` que é criado automaticamente na primeira execução.
+- **Configuração simples** — um único `.env` que é criado automaticamente na primeira execução.
 - **Pronto pra Docker** — build multi-stage e `docker-compose` com bot + Lavalink, tudo na rede interna.
 
 ## 📦 Requisitos
@@ -27,29 +27,29 @@
 
 ## ⚙️ Configuração
 
-Na primeira execução, o ChiBot cria um `ChiConfig.json` padrão no diretório de trabalho e encerra pedindo o token. Preencha:
+Na primeira execução, o ChiBot cria um `.env` padrão no diretório de trabalho e encerra pedindo o token (ou copie o [`.env.example`](.env.example)). Preencha:
 
-```json
-{
-    "Token": "SEU_TOKEN_AQUI",
-    "Prefix": "!",
-    "GuildId": "",
-    "LavalinkUri": "ws://localhost:2333",
-    "LavalinkPassword": "youshallnotpass",
-    "YoutubeApiKey": "",
-    "YoutubeRefreshToken": ""
-}
+```dotenv
+DISCORD_TOKEN=SEU_TOKEN_AQUI
+PREFIX=!
+GUILD_ID=
+LAVALINK_URI=ws://localhost:2333
+LAVALINK_PASSWORD=youshallnotpass
+YOUTUBE_API_KEY=
+YOUTUBE_REFRESH_TOKEN=
 ```
 
-| Campo                 | Descrição                                                                                                  |
-|-----------------------|------------------------------------------------------------------------------------------------------------|
-| `Token`               | Token do bot (obrigatório).                                                                                |
-| `Prefix`              | Prefixo dos comandos de texto. Padrão: `!`.                                                                 |
-| `GuildId`             | Se preenchido, os slash commands são registrados **só nesse servidor** e aparecem na hora (ótimo pra dev). Vazio = registro **global** (pode levar até ~1h pra propagar). |
-| `LavalinkUri`         | Endereço do servidor Lavalink. Local: `ws://localhost:2333`; no compose: `ws://lavalink:2333`.              |
-| `LavalinkPassword`    | Senha do Lavalink — precisa bater com a do [`lavalink/application.yml`](lavalink/application.yml).          |
-| `YoutubeApiKey`       | (Opcional) Chave da YouTube Data API v3 — melhora a busca por nome. Vazio = busca pelo `ytsearch` do Lavalink. |
-| `YoutubeRefreshToken` | (Opcional) Login do YouTube via OAuth — necessário em IP de datacenter (veja [Login do YouTube](#-login-do-youtube-oauth)). |
+As mesmas chaves também podem vir de variáveis de ambiente do processo, que **têm prioridade** sobre o `.env` (útil no Docker).
+
+| Variável                | Descrição                                                                                                  |
+|-------------------------|------------------------------------------------------------------------------------------------------------|
+| `DISCORD_TOKEN`         | Token do bot (obrigatório).                                                                                |
+| `PREFIX`                | Prefixo dos comandos de texto. Padrão: `!`.                                                                 |
+| `GUILD_ID`              | Se preenchido, os slash commands são registrados **só nesse servidor** e aparecem na hora (ótimo pra dev). Vazio = registro **global** (pode levar até ~1h pra propagar). |
+| `LAVALINK_URI`          | Endereço do servidor Lavalink. Local: `ws://localhost:2333`; no compose: `ws://lavalink:2333`.              |
+| `LAVALINK_PASSWORD`     | Senha do Lavalink — precisa bater com a do [`lavalink/application.yml`](lavalink/application.yml).          |
+| `YOUTUBE_API_KEY`       | (Opcional) Chave da YouTube Data API v3 — melhora a busca por nome. Vazio = busca pelo `ytsearch` do Lavalink. |
+| `YOUTUBE_REFRESH_TOKEN` | (Opcional) Login do YouTube via OAuth — necessário em IP de datacenter (veja [Login do YouTube](#-login-do-youtube-oauth)). |
 
 > ⚠️ **Nunca compartilhe nem commite seu token.** Ele dá controle total sobre o bot. Veja [Segurança](#-segurança).
 
@@ -58,7 +58,8 @@ Na primeira execução, o ChiBot cria um `ChiConfig.json` padrão no diretório 
 | Variável                | Para quê serve                                                                       | Padrão                |
 |--------------------------|---------------------------------------------------------------------------------------|-----------------------|
 | `CHIBOT_DB_PATH`         | Caminho do banco SQLite (Party Finder + harém).                                       | `ChiData.db`          |
-| `YOUTUBE_REFRESH_TOKEN`  | Fallback do `YoutubeRefreshToken` quando ele está vazio no config (o compose repassa o valor do `.env` — veja [Login do YouTube](#-login-do-youtube-oauth)). | —                     |
+
+Qualquer chave do `.env` (`DISCORD_TOKEN`, `LAVALINK_URI`, `YOUTUBE_REFRESH_TOKEN`...) também pode ser passada como variável de ambiente do processo, que tem prioridade sobre o arquivo.
 
 No Docker, o `Dockerfile` e o `docker-compose.yml` já configuram tudo isso.
 
@@ -98,8 +99,8 @@ O `docker-compose.yml` sobe **três serviços** na rede interna (nenhuma porta e
 | `yt-cipher`       | Resolve os desafios de assinatura do player do YouTube pro plugin — sem ele o playback quebra quando o YouTube troca o `base.js`. |
 
 ```bash
-# Edite o ChiConfig.json com seu token antes de subir
-# (e use "LavalinkUri": "ws://lavalink:2333")
+# Edite o .env com seu token antes de subir
+# (e use LAVALINK_URI=ws://lavalink:2333)
 docker compose up -d --build
 
 # Acompanhar os logs (com o console fofo~)
@@ -108,7 +109,7 @@ docker compose logs -f chibot
 
 O que é montado do host (sobrevive a restart, rebuild e `down -v`):
 
-- **`ChiConfig.json`** → `/app/ChiConfig.json` — trocar token/prefixo/servidor é só editar e `docker compose restart chibot`, sem rebuildar.
+- **`.env`** → `/app/.env` — trocar token/prefixo/servidor é só editar e `docker compose restart chibot`, sem rebuildar. O mesmo `.env` alimenta o `chibot` (montado como volume) e o `lavalink` (substituição de variáveis do compose).
 - **`lavalink/application.yml`** → config do Lavalink.
 
 E o volume nomeado `chibot-data` (`/app/data`) guarda o banco do Party Finder (`ChiData.db`) entre recriações do container.
@@ -125,17 +126,16 @@ Em IP residencial nada disso é necessário. Em VPS (IP de datacenter) o YouTube
 Passo a passo (uma vez só):
 
 1. Suba tudo sem token. O log do bot (`docker logs chibot`) mostra um código pra ativar em <https://www.google.com/device> — autorize com uma **conta Google descartável** (há risco de bloqueio).
-2. O bot salva o refresh token sozinho no `ChiConfig.json` (se não conseguir escrever no arquivo, imprime o token no log pra você colar manualmente).
-3. Copie o token pro `.env` ao lado do `docker-compose.yml` (já está no `.gitignore`), pro **node** usar também:
+2. O bot salva o `YOUTUBE_REFRESH_TOKEN` sozinho no `.env` (se não conseguir escrever no arquivo, imprime o token no log pra você colar manualmente).
+3. Habilite o OAuth no **node** acrescentando uma linha no mesmo `.env`:
 
-   ```env
+   ```dotenv
    YOUTUBE_OAUTH_ENABLED=true
-   YOUTUBE_REFRESH_TOKEN=1//...
    ```
 
 4. `docker compose up -d` — recria o `lavalink` logado e reinicia o bot.
 
-O `.env` vale pelos dois lados: o compose repassa o `YOUTUBE_REFRESH_TOKEN` pro bot também, usado quando o `YoutubeRefreshToken` do `ChiConfig.json` está vazio — então com o token no `.env` nada mais pede login, nunca.
+Como o `.env` é único, o token vale pelos dois lados: o bot lê do arquivo montado e o compose injeta o mesmo `YOUTUBE_REFRESH_TOKEN` no `lavalink` — então com o token salvo nada mais pede login, nunca.
 
 ## 🧩 Criando um novo comando
 
@@ -274,7 +274,7 @@ src/main/java/org/chibot/
 │       ├── XivpfApiClient.java
 │       └── XivpfWorlds.java
 ├── Config/
-│   └── ChiConfig.java          # leitura/criação do ChiConfig.json
+│   └── ChiConfig.java          # leitura/criação do .env
 ├── Database/
 │   ├── PfRepository.java       # SQLite: snapshot dos PF + contagem de strats
 │   └── HaremRepository.java    # SQLite: casamentos, kakera/cooldowns e desejos
@@ -300,7 +300,7 @@ lavalink/application.yml        # config do servidor Lavalink (plugin do YouTube
 
 ## 🔐 Segurança
 
-O **`ChiConfig.json`** guarda credenciais em texto puro (token do bot, chave da API do YouTube) e **não deve ir pro versionamento** (já está no `.gitignore`). Se o token for exposto (commitado, compartilhado...), **regenere-o imediatamente** no Discord Developer Portal — revogar é a única forma segura de invalidar o antigo.
+O **`.env`** guarda credenciais em texto puro (token do bot, chave da API do YouTube) e **não deve ir pro versionamento** (já está no `.gitignore`). Se o token for exposto (commitado, compartilhado...), **regenere-o imediatamente** no Discord Developer Portal — revogar é a única forma segura de invalidar o antigo.
 
 ## 🛠️ Stack
 

@@ -22,9 +22,9 @@ import java.util.UUID;
  * Usa o client publico de TV do YouTube (o mesmo embutido no youtube-source
  * e no yt-dlp); e o unico aceito pelo device flow interno do YouTube.
  *
- * Sem "YoutubeRefreshToken" no ChiConfig.json, o bot dispara o device flow no
- * boot: o log mostra o codigo pra autorizar em google.com/device e, depois da
- * autorizacao, imprime o refresh token pra salvar no config.
+ * Sem YOUTUBE_REFRESH_TOKEN no .env, o bot dispara o device flow no boot: o
+ * log mostra o codigo pra autorizar em google.com/device e, depois da
+ * autorizacao, salva o refresh token sozinho no .env.
  */
 public final class YtOauth {
 
@@ -148,18 +148,18 @@ public final class YtOauth {
     }
 
     /**
-     * Salva o token no ChiConfig.json pra sobreviver a restarts. Se nao der
-     * (ex.: bind mount sem permissao de escrita pro usuario do container),
-     * imprime o token pro usuario salvar manualmente.
+     * Salva o token no .env pra sobreviver a restarts. Se nao der (ex.: bind
+     * mount sem permissao de escrita pro usuario do container), imprime o token
+     * pro usuario salvar manualmente.
      */
     private void persistRefreshToken(String token) {
         try {
             ChiConfig.saveYoutubeRefreshToken(token);
-            log.info("Refresh token salvo no ChiConfig.json — nao vai pedir login de novo.");
+            log.info("Refresh token salvo no .env — nao vai pedir login de novo.");
         } catch (Exception e) {
-            log.warn("Nao consegui salvar o refresh token no ChiConfig.json ({}). "
+            log.warn("Nao consegui salvar o refresh token no .env ({}). "
                     + "Salve manualmente pra nao logar a cada restart:", e.toString());
-            log.warn("\"YoutubeRefreshToken\": \"{}\"", token);
+            log.warn("YOUTUBE_REFRESH_TOKEN={}", token);
         }
     }
 

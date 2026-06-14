@@ -19,7 +19,7 @@ Dockerfile
 docker-compose.yml
 
 # Config com segredos: NUNCA vai pra imagem (monte como volume na VPS)
-ChiConfig.json
+.env
 
 # SO
 .DS_Store

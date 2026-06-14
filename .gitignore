@@ -43,10 +43,7 @@ bin/
 .DS_Store
 
 ### ChiBot ###
-# Config com o token do bot — nunca versionar
-ChiConfig.json
-
-# Segredos do compose (refresh token do YouTube etc.) — nunca versionar
+# Config com segredos (token do bot, refresh token do YouTube etc.) — nunca versionar
 .env
 
 # Banco local do Party Finder (gerado em runtime; inclui -wal/-shm do SQLite)
