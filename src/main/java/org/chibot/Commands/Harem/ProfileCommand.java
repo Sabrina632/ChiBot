@@ -151,10 +151,9 @@ public class ProfileCommand implements ICommand {
                         ? "*Sem bio~ usa `profile bio <texto>` pra escrever uma!*"
                         : profile.bio())
                 .addField(HaremEmojis.custom("prof_harem", "💍") + " Harém",
-                        stats.count() + " personagem(ns) · " + HaremEmojis.kakera()
-                                + " " + stats.valorTotal(), true)
+                        stats.count() + " personagem(ns)", true)
                 .addField(HaremEmojis.kakera() + " Kakera",
-                        HaremEmojis.kakera() + " " + player.kakera(), true)
+                        HaremEmojis.kakera() + " " + stats.valorTotal(), true)
                 .addBlankField(true)
                 .addField(HaremEmojis.custom("prof_rank", "🏆") + " Rank",
                         rank > 0 ? "#" + rank + " do servidor" : "—", true)
