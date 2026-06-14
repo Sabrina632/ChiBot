@@ -10,7 +10,7 @@ Música via Lavalink · Harém estilo Mudae · Party Finder de FFXIV · console 
 [![JDA 6.4.2](assets/badges/jda.svg)](https://github.com/discord-jda/JDA)
 [![Lavalink v4](assets/badges/lavalink.svg)](https://github.com/lavalink-devs/Lavalink)
 [![SQLite 3](assets/badges/sqlite.svg)](https://www.sqlite.org/)
-[![Docker](assets/badges/docker.svg)](#-rodando-com-docker)
+[![Docker](assets/badges/docker.svg)](https://www.docker.com/)
 [![Gradle](assets/badges/gradle.svg)](https://gradle.org/)
 
 </div>
