@@ -141,6 +141,44 @@ public class HaremRepository {
                         PRIMARY KEY (guild_id, user_id, badge_id)
                     )
                     """);
+            st.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS harem_meta (
+                        mkey   TEXT NOT NULL PRIMARY KEY,
+                        mvalue TEXT
+                    )
+                    """);
+        }
+    }
+
+    /** Valor de uma chave global de metadados (ex.: versao da arte dos badges), ou null. */
+    public synchronized String getMeta(String key) {
+        if (!available()) {
+            return null;
+        }
+        try (PreparedStatement ps = conn.prepareStatement("SELECT mvalue FROM harem_meta WHERE mkey = ?")) {
+            ps.setString(1, key);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getString(1) : null;
+            }
+        } catch (SQLException e) {
+            log.warn("Falha ao ler a meta '{}'.", key, e);
+            return null;
+        }
+    }
+
+    /** Grava (ou atualiza) uma chave global de metadados. */
+    public synchronized void setMeta(String key, String value) {
+        if (!available()) {
+            return;
+        }
+        try (PreparedStatement ps = conn.prepareStatement(
+                "INSERT INTO harem_meta (mkey, mvalue) VALUES (?, ?) "
+                        + "ON CONFLICT(mkey) DO UPDATE SET mvalue = excluded.mvalue")) {
+            ps.setString(1, key);
+            ps.setString(2, value);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            log.warn("Falha ao gravar a meta '{}'.", key, e);
         }
     }
 

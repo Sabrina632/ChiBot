@@ -4,6 +4,7 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Icon;
 import net.dv8tion.jda.api.entities.emoji.ApplicationEmoji;
 import net.dv8tion.jda.api.entities.emoji.Emoji;
+import org.chibot.Database.HaremRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -129,34 +130,89 @@ public final class HaremEmojis {
             log.info("Emojis de harem: {} ja existiam, {} sendo enviados.",
                     mapa.size(), subindo);
 
-            // Badges com arte da rede (personagens via AniList, lojinha via
-            // OpenMoji): HTTP bloqueante, entao roda fora da thread do JDA.
-            syncImagens(jda, mapa);
+            // Quando a versao da arte muda (troquei os emblemas), recria eles uma
+            // vez — assim o redeploy ja atualiza sem precisar apagar na mao.
+            HaremService svc = HaremService.get();
+            HaremRepository repo = svc != null ? svc.getRepo() : null;
+            boolean refresh = repo != null && !ART_VERSION.equals(repo.getMeta(META_ART));
+
+            // Badges com arte da rede (personagens via AniList, emblemas via
+            // emoji.gg): HTTP bloqueante, entao roda fora da thread do JDA.
+            syncImagens(jda, mapa, refresh, repo);
         }, err -> log.warn("Falha ao carregar os application emojis do harem.", err));
     }
 
-    /** Base do pacote OpenMoji (CC BY-SA) no jsDelivr — arte da lojinha. */
+    /** Versao da arte dos emblemas — bumpar isso forca a recriacao no proximo boot. */
+    private static final String ART_VERSION = "2026-06-emojigg-1";
+    private static final String META_ART = "badge_art_version";
+
+    /** Base do pacote OpenMoji (CC BY-SA) no jsDelivr — fallback de arte dos emblemas. */
     private static final String OPENMOJI =
             "https://cdn.jsdelivr.net/gh/hfg-gmuend/openmoji@master/color/618x618/";
 
     /**
+     * Arte fofa escolhida a dedo no emoji.gg pra cada emblema (conquista/loja).
+     * Quando um emblema esta aqui, usa essa imagem; senao cai no OpenMoji. As
+     * URLs do CDN do emoji.gg sao estaveis.
+     */
+    private static final Map<String, String> ARTE_EMBLEMA = Map.ofEntries(
+            Map.entry("badge_sakura", "https://cdn3.emoji.gg/emojis/832263-purplesakuraflower.png"),
+            Map.entry("badge_morango", "https://cdn3.emoji.gg/emojis/368854-fruitystrawberry.png"),
+            Map.entry("badge_gatinho", "https://cdn3.emoji.gg/emojis/606294-calicocat.png"),
+            Map.entry("badge_coracao", "https://cdn3.emoji.gg/emojis/543441-pinktriplehearts.png"),
+            Map.entry("badge_estrela", "https://cdn3.emoji.gg/emojis/111020-chalkstars.png"),
+            Map.entry("badge_laco", "https://cdn3.emoji.gg/emojis/930532-ribbonpink.png"),
+            Map.entry("badge_luar", "https://cdn3.emoji.gg/emojis/984953-pixelmoon.png"),
+            Map.entry("badge_borboleta", "https://cdn3.emoji.gg/emojis/788725-crystalbutterfly.png"),
+            Map.entry("badge_arcoiris", "https://cdn3.emoji.gg/emojis/221251-pastelrainbow.png"),
+            Map.entry("badge_primeiro_amor", "https://cdn3.emoji.gg/emojis/570002-chalkheartduo.png"),
+            Map.entry("badge_colecionador", "https://cdn3.emoji.gg/emojis/887448-trihearts.png"),
+            Map.entry("badge_mestre_harem", "https://cdn3.emoji.gg/emojis/505000-pastelcastle.png"),
+            Map.entry("badge_lenda_harem", "https://cdn3.emoji.gg/emojis/143879-pastelshootingstar.png"),
+            Map.entry("badge_tesouro_vivo", "https://cdn3.emoji.gg/emojis/672431-pinkdiamond.png"),
+            Map.entry("badge_ricaco", "https://cdn3.emoji.gg/emojis/257090-bagofrubles.png"),
+            Map.entry("badge_topo_torre", "https://cdn3.emoji.gg/emojis/9892-castle.png"),
+            Map.entry("badge_sonhador", "https://cdn3.emoji.gg/emojis/971460-simplesparkles.png"),
+            Map.entry("badge_realeza", "https://cdn3.emoji.gg/emojis/435134-chalkcrown.png"));
+
+    /**
      * Cria, numa thread daemon propria, os emojis dos badges que tem arte vinda
      * da rede e ainda nao existem: personagens (rosto do AniList) e os emblemas
-     * de conquista/lojinha (arte do OpenMoji a partir do fallback unicode).
-     * Idempotente — pula os ja criados e os que tem PNG local (esses sobem pelo
-     * loop principal).
+     * de conquista/lojinha (arte fofa do emoji.gg via {@link #ARTE_EMBLEMA}, com
+     * OpenMoji de fallback). Idempotente — pula os ja criados e os que tem PNG
+     * local (esses sobem pelo loop principal).
      */
-    private static void syncImagens(JDA jda, Map<String, ApplicationEmoji> mapa) {
+    private static void syncImagens(JDA jda, Map<String, ApplicationEmoji> mapa,
+                                    boolean refresh, HaremRepository repo) {
         List<HaremBadges.Badge> personagens = HaremBadges.personagens();
         List<HaremBadges.Badge> emblemas = new ArrayList<>(HaremBadges.conquistas());
         emblemas.addAll(HaremBadges.loja());
         boolean faltam = personagens.stream().anyMatch(b -> !mapa.containsKey(b.emojiNome()))
                 || emblemas.stream().anyMatch(b -> !mapa.containsKey(b.emojiNome())
                         && lerIcon(b.emojiNome()) == null);
-        if (!faltam) {
+        if (!refresh && !faltam) {
             return;
         }
         Thread worker = new Thread(() -> {
+            // Refresh: apaga os emblemas atuais (sem PNG local) pra recriar com a
+            // arte nova. Roda nesta thread, entao pode bloquear no complete().
+            if (refresh) {
+                for (HaremBadges.Badge b : emblemas) {
+                    String nome = b.emojiNome();
+                    ApplicationEmoji e = mapa.get(nome);
+                    if (e == null || lerIcon(nome) != null) {
+                        continue; // nao existe, ou tem PNG local (respeita)
+                    }
+                    try {
+                        e.delete().complete();
+                        mapa.remove(nome);
+                        log.info("Emoji de emblema '{}' apagado pra recriar com a arte nova.", nome);
+                    } catch (Exception ex) {
+                        log.warn("Falha ao apagar o emblema '{}'.", nome, ex);
+                    }
+                }
+            }
+
             AniListClient aniList = new AniListClient();
 
             int rostos = 0;
@@ -191,9 +247,9 @@ public final class HaremEmojis {
                     continue; // ja existe ou tem PNG local (loop principal cuida)
                 }
                 try {
-                    String url = openmojiUrl(b.fallback());
+                    String url = ARTE_EMBLEMA.getOrDefault(nome, openmojiUrl(b.fallback()));
                     if (url != null && criarEmoji(jda, mapa, nome, iconFromUrl(url),
-                            "emblema '" + nome + "' (OpenMoji)")) {
+                            "emblema '" + nome + "' (emoji.gg)")) {
                         emblemasCriados++;
                         Thread.sleep(300);
                     }
@@ -204,8 +260,11 @@ public final class HaremEmojis {
                     log.warn("Falha ao montar o emblema '{}'.", b.id(), ex);
                 }
             }
-            log.info("Badges com arte da rede: {} personagens (AniList) + {} emblemas (OpenMoji).",
+            log.info("Badges com arte da rede: {} personagens (AniList) + {} emblemas (emoji.gg).",
                     rostos, emblemasCriados);
+            if (refresh && repo != null) {
+                repo.setMeta(META_ART, ART_VERSION);
+            }
         }, "harem-badge-emojis");
         worker.setDaemon(true);
         worker.start();
