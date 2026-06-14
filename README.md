@@ -6,12 +6,12 @@
 
 Música via Lavalink · Harém estilo Mudae · Party Finder de FFXIV · console kawaii~ (｡•ᴗ•｡)♡
 
-[![Java 17](https://img.shields.io/badge/Java-17-ED8B00?style=flat-square&logo=openjdk&logoColor=white)](https://adoptium.net/)
-[![JDA](https://img.shields.io/badge/JDA-6.4.2-5865F2?style=flat-square&logo=discord&logoColor=white)](https://github.com/discord-jda/JDA)
-[![Lavalink v4](https://img.shields.io/badge/Lavalink-v4-FB7299?style=flat-square)](https://github.com/lavalink-devs/Lavalink)
-[![SQLite](https://img.shields.io/badge/SQLite-3-003B57?style=flat-square&logo=sqlite&logoColor=white)](https://www.sqlite.org/)
-[![Docker](https://img.shields.io/badge/Docker-ready-2496ED?style=flat-square&logo=docker&logoColor=white)](#-rodando-com-docker)
-[![Gradle](https://img.shields.io/badge/build-Gradle-02303A?style=flat-square&logo=gradle&logoColor=white)](https://gradle.org/)
+[![Java 17](assets/badges/java.svg)](https://adoptium.net/)
+[![JDA 6.4.2](assets/badges/jda.svg)](https://github.com/discord-jda/JDA)
+[![Lavalink v4](assets/badges/lavalink.svg)](https://github.com/lavalink-devs/Lavalink)
+[![SQLite 3](assets/badges/sqlite.svg)](https://www.sqlite.org/)
+[![Docker](assets/badges/docker.svg)](#-rodando-com-docker)
+[![Gradle](assets/badges/gradle.svg)](https://gradle.org/)
 
 </div>
 
