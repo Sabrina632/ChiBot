@@ -153,7 +153,8 @@ public class ProfileCommand implements ICommand {
                 .addField(HaremEmojis.custom("prof_harem", "💍") + " Harém",
                         stats.count() + " personagem(ns) · " + HaremEmojis.kakera()
                                 + " " + stats.valorTotal(), true)
-                .addField(HaremEmojis.kakera() + " Kakera", String.valueOf(player.kakera()), true)
+                .addField(HaremEmojis.kakera() + " Kakera",
+                        HaremEmojis.kakera() + " " + player.kakera(), true)
                 .addBlankField(true)
                 .addField(HaremEmojis.custom("prof_rank", "🏆") + " Rank",
                         rank > 0 ? "#" + rank + " do servidor" : "—", true)

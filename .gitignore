@@ -53,3 +53,5 @@ ChiData.db-shm
 
 # Screenshots de referencia (ex.: IDs dos emojis) ficam so local
 Imagem/Screenshot*.png
+referencia/
+src/main/java/org/chibot/referencia/
