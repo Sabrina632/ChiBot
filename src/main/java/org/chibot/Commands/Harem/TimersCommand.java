@@ -79,7 +79,7 @@ public class TimersCommand implements ICommand {
                 .addField("💍 Casamento", claimTexto, true)
                 .addField("🌅 Daily", dailyTexto, true)
                 .addField(HaremEmojis.kakera() + " Kakera", String.valueOf(player.kakera()), true)
-                .addField("🏰 Torre", HaremService.TORRE_EMOJIS[player.towerLevel()]
+                .addField("🏰 Torre", HaremEmojis.torre(player.towerLevel())
                         + " nível " + player.towerLevel() + "/" + HaremService.TORRE_MAX, true)
                 .addField("✨ Desejos", desejos.size() + "/" + HaremService.MAX_DESEJOS, true)
                 .build());

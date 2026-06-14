@@ -53,10 +53,24 @@ public final class HaremEmojis {
             new Tier(1049, "kakera_r"),  // vermelho
             new Tier(Integer.MAX_VALUE, "kakera_w")); // arco-iris
 
+    /** Emoji da torre por nivel (0..TORRE_MAX) — badges do Mudae. */
+    private static final String[] TORRE_NOMES = {
+            "torre_bronze", "torre_silver", "torre_gold", "torre_emerald",
+            "torre_sapphire", "torre_ruby", "torre_diamond"};
+
+    /** Fallback unicode da torre por nivel, na mesma ordem de {@link #TORRE_NOMES}. */
+    private static final String[] TORRE_FALLBACK = {"🌱", "🥉", "🥈", "🥇", "💠", "🔱", "💎"};
+
     /** Todos os nomes esperados (pro sync saber o que procurar nos resources). */
-    private static final List<String> NOMES = List.of(
-            KAKERA, "kakera_b", "kakera_c", "kakera_g",
-            "kakera_y", "kakera_o", "kakera_r", "kakera_w");
+    private static final List<String> NOMES = montarNomes();
+
+    private static List<String> montarNomes() {
+        List<String> nomes = new java.util.ArrayList<>(List.of(
+                KAKERA, "kakera_b", "kakera_c", "kakera_g",
+                "kakera_y", "kakera_o", "kakera_r", "kakera_w"));
+        nomes.addAll(List.of(TORRE_NOMES));
+        return List.copyOf(nomes);
+    }
 
     /** Mapa nome → emoji carregado da aplicacao (vazio ate o sync rodar). */
     private static volatile Map<String, ApplicationEmoji> carregados = Map.of();
@@ -130,5 +144,12 @@ public final class HaremEmojis {
             }
         }
         return KAKERA;
+    }
+
+    /** Emoji do nivel da torre (badge do Mudae): {@code <:torre_x:id>} ou o fallback unicode. */
+    public static String torre(int nivel) {
+        int i = Math.max(0, Math.min(TORRE_NOMES.length - 1, nivel));
+        ApplicationEmoji e = carregados.get(TORRE_NOMES[i]);
+        return e != null ? e.getFormatted() : TORRE_FALLBACK[i];
     }
 }

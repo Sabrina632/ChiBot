@@ -58,9 +58,9 @@ public class KakeraCommand implements ICommand {
         int nivel = player.towerLevel();
         String k = HaremEmojis.kakera();
         String torre = nivel < HaremService.TORRE_MAX
-                ? HaremService.TORRE_EMOJIS[nivel] + " nível **" + nivel + "/" + HaremService.TORRE_MAX
+                ? HaremEmojis.torre(nivel) + " nível **" + nivel + "/" + HaremService.TORRE_MAX
                         + "** · próximo nível custa " + k + " **" + HaremService.custoTorre(nivel + 1) + "**"
-                : HaremService.TORRE_EMOJIS[nivel] + " nível **máximo** alcançado~ 👑";
+                : HaremEmojis.torre(nivel) + " nível **máximo** alcançado~ 👑";
 
         ctx.replyEmbeds(new EmbedBuilder()
                 .setColor(MusicUi.KAWAII_PINK)

@@ -57,9 +57,8 @@ public class HaremService extends ListenerAdapter {
     public static final Duration JANELA_TROCA = Duration.ofMinutes(2);
 
     public static final int TORRE_MAX = 6;
-    /** Bonus de kakera por nivel da torre ao coletar o botao 💎 (em %). */
+    /** Bonus de kakera por nivel da torre ao coletar o botao de kakera (em %). */
     public static final int SAQUE_POR_NIVEL = 15;
-    public static final String[] TORRE_EMOJIS = {"🌱", "🥉", "🥈", "🥇", "💠", "🔱", "💎"};
 
     /** Custo pra subir a torre pro nivel informado (dobra a cada nivel). */
     public static int custoTorre(int nivel) {
@@ -410,7 +409,7 @@ public class HaremService extends ListenerAdapter {
         event.editComponents(ActionRow.of(event.getButton().asDisabled())).queue();
         event.getChannel().sendMessage(HaremEmojis.kakera() + " **" + event.getUser().getEffectiveName()
                 + "** coletou **" + ganho + "** kakera!"
-                + (nivel > 0 ? " (bônus da torre " + TORRE_EMOJIS[nivel] + ")" : "") + " ✧").queue();
+                + (nivel > 0 ? " (bônus da torre " + HaremEmojis.torre(nivel) + ")" : "") + " ✧").queue();
     }
 
     private void handleTrade(ButtonInteractionEvent event, String id) {

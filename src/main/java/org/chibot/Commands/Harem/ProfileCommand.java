@@ -141,7 +141,7 @@ public class ProfileCommand implements ICommand {
                         + " " + stats.valorTotal(), true)
                 .addField(HaremEmojis.kakera() + " Kakera", String.valueOf(player.kakera()), true)
                 .addField("🏆 Rank", rank > 0 ? "#" + rank + " do servidor" : "—", true)
-                .addField("🏰 Torre", HaremService.TORRE_EMOJIS[player.towerLevel()]
+                .addField("🏰 Torre", HaremEmojis.torre(player.towerLevel())
                         + " nível " + player.towerLevel() + "/" + HaremService.TORRE_MAX, true)
                 .addField("✨ Desejos", desejos + "/" + HaremService.MAX_DESEJOS, true);
 

@@ -24,6 +24,18 @@ Kakera colorido por faixa de valor (o valor vai de 15 a 1200):
 (A captura de waifu/husbando agora e por REACAO: a pessoa reage com
 qualquer emoji no roll pra casar — nao tem mais botao de coracao.)
 
+Badges da torre por nivel (0..6) — estrelas coloridas do Mudae:
+
+  arquivo               nivel da torre
+  --------------------  ---------------
+  torre_bronze.png      0
+  torre_silver.png      1
+  torre_gold.png        2
+  torre_emerald.png     3
+  torre_sapphire.png    4
+  torre_ruby.png        5
+  torre_diamond.png     6
+
 Observacoes
 -----------
 - Os nomes do Discord aceitam so letras, numeros e "_". Mantenha os nomes

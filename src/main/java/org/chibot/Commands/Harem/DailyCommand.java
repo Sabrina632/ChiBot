@@ -73,7 +73,7 @@ public class DailyCommand implements ICommand {
                 .setTitle("ﾟ･✧ Daily! ✧･ﾟ " + HaremEmojis.kakera())
                 .setDescription("Você ganhou " + HaremEmojis.kakera() + " **" + recompensa + "** kakera!"
                         + (player.towerLevel() > 0
-                                ? " (com bônus da torre " + HaremService.TORRE_EMOJIS[player.towerLevel()] + ")"
+                                ? " (com bônus da torre " + HaremEmojis.torre(player.towerLevel()) + ")"
                                 : "")
                         + "\nAgora você tem " + HaremEmojis.kakera() + " **"
                         + (player.kakera() + recompensa) + "** no total~ (´｡• ᵕ •｡`)")

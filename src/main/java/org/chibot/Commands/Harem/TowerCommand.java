@@ -84,14 +84,14 @@ public class TowerCommand implements ICommand {
         EmbedBuilder eb = new EmbedBuilder()
                 .setColor(MusicUi.KAWAII_PINK)
                 .setTitle("ﾟ･✧ Torre de Kakera ✧･ﾟ 🏰")
-                .setDescription("Nível atual: " + HaremService.TORRE_EMOJIS[nivel]
+                .setDescription("Nível atual: " + HaremEmojis.torre(nivel)
                         + " **" + nivel + "/" + HaremService.TORRE_MAX + "**")
                 .addField("🎲 Rolls extras", "+" + nivel + " por hora", true)
                 .addField(HaremEmojis.kakera() + " Bônus de saque",
                         "+" + (HaremService.SAQUE_POR_NIVEL * nivel) + "%", true)
                 .addField("🌅 Bônus no daily", "+" + (HaremService.DAILY_POR_NIVEL * nivel) + " kakera", true);
         if (nivel < HaremService.TORRE_MAX) {
-            eb.addField("⬆️ Próximo nível " + HaremService.TORRE_EMOJIS[nivel + 1],
+            eb.addField("⬆️ Próximo nível " + HaremEmojis.torre(nivel + 1),
                     "Custa " + HaremEmojis.kakera() + " **" + HaremService.custoTorre(nivel + 1)
                             + "** — usa `tower up` pra subir! (você tem " + HaremEmojis.kakera() + " "
                             + player.kakera() + ")", false);
@@ -109,7 +109,7 @@ public class TowerCommand implements ICommand {
         HaremRepository.Player player = repo.getPlayer(guildId, userId);
         int nivel = player.towerLevel();
         if (nivel >= HaremService.TORRE_MAX) {
-            ctx.reply("Você já está no topo da torre " + HaremService.TORRE_EMOJIS[nivel] + "~ 👑");
+            ctx.reply("Você já está no topo da torre " + HaremEmojis.torre(nivel) + "~ 👑");
             return;
         }
 
@@ -124,7 +124,7 @@ public class TowerCommand implements ICommand {
 
         ctx.replyEmbeds(new EmbedBuilder()
                 .setColor(MusicUi.KAWAII_PINK)
-                .setTitle("ﾟ･✧ Torre subiu! ✧･ﾟ " + HaremService.TORRE_EMOJIS[novoNivel])
+                .setTitle("ﾟ･✧ Torre subiu! ✧･ﾟ " + HaremEmojis.torre(novoNivel))
                 .setDescription("Você alcançou o nível **" + novoNivel + "/" + HaremService.TORRE_MAX
                         + "** da torre por " + HaremEmojis.kakera() + " " + custo + "!\n"
                         + "Agora: **+" + novoNivel + "** roll(s)/hora · **+"
