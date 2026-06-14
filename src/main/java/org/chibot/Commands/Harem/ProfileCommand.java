@@ -164,7 +164,8 @@ public class ProfileCommand implements ICommand {
                 .addField(HaremEmojis.custom("prof_wish", "✨") + " Desejos",
                         desejos + "/" + HaremService.MAX_DESEJOS, true)
                 .addField(HaremEmojis.custom("prof_date", "📅") + " Primeiro casamento",
-                        casamento, true);
+                        casamento, true)
+                .addBlankField(true);
 
         List<String> badges = repo.equippedBadges(guildId, donoId);
         if (!badges.isEmpty()) {
