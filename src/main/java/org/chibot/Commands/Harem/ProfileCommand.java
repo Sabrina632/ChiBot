@@ -137,10 +137,16 @@ public class ProfileCommand implements ICommand {
         int rank = repo.haremRank(guildId, donoId);
         int desejos = repo.listWishes(guildId, donoId).size();
 
+        // Avatar vai no autor (topo) em vez de thumbnail: assim os campos ocupam
+        // a largura toda e um campo vazio depois de cada par força 2 colunas
+        // alinhadas (com thumbnail o Discord alterna entre 2 e 3 por linha).
+        String casamento = stats.primeiroClaimMs() > 0
+                ? "<t:" + stats.primeiroClaimMs() / 1000L + ":D>"
+                : "ainda não~";
+
         EmbedBuilder eb = new EmbedBuilder()
                 .setColor(profile.color() >= 0 ? new Color(profile.color()) : MusicUi.KAWAII_PINK)
-                .setTitle("ﾟ･✧ Perfil de " + donoNome + " ✧･ﾟ")
-                .setThumbnail(avatarUrl)
+                .setAuthor("ﾟ･✧ Perfil de " + donoNome + " ✧･ﾟ", null, avatarUrl)
                 .setDescription(profile.bio() == null || profile.bio().isBlank()
                         ? "*Sem bio~ usa `profile bio <texto>` pra escrever uma!*"
                         : profile.bio())
@@ -148,18 +154,17 @@ public class ProfileCommand implements ICommand {
                         stats.count() + " personagem(ns) · " + HaremEmojis.kakera()
                                 + " " + stats.valorTotal(), true)
                 .addField(HaremEmojis.kakera() + " Kakera", String.valueOf(player.kakera()), true)
+                .addBlankField(true)
                 .addField(HaremEmojis.custom("prof_rank", "🏆") + " Rank",
                         rank > 0 ? "#" + rank + " do servidor" : "—", true)
                 .addField(HaremEmojis.custom("prof_torre", "🏰") + " Torre",
                         HaremEmojis.torre(player.towerLevel())
                                 + " nível " + player.towerLevel() + "/" + HaremService.TORRE_MAX, true)
+                .addBlankField(true)
                 .addField(HaremEmojis.custom("prof_wish", "✨") + " Desejos",
-                        desejos + "/" + HaremService.MAX_DESEJOS, true);
-
-        if (stats.primeiroClaimMs() > 0) {
-            eb.addField(HaremEmojis.custom("prof_date", "📅") + " Primeiro casamento",
-                    "<t:" + stats.primeiroClaimMs() / 1000L + ":D>", true);
-        }
+                        desejos + "/" + HaremService.MAX_DESEJOS, true)
+                .addField(HaremEmojis.custom("prof_date", "📅") + " Primeiro casamento",
+                        casamento, true);
 
         List<String> badges = repo.equippedBadges(guildId, donoId);
         if (!badges.isEmpty()) {
