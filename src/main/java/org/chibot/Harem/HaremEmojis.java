@@ -19,6 +19,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -128,25 +129,37 @@ public final class HaremEmojis {
             log.info("Emojis de harem: {} ja existiam, {} sendo enviados.",
                     mapa.size(), subindo);
 
-            // Badges de personagem: a arte vem do AniList (rede), entao roda fora
-            // da thread de callback do JDA.
-            syncPersonagens(jda, mapa);
+            // Badges com arte da rede (personagens via AniList, lojinha via
+            // OpenMoji): HTTP bloqueante, entao roda fora da thread do JDA.
+            syncImagens(jda, mapa);
         }, err -> log.warn("Falha ao carregar os application emojis do harem.", err));
     }
 
+    /** Base do pacote OpenMoji (CC BY-SA) no jsDelivr — arte da lojinha. */
+    private static final String OPENMOJI =
+            "https://cdn.jsdelivr.net/gh/hfg-gmuend/openmoji@master/color/618x618/";
+
     /**
-     * Cria os emojis dos badges de personagem que ainda nao existem, puxando o
-     * rosto de cada um do AniList. Roda numa thread daemon propria (faz HTTP
-     * bloqueante) e e idempotente: pula os que ja foram criados.
+     * Cria, numa thread daemon propria, os emojis dos badges que tem arte vinda
+     * da rede e ainda nao existem: personagens (rosto do AniList) e os emblemas
+     * de conquista/lojinha (arte do OpenMoji a partir do fallback unicode).
+     * Idempotente — pula os ja criados e os que tem PNG local (esses sobem pelo
+     * loop principal).
      */
-    private static void syncPersonagens(JDA jda, Map<String, ApplicationEmoji> mapa) {
+    private static void syncImagens(JDA jda, Map<String, ApplicationEmoji> mapa) {
         List<HaremBadges.Badge> personagens = HaremBadges.personagens();
-        if (personagens.stream().allMatch(b -> mapa.containsKey(b.emojiNome()))) {
-            return; // todos ja existem
+        List<HaremBadges.Badge> emblemas = new ArrayList<>(HaremBadges.conquistas());
+        emblemas.addAll(HaremBadges.loja());
+        boolean faltam = personagens.stream().anyMatch(b -> !mapa.containsKey(b.emojiNome()))
+                || emblemas.stream().anyMatch(b -> !mapa.containsKey(b.emojiNome())
+                        && lerIcon(b.emojiNome()) == null);
+        if (!faltam) {
+            return;
         }
         Thread worker = new Thread(() -> {
             AniListClient aniList = new AniListClient();
-            int criados = 0;
+
+            int rostos = 0;
             for (HaremBadges.Badge b : personagens) {
                 String nome = b.emojiNome();
                 if (mapa.containsKey(nome)) {
@@ -158,18 +171,11 @@ public final class HaremEmojis {
                         log.warn("Badge '{}': AniList nao achou '{}'.", b.id(), b.busca());
                         continue;
                     }
-                    Icon icon = iconFromUrl(ch.imageUrl());
-                    if (icon == null) {
-                        continue;
+                    if (criarEmoji(jda, mapa, nome, iconFromUrl(ch.imageUrl()),
+                            "personagem '" + nome + "' (" + ch.name() + ")")) {
+                        rostos++;
+                        Thread.sleep(400); // pacing pro AniList e pro rate limit de emoji
                     }
-                    jda.createApplicationEmoji(nome, icon).queue(
-                            e -> {
-                                mapa.put(e.getName(), e);
-                                log.info("Emoji de personagem '{}' ({}) criado.", nome, ch.name());
-                            },
-                            err -> log.warn("Falha ao criar o emoji de personagem '{}'.", nome, err));
-                    criados++;
-                    Thread.sleep(400); // pacing gentil pro AniList e pro rate limit de emoji
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
                     return;
@@ -177,10 +183,69 @@ public final class HaremEmojis {
                     log.warn("Falha ao montar o badge de personagem '{}'.", b.id(), ex);
                 }
             }
-            log.info("Badges de personagem: {} enviados a partir do AniList.", criados);
+
+            int emblemasCriados = 0;
+            for (HaremBadges.Badge b : emblemas) {
+                String nome = b.emojiNome();
+                if (mapa.containsKey(nome) || lerIcon(nome) != null) {
+                    continue; // ja existe ou tem PNG local (loop principal cuida)
+                }
+                try {
+                    String url = openmojiUrl(b.fallback());
+                    if (url != null && criarEmoji(jda, mapa, nome, iconFromUrl(url),
+                            "emblema '" + nome + "' (OpenMoji)")) {
+                        emblemasCriados++;
+                        Thread.sleep(300);
+                    }
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    return;
+                } catch (Exception ex) {
+                    log.warn("Falha ao montar o emblema '{}'.", b.id(), ex);
+                }
+            }
+            log.info("Badges com arte da rede: {} personagens (AniList) + {} emblemas (OpenMoji).",
+                    rostos, emblemasCriados);
         }, "harem-badge-emojis");
         worker.setDaemon(true);
         worker.start();
+    }
+
+    /** Cria um application emoji a partir de um {@link Icon} (no-op se o icon for null). */
+    private static boolean criarEmoji(JDA jda, Map<String, ApplicationEmoji> mapa,
+                                      String nome, Icon icon, String rotulo) {
+        if (icon == null) {
+            return false;
+        }
+        jda.createApplicationEmoji(nome, icon).queue(
+                e -> {
+                    mapa.put(e.getName(), e);
+                    log.info("Emoji de {} criado.", rotulo);
+                },
+                err -> log.warn("Falha ao criar o emoji de {}.", rotulo, err));
+        return true;
+    }
+
+    /**
+     * URL da arte do OpenMoji pro emoji unicode dado (ex.: {@code 🌸} → .../1F338.png).
+     * Junta os codepoints em hex maiusculo com {@code -}, ignorando o seletor de
+     * variacao {@code U+FE0F}. Null se a string vier vazia.
+     */
+    private static String openmojiUrl(String emoji) {
+        StringBuilder code = new StringBuilder();
+        int i = 0;
+        while (i < emoji.length()) {
+            int cp = emoji.codePointAt(i);
+            i += Character.charCount(cp);
+            if (cp == 0xFE0F) {
+                continue; // seletor de variacao nao entra no nome do arquivo
+            }
+            if (code.length() > 0) {
+                code.append('-');
+            }
+            code.append(String.format("%04X", cp));
+        }
+        return code.length() == 0 ? null : OPENMOJI + code + ".png";
     }
 
     /** Baixa a imagem da URL e devolve um {@link Icon} quadrado (ou null se falhar). */

@@ -95,6 +95,11 @@ public final class HaremBadges {
             return descricao;
         }
 
+        /** Emoji unicode de reserva (tambem usado pra achar a arte no OpenMoji). */
+        public String fallback() {
+            return fallback;
+        }
+
         public Tipo tipo() {
             return tipo;
         }
