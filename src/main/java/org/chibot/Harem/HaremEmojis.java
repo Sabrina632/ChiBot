@@ -176,6 +176,20 @@ public final class HaremEmojis {
             Map.entry("badge_realeza", "https://cdn3.emoji.gg/emojis/435134-chalkcrown.png"));
 
     /**
+     * Arte fofa do emoji.gg pros enfeites do comando {@code profile} (titulos dos
+     * campos). O kakera fica de fora de proposito — esse continua sendo o emoji
+     * roxo proprio. Acessada via {@link #custom(String, String)} no ProfileCommand.
+     */
+    private static final Map<String, String> ARTE_PERFIL = Map.ofEntries(
+            Map.entry("prof_harem", "https://cdn3.emoji.gg/emojis/35822-heart-rings.png"),
+            Map.entry("prof_rank", "https://cdn3.emoji.gg/emojis/59686-trophy.png"),
+            Map.entry("prof_torre", "https://cdn3.emoji.gg/emojis/7037-cute-pink-castle.png"),
+            Map.entry("prof_wish", "https://cdn3.emoji.gg/emojis/11240-wishbottle.png"),
+            Map.entry("prof_date", "https://cdn3.emoji.gg/emojis/956263-calendar.png"),
+            Map.entry("prof_badges", "https://cdn3.emoji.gg/emojis/878925-medalstaff.png"),
+            Map.entry("prof_fav", "https://cdn3.emoji.gg/emojis/18875-chalkheartred.png"));
+
+    /**
      * Cria, numa thread daemon propria, os emojis dos badges que tem arte vinda
      * da rede e ainda nao existem: personagens (rosto do AniList) e os emblemas
      * de conquista/lojinha (arte fofa do emoji.gg via {@link #ARTE_EMBLEMA}, com
@@ -189,7 +203,8 @@ public final class HaremEmojis {
         emblemas.addAll(HaremBadges.loja());
         boolean faltam = personagens.stream().anyMatch(b -> !mapa.containsKey(b.emojiNome()))
                 || emblemas.stream().anyMatch(b -> !mapa.containsKey(b.emojiNome())
-                        && lerIcon(b.emojiNome()) == null);
+                        && lerIcon(b.emojiNome()) == null)
+                || ARTE_PERFIL.keySet().stream().anyMatch(n -> !mapa.containsKey(n) && lerIcon(n) == null);
         if (!refresh && !faltam) {
             return;
         }
@@ -209,6 +224,19 @@ public final class HaremEmojis {
                         log.info("Emoji de emblema '{}' apagado pra recriar com a arte nova.", nome);
                     } catch (Exception ex) {
                         log.warn("Falha ao apagar o emblema '{}'.", nome, ex);
+                    }
+                }
+                for (String nome : ARTE_PERFIL.keySet()) {
+                    ApplicationEmoji e = mapa.get(nome);
+                    if (e == null || lerIcon(nome) != null) {
+                        continue;
+                    }
+                    try {
+                        e.delete().complete();
+                        mapa.remove(nome);
+                        log.info("Emoji de perfil '{}' apagado pra recriar com a arte nova.", nome);
+                    } catch (Exception ex) {
+                        log.warn("Falha ao apagar o emoji de perfil '{}'.", nome, ex);
                     }
                 }
             }
@@ -260,8 +288,29 @@ public final class HaremEmojis {
                     log.warn("Falha ao montar o emblema '{}'.", b.id(), ex);
                 }
             }
-            log.info("Badges com arte da rede: {} personagens (AniList) + {} emblemas (emoji.gg).",
-                    rostos, emblemasCriados);
+
+            int perfilCriados = 0;
+            for (Map.Entry<String, String> entrada : ARTE_PERFIL.entrySet()) {
+                String nome = entrada.getKey();
+                if (mapa.containsKey(nome) || lerIcon(nome) != null) {
+                    continue;
+                }
+                try {
+                    if (criarEmoji(jda, mapa, nome, iconFromUrl(entrada.getValue()),
+                            "perfil '" + nome + "' (emoji.gg)")) {
+                        perfilCriados++;
+                        Thread.sleep(300);
+                    }
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    return;
+                } catch (Exception ex) {
+                    log.warn("Falha ao montar o emoji de perfil '{}'.", nome, ex);
+                }
+            }
+
+            log.info("Badges com arte da rede: {} personagens (AniList) + {} emblemas + {} perfil (emoji.gg).",
+                    rostos, emblemasCriados, perfilCriados);
             if (refresh && repo != null) {
                 repo.setMeta(META_ART, ART_VERSION);
             }

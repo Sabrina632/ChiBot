@@ -144,16 +144,20 @@ public class ProfileCommand implements ICommand {
                 .setDescription(profile.bio() == null || profile.bio().isBlank()
                         ? "*Sem bio~ usa `profile bio <texto>` pra escrever uma!*"
                         : profile.bio())
-                .addField("💍 Harém", stats.count() + " personagem(ns) · " + HaremEmojis.kakera()
-                        + " " + stats.valorTotal(), true)
+                .addField(HaremEmojis.custom("prof_harem", "💍") + " Harém",
+                        stats.count() + " personagem(ns) · " + HaremEmojis.kakera()
+                                + " " + stats.valorTotal(), true)
                 .addField(HaremEmojis.kakera() + " Kakera", String.valueOf(player.kakera()), true)
-                .addField("🏆 Rank", rank > 0 ? "#" + rank + " do servidor" : "—", true)
-                .addField("🏰 Torre", HaremEmojis.torre(player.towerLevel())
-                        + " nível " + player.towerLevel() + "/" + HaremService.TORRE_MAX, true)
-                .addField("✨ Desejos", desejos + "/" + HaremService.MAX_DESEJOS, true);
+                .addField(HaremEmojis.custom("prof_rank", "🏆") + " Rank",
+                        rank > 0 ? "#" + rank + " do servidor" : "—", true)
+                .addField(HaremEmojis.custom("prof_torre", "🏰") + " Torre",
+                        HaremEmojis.torre(player.towerLevel())
+                                + " nível " + player.towerLevel() + "/" + HaremService.TORRE_MAX, true)
+                .addField(HaremEmojis.custom("prof_wish", "✨") + " Desejos",
+                        desejos + "/" + HaremService.MAX_DESEJOS, true);
 
         if (stats.primeiroClaimMs() > 0) {
-            eb.addField("📅 Primeiro casamento",
+            eb.addField(HaremEmojis.custom("prof_date", "📅") + " Primeiro casamento",
                     "<t:" + stats.primeiroClaimMs() / 1000L + ":D>", true);
         }
 
@@ -164,14 +168,15 @@ public class ProfileCommand implements ICommand {
                     .filter(Objects::nonNull)
                     .map(HaremBadges.Badge::emoji)
                     .reduce((a, c) -> a + " " + c).orElse("");
-            eb.addField("🎖️ Badges", fileira, false);
+            eb.addField(HaremEmojis.custom("prof_badges", "🎖️") + " Badges", fileira, false);
         }
 
         // Personagem favorito vira a imagem grande do perfil (se ainda for do jogador).
         HaremRepository.Claim fav = profile.favCharId() > 0
                 ? repo.findOwner(guildId, profile.favCharId()) : null;
         if (fav != null && fav.ownerId().equals(donoId)) {
-            eb.addField("💖 Favorito", "**" + fav.name() + "** · " + fav.series(), false)
+            eb.addField(HaremEmojis.custom("prof_fav", "💖") + " Favorito",
+                            "**" + fav.name() + "** · " + fav.series(), false)
                     .setImage(fav.imageUrl());
         }
 
