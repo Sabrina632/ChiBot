@@ -8,6 +8,7 @@ import net.dv8tion.jda.api.requests.GatewayIntent;
 import org.chibot.Commands.CommandListener;
 import org.chibot.Commands.CommandManager;
 import org.chibot.Config.ChiConfig;
+import org.chibot.Harem.HaremEmojis;
 import org.chibot.Harem.HaremService;
 import org.chibot.Music.MusicService;
 import org.slf4j.Logger;
@@ -38,13 +39,16 @@ public class ChiBot
         HaremService haremService = HaremService.init();
 
         jda = JDABuilder.createDefault(config.getToken())
-                .enableIntents(GatewayIntent.MESSAGE_CONTENT)
+                .enableIntents(GatewayIntent.MESSAGE_CONTENT, GatewayIntent.GUILD_MESSAGE_REACTIONS)
                 .setVoiceDispatchInterceptor(musicService.getVoiceInterceptor())
                 .addEventListeners(new CommandListener(config, commandManager), haremService)
                 .build()
                 .awaitReady();
 
         registerSlashCommands(commandManager);
+
+        // Sobe/carrega os emojis customizados do harem (kakera colorido estilo Mudae).
+        HaremEmojis.sync(jda);
 
         log.info("ChiBot conectado como {}", jda.getSelfUser().getName());
     }

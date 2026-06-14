@@ -4,6 +4,7 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import org.chibot.Commands.CommandContext;
 import org.chibot.Commands.ICommand;
 import org.chibot.Database.HaremRepository;
+import org.chibot.Harem.HaremEmojis;
 import org.chibot.Harem.HaremService;
 import org.chibot.Music.MusicUi;
 
@@ -69,12 +70,13 @@ public class DailyCommand implements ICommand {
 
         ctx.replyEmbeds(new EmbedBuilder()
                 .setColor(MusicUi.KAWAII_PINK)
-                .setTitle("ﾟ･✧ Daily! ✧･ﾟ 💎")
-                .setDescription("Você ganhou 💎 **" + recompensa + "** kakera!"
+                .setTitle("ﾟ･✧ Daily! ✧･ﾟ " + HaremEmojis.kakera())
+                .setDescription("Você ganhou " + HaremEmojis.kakera() + " **" + recompensa + "** kakera!"
                         + (player.towerLevel() > 0
                                 ? " (com bônus da torre " + HaremService.TORRE_EMOJIS[player.towerLevel()] + ")"
                                 : "")
-                        + "\nAgora você tem 💎 **" + (player.kakera() + recompensa) + "** no total~ (´｡• ᵕ •｡`)")
+                        + "\nAgora você tem " + HaremEmojis.kakera() + " **"
+                        + (player.kakera() + recompensa) + "** no total~ (´｡• ᵕ •｡`)")
                 .setFooter("Volta em 20 horas pra coletar de novo!")
                 .build());
     }

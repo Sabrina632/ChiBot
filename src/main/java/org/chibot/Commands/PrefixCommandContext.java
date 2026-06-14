@@ -5,12 +5,14 @@ import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 /** Contexto de um comando chamado por prefixo (ex.: {@code !ping}). */
 public class PrefixCommandContext implements CommandContext {
@@ -94,5 +96,14 @@ public class PrefixCommandContext implements CommandContext {
             action.setComponents(ActionRow.of(buttons));
         }
         action.queue();
+    }
+
+    @Override
+    public void replyEmbedAndThen(String content, MessageEmbed embed, Consumer<Message> onSent) {
+        var action = event.getMessage().replyEmbeds(embed);
+        if (content != null && !content.isBlank()) {
+            action.setContent(content);
+        }
+        action.queue(onSent);
     }
 }

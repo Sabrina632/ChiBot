@@ -6,6 +6,7 @@ import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import org.chibot.Commands.CommandContext;
 import org.chibot.Commands.ICommand;
 import org.chibot.Database.HaremRepository;
+import org.chibot.Harem.HaremEmojis;
 import org.chibot.Harem.HaremService;
 import org.chibot.Music.MusicUi;
 
@@ -86,12 +87,14 @@ public class TowerCommand implements ICommand {
                 .setDescription("Nível atual: " + HaremService.TORRE_EMOJIS[nivel]
                         + " **" + nivel + "/" + HaremService.TORRE_MAX + "**")
                 .addField("🎲 Rolls extras", "+" + nivel + " por hora", true)
-                .addField("💎 Bônus de saque", "+" + (HaremService.SAQUE_POR_NIVEL * nivel) + "%", true)
+                .addField(HaremEmojis.kakera() + " Bônus de saque",
+                        "+" + (HaremService.SAQUE_POR_NIVEL * nivel) + "%", true)
                 .addField("🌅 Bônus no daily", "+" + (HaremService.DAILY_POR_NIVEL * nivel) + " kakera", true);
         if (nivel < HaremService.TORRE_MAX) {
             eb.addField("⬆️ Próximo nível " + HaremService.TORRE_EMOJIS[nivel + 1],
-                    "Custa 💎 **" + HaremService.custoTorre(nivel + 1)
-                            + "** — usa `tower up` pra subir! (você tem 💎 " + player.kakera() + ")", false);
+                    "Custa " + HaremEmojis.kakera() + " **" + HaremService.custoTorre(nivel + 1)
+                            + "** — usa `tower up` pra subir! (você tem " + HaremEmojis.kakera() + " "
+                            + player.kakera() + ")", false);
         } else {
             eb.addField("👑 Topo da torre!", "Você chegou no máximo, parabéns~ ✧", false);
         }
@@ -113,8 +116,9 @@ public class TowerCommand implements ICommand {
         int novoNivel = nivel + 1;
         long custo = HaremService.custoTorre(novoNivel);
         if (!repo.tryUpgradeTower(guildId, userId, novoNivel, custo)) {
-            ctx.reply("Kakera insuficiente~ subir pro nível " + novoNivel + " custa 💎 " + custo
-                    + " e você tem 💎 " + player.kakera() + ". (｡•́︿•̀｡)");
+            String k = HaremEmojis.kakera();
+            ctx.reply("Kakera insuficiente~ subir pro nível " + novoNivel + " custa " + k + " " + custo
+                    + " e você tem " + k + " " + player.kakera() + ". (｡•́︿•̀｡)");
             return;
         }
 
@@ -122,7 +126,7 @@ public class TowerCommand implements ICommand {
                 .setColor(MusicUi.KAWAII_PINK)
                 .setTitle("ﾟ･✧ Torre subiu! ✧･ﾟ " + HaremService.TORRE_EMOJIS[novoNivel])
                 .setDescription("Você alcançou o nível **" + novoNivel + "/" + HaremService.TORRE_MAX
-                        + "** da torre por 💎 " + custo + "!\n"
+                        + "** da torre por " + HaremEmojis.kakera() + " " + custo + "!\n"
                         + "Agora: **+" + novoNivel + "** roll(s)/hora · **+"
                         + (HaremService.SAQUE_POR_NIVEL * novoNivel) + "%** de saque · **+"
                         + (HaremService.DAILY_POR_NIVEL * novoNivel) + "** no daily~ (✿◠‿◠)")

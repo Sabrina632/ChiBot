@@ -5,6 +5,7 @@ import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
@@ -13,6 +14,7 @@ import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /** Contexto de um comando chamado via slash (ex.: {@code /ping}). */
 public class SlashCommandContext implements CommandContext {
@@ -124,6 +126,23 @@ public class SlashCommandContext implements CommandContext {
                 action.setComponents(ActionRow.of(buttons));
             }
             action.queue();
+        }
+    }
+
+    @Override
+    public void replyEmbedAndThen(String content, MessageEmbed embed, Consumer<Message> onSent) {
+        if (deferred) {
+            var action = event.getHook().sendMessageEmbeds(embed);
+            if (content != null && !content.isBlank()) {
+                action.setContent(content);
+            }
+            action.queue(onSent);
+        } else {
+            var action = event.replyEmbeds(embed);
+            if (content != null && !content.isBlank()) {
+                action.setContent(content);
+            }
+            action.queue(hook -> hook.retrieveOriginal().queue(onSent));
         }
     }
 }

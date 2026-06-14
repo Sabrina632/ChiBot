@@ -4,11 +4,13 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Abstracao que cobre tanto comandos por prefixo (mensagem) quanto slash commands (interacao),
@@ -62,4 +64,11 @@ public interface CommandContext {
      * do embed (ex.: mencoes de wishlist). Lista de botoes vazia = so o embed.
      */
     void replyEmbedWithButtons(String content, MessageEmbed embed, List<Button> buttons);
+
+    /**
+     * Posta um embed (com texto opcional acima) e entrega a mensagem enviada num
+     * callback — util pra quem precisa do ID da mensagem depois (ex.: registrar
+     * um roll que vai ser casado por reacao).
+     */
+    void replyEmbedAndThen(String content, MessageEmbed embed, Consumer<Message> onSent);
 }

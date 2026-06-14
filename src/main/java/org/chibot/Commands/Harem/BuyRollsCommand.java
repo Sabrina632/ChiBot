@@ -5,6 +5,7 @@ import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import org.chibot.Commands.CommandContext;
 import org.chibot.Commands.ICommand;
 import org.chibot.Database.HaremRepository;
+import org.chibot.Harem.HaremEmojis;
 import org.chibot.Harem.HaremService;
 
 import java.util.List;
@@ -72,13 +73,14 @@ public class BuyRollsCommand implements ICommand {
 
         if (!repo.trySpendKakera(guildId, userId, custo)) {
             long saldo = repo.getPlayer(guildId, userId).kakera();
-            ctx.reply("Kakera insuficiente~ você tem 💎 " + saldo + " e precisa de 💎 " + custo
-                    + ". Coleta o `daily` ou os 💎 dos rolls! (｡•́︿•̀｡)");
+            String k = HaremEmojis.kakera();
+            ctx.reply("Kakera insuficiente~ você tem " + k + " " + saldo + " e precisa de " + k + " " + custo
+                    + ". Coleta o `daily` ou os " + k + " dos rolls! (｡•́︿•̀｡)");
             return;
         }
         repo.addBonusRolls(guildId, userId, quantidade);
 
-        ctx.reply("🎲 Comprou **" + quantidade + "** roll(s) extra(s) por 💎 " + custo
+        ctx.reply("🎲 Comprou **" + quantidade + "** roll(s) extra(s) por " + HaremEmojis.kakera() + " " + custo
                 + "! Eles não expiram e são usados quando a cota da hora acabar~ (✿◠‿◠)");
     }
 

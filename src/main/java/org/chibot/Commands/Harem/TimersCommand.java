@@ -4,6 +4,7 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import org.chibot.Commands.CommandContext;
 import org.chibot.Commands.ICommand;
 import org.chibot.Database.HaremRepository;
+import org.chibot.Harem.HaremEmojis;
 import org.chibot.Harem.HaremService;
 import org.chibot.Music.MusicUi;
 
@@ -77,7 +78,7 @@ public class TimersCommand implements ICommand {
                         + " · reseta " + HaremService.relativo(resetRolls), true)
                 .addField("💍 Casamento", claimTexto, true)
                 .addField("🌅 Daily", dailyTexto, true)
-                .addField("💎 Kakera", String.valueOf(player.kakera()), true)
+                .addField(HaremEmojis.kakera() + " Kakera", String.valueOf(player.kakera()), true)
                 .addField("🏰 Torre", HaremService.TORRE_EMOJIS[player.towerLevel()]
                         + " nível " + player.towerLevel() + "/" + HaremService.TORRE_MAX, true)
                 .addField("✨ Desejos", desejos.size() + "/" + HaremService.MAX_DESEJOS, true)

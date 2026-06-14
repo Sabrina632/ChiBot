@@ -8,6 +8,7 @@ import org.chibot.Commands.CommandContext;
 import org.chibot.Commands.ICommand;
 import org.chibot.Config.ChiConfig;
 import org.chibot.Database.HaremRepository;
+import org.chibot.Harem.HaremEmojis;
 import org.chibot.Harem.HaremService;
 import org.chibot.Music.MusicUi;
 
@@ -105,7 +106,8 @@ public class HaremCommand implements ICommand {
             if (paginas.size() == MAX_EMBEDS) {
                 break;
             }
-            sb.append("💎`").append(claim.kakera()).append("` **").append(claim.name())
+            sb.append(HaremEmojis.kakera(claim.kakera())).append("`").append(claim.kakera())
+                    .append("` **").append(claim.name())
                     .append("** · ").append(claim.series()).append('\n');
             exibidos++;
             if (exibidos % POR_PAGINA == 0 || exibidos == harem.size()) {

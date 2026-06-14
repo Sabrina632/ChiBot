@@ -6,6 +6,7 @@ import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import org.chibot.Commands.CommandContext;
 import org.chibot.Commands.ICommand;
 import org.chibot.Database.HaremRepository;
+import org.chibot.Harem.HaremEmojis;
 import org.chibot.Harem.HaremService;
 import org.chibot.Music.MusicUi;
 
@@ -136,8 +137,9 @@ public class ProfileCommand implements ICommand {
                 .setDescription(profile.bio() == null || profile.bio().isBlank()
                         ? "*Sem bio~ usa `profile bio <texto>` pra escrever uma!*"
                         : profile.bio())
-                .addField("💍 Harém", stats.count() + " personagem(ns) · 💎 " + stats.valorTotal(), true)
-                .addField("💎 Kakera", String.valueOf(player.kakera()), true)
+                .addField("💍 Harém", stats.count() + " personagem(ns) · " + HaremEmojis.kakera()
+                        + " " + stats.valorTotal(), true)
+                .addField(HaremEmojis.kakera() + " Kakera", String.valueOf(player.kakera()), true)
                 .addField("🏆 Rank", rank > 0 ? "#" + rank + " do servidor" : "—", true)
                 .addField("🏰 Torre", HaremService.TORRE_EMOJIS[player.towerLevel()]
                         + " nível " + player.towerLevel() + "/" + HaremService.TORRE_MAX, true)

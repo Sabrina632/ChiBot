@@ -4,9 +4,10 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.components.buttons.ButtonStyle;
+import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.MessageEmbed;
-import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
+import net.dv8tion.jda.api.events.message.react.MessageReactionAddEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import org.chibot.Commands.CommandContext;
 import org.chibot.Database.HaremRepository;
@@ -28,13 +29,15 @@ import java.util.stream.Collectors;
 
 /**
  * Sistema de waifu/husbando estilo Mudae: rolls sorteiam personagens reais de
- * anime (AniList) e quem clicar no coracao dentro da janela casa com o
- * personagem — um dono por personagem por servidor.
+ * anime (AniList) e quem reagir (com qualquer emoji) dentro da janela casa com
+ * o personagem — um dono por personagem por servidor.
  *
  * <p>O servico mantem pools de personagens pre-buscados por genero (pra cada
- * roll nao custar uma chamada de API) e escuta os botoes de claim/kakera. Os
- * custom ids carregam os dados do botao ({@code hclaim:charId:kakera:expira} e
- * {@code hkak:valor:expira}), entao um restart do bot nao quebra rolls antigos.
+ * roll nao custar uma chamada de API). Os rolls livres ficam num mapa em
+ * memoria ({@code rollsAbertos}) ate alguem reagir; como a janela e curta
+ * (~45s), um restart so descarta rolls que ainda estavam abertos na hora. O
+ * botao de kakera (personagem ja casado) carrega os dados no custom id
+ * ({@code hkak:valor:expira}), entao esse sobrevive a restart.
  */
 public class HaremService extends ListenerAdapter {
 
@@ -81,6 +84,17 @@ public class HaremService extends ListenerAdapter {
 
     /** Mensagens cujo kakera ja foi coletado (guarda contra clique duplo). */
     private final Set<Long> kakeraColetado = ConcurrentHashMap.newKeySet();
+
+    /** Dados de um personagem livre rolado, esperando alguem reagir pra casar. */
+    private record Roll(long charId, String name, String series, String image, int kakera,
+                        long expiraMs, String guildId) {
+    }
+
+    /** Rolls livres por id da mensagem — a primeira reacao valida casa o personagem. */
+    private final java.util.Map<Long, Roll> rollsAbertos = new ConcurrentHashMap<>();
+
+    /** Pares "mensagem:usuario" ja avisados de cooldown (evita spam de aviso). */
+    private final Set<String> cooldownAvisado = ConcurrentHashMap.newKeySet();
 
     private HaremService(HaremRepository repo) {
         this.repo = repo;
@@ -130,16 +144,14 @@ public class HaremService extends ListenerAdapter {
 
         EmbedBuilder eb = new EmbedBuilder()
                 .setTitle(ch.name())
-                .setDescription(ch.series() + "\n\n💎 **" + ch.kakera() + "** kakera")
+                .setDescription(ch.series() + "\n\n" + HaremEmojis.kakera(ch.kakera())
+                        + " **" + ch.kakera() + "** kakera")
                 .setImage(ch.imageUrl());
 
-        String conteudo = null;
-        List<Button> botoes = new ArrayList<>();
         if (dona == null) {
             eb.setColor(COR_LIVRE)
-                    .setFooter("💗 Clica no coração pra casar! · " + restantes + " roll(s) restantes");
-            botoes.add(Button.danger("hclaim:" + ch.id() + ":" + ch.kakera() + ":" + expira,
-                    Emoji.fromUnicode("💗")));
+                    .setFooter("💗 Reage com qualquer emoji pra casar! · " + restantes + " roll(s) restantes");
+            String conteudo = null;
             List<String> desejantes = repo.findWishers(guildId, ch.name().toLowerCase(Locale.ROOT));
             if (!desejantes.isEmpty()) {
                 conteudo = "✨ " + desejantes.stream()
@@ -147,15 +159,27 @@ public class HaremService extends ListenerAdapter {
                         .collect(Collectors.joining(" "))
                         + " — apareceu alguém da sua lista de desejos!";
             }
+            // Sem botao: quem reagir primeiro (qualquer emoji) casa — ver onMessageReactionAdd.
+            Roll roll = new Roll(ch.id(), ch.name(), ch.series(), ch.imageUrl(), ch.kakera(),
+                    agora + JANELA_CLAIM.toMillis(), guildId);
+            ctx.replyEmbedAndThen(conteudo, eb.build(), msg -> registrarRoll(msg.getIdLong(), roll));
         } else {
             int saque = saqueDe(ch.kakera());
             eb.setColor(COR_CASADA)
                     .setFooter("💍 Pertence a " + dona.ownerName());
-            botoes.add(Button.of(ButtonStyle.SECONDARY, "hkak:" + saque + ":" + expira,
-                    String.valueOf(saque), Emoji.fromUnicode("💎")));
+            Button botao = Button.of(ButtonStyle.SECONDARY, "hkak:" + saque + ":" + expira,
+                    String.valueOf(saque), HaremEmojis.kakeraEmoji(ch.kakera()));
+            ctx.replyEmbedWithButtons(null, eb.build(), List.of(botao));
         }
+    }
 
-        ctx.replyEmbedWithButtons(conteudo, eb.build(), botoes);
+    /** Registra um roll aberto pra ser casado por reacao, limpando os expirados de vez em quando. */
+    private void registrarRoll(long messageId, Roll roll) {
+        if (rollsAbertos.size() > 2000) {
+            long agora = System.currentTimeMillis();
+            rollsAbertos.values().removeIf(r -> agora > r.expiraMs());
+        }
+        rollsAbertos.put(messageId, roll);
     }
 
     /** Rolls que ainda sobram pro jogador (cota da hora + bonus comprados), sem consumir nenhum. */
@@ -242,8 +266,10 @@ public class HaremService extends ListenerAdapter {
                 .setColor(COR_LIVRE)
                 .setTitle("ﾟ･✧ Proposta de Troca ✧･ﾟ 🤝")
                 .setDescription("**" + meu.ownerName() + "** oferece **" + meu.name()
-                        + "** (💎" + meu.kakera() + ") em troca de **" + dele.name()
-                        + "** (💎" + dele.kakera() + ") de <@" + dele.ownerId() + ">~")
+                        + "** (" + HaremEmojis.kakera(meu.kakera()) + meu.kakera()
+                        + ") em troca de **" + dele.name()
+                        + "** (" + HaremEmojis.kakera(dele.kakera()) + dele.kakera()
+                        + ") de <@" + dele.ownerId() + ">~")
                 .setFooter("Só quem foi desafiado pode aceitar · expira em 2 minutos")
                 .build();
         ctx.replyEmbedWithButtons("<@" + dele.ownerId() + ">", embed, List.of(
@@ -255,9 +281,7 @@ public class HaremService extends ListenerAdapter {
     public void onButtonInteraction(ButtonInteractionEvent event) {
         String id = event.getComponentId();
         try {
-            if (id.startsWith("hclaim:")) {
-                handleClaim(event, id);
-            } else if (id.startsWith("hkak:")) {
+            if (id.startsWith("hkak:")) {
                 handleKakera(event, id);
             } else if (id.startsWith("htradeno:")) {
                 handleTradeReject(event, id);
@@ -270,67 +294,89 @@ public class HaremService extends ListenerAdapter {
         }
     }
 
-    private void handleClaim(ButtonInteractionEvent event, String id) {
-        if (!event.isFromGuild()) {
+    /**
+     * Casa o personagem de um roll livre quando alguem reage (com qualquer emoji)
+     * dentro da janela. A primeira reacao valida vence: o {@code remove} do mapa
+     * elege um unico ganhador por mensagem, e o {@link HaremRepository#tryClaim}
+     * resolve corridas entre rolls diferentes do mesmo personagem.
+     */
+    @Override
+    public void onMessageReactionAdd(MessageReactionAddEvent event) {
+        if (!event.isFromGuild()
+                || event.getUserIdLong() == event.getJDA().getSelfUser().getIdLong()) {
             return;
         }
-        String[] partes = id.split(":");
-        long charId = Long.parseLong(partes[1]);
-        int kakera = Integer.parseInt(partes[2]);
-        long expiraSeg = Long.parseLong(partes[3]);
+        long messageId = event.getMessageIdLong();
+        Roll roll = rollsAbertos.get(messageId);
+        if (roll == null) {
+            return;
+        }
         long agora = System.currentTimeMillis();
-        String guildId = event.getGuild().getId();
-        String userId = event.getUser().getId();
-
-        if (agora / 1000L > expiraSeg) {
-            responderEfemero(event, "Esse coração já parou de bater... rola de novo! (・_・;)");
-            desabilitarBotao(event);
+        if (agora > roll.expiraMs()) {
+            rollsAbertos.remove(messageId);
             return;
         }
+        String guildId = event.getGuild().getId();
+        String userId = event.getUserId();
 
         long proximoClaim = repo.getPlayer(guildId, userId).lastClaimMs() + INTERVALO_CLAIM.toMillis();
         if (agora < proximoClaim) {
-            responderEfemero(event, "Calminha, coração apressado~ você pode casar de novo "
-                    + relativo(proximoClaim) + "! (・∀・)");
+            // Em cooldown: o roll continua livre pra outra pessoa. Avisa a pessoa
+            // (no maximo uma vez por roll, pra nao spammar o canal).
+            if (cooldownAvisado.add(messageId + ":" + userId)) {
+                if (cooldownAvisado.size() > 5000) {
+                    cooldownAvisado.clear();
+                }
+                event.getChannel().sendMessage("<@" + userId + "> calminha, coração apressado~ "
+                        + "você pode casar de novo " + relativo(proximoClaim) + "! (・∀・)").queue();
+            }
             return;
         }
 
-        List<MessageEmbed> embeds = event.getMessage().getEmbeds();
-        if (embeds.isEmpty() || embeds.get(0).getTitle() == null) {
+        // Elege o ganhador da mensagem: so quem remover de fato segue adiante.
+        if (rollsAbertos.remove(messageId) == null) {
             return;
         }
-        MessageEmbed original = embeds.get(0);
-        String nome = original.getTitle();
-        String serie = original.getDescription() == null
-                ? "" : original.getDescription().split("\n")[0];
-        String imagem = original.getImage() == null ? null : original.getImage().getUrl();
+
+        event.retrieveMember().queue(
+                membro -> finalizarClaim(event, roll, membro, agora),
+                err -> log.warn("Falha ao buscar o membro que reagiu pra casar.", err));
+    }
+
+    private void finalizarClaim(MessageReactionAddEvent event, Roll roll, Member membro, long agora) {
+        String guildId = roll.guildId();
+        String userId = membro.getId();
+        String nome = membro.getEffectiveName();
 
         HaremRepository.Claim claim = new HaremRepository.Claim(
-                charId, nome, serie, imagem, kakera, userId, event.getUser().getEffectiveName());
+                roll.charId(), roll.name(), roll.series(), roll.image(), roll.kakera(), userId, nome);
         if (!repo.tryClaim(guildId, claim, agora)) {
-            responderEfemero(event, "Tarde demais... **" + nome
-                    + "** já casou com outra pessoa! (｡•́︿•̀｡)");
-            HaremRepository.Claim dona = repo.findOwner(guildId, charId);
+            // Outro roll do mesmo personagem casou antes: marca como pertencente ao dono.
+            HaremRepository.Claim dona = repo.findOwner(guildId, roll.charId());
             if (dona != null) {
-                event.getMessage().editMessageEmbeds(new EmbedBuilder(original)
-                                .setColor(COR_CASADA)
-                                .setFooter("💍 Pertence a " + dona.ownerName())
-                                .build())
-                        .setComponents(ActionRow.of(event.getButton().asDisabled()))
-                        .queue();
+                editarRoll(event, roll, COR_CASADA, "💍 Pertence a " + dona.ownerName());
             }
             return;
         }
 
         repo.setLastClaim(guildId, userId, agora);
-        event.editMessageEmbeds(new EmbedBuilder(original)
-                        .setColor(COR_RECEM_CASADA)
-                        .setFooter("💍 Pertence a " + event.getUser().getEffectiveName())
-                        .build())
-                .setComponents(ActionRow.of(event.getButton().asDisabled()))
-                .queue();
-        event.getChannel().sendMessage("💖 **" + event.getUser().getEffectiveName() + "** e **"
-                + nome + "** agora são casados! Que sejam felizes~ (´｡• ᵕ •｡`) ♡").queue();
+        editarRoll(event, roll, COR_RECEM_CASADA, "💍 Pertence a " + nome);
+        event.getChannel().sendMessage("💖 **" + nome + "** e **" + roll.name()
+                + "** agora são casados! Que sejam felizes~ (´｡• ᵕ •｡`) ♡").queue();
+    }
+
+    /** Reescreve o embed do roll (mesma arte) com a cor/rodape de "casado". */
+    private void editarRoll(MessageReactionAddEvent event, Roll roll, Color cor, String rodape) {
+        MessageEmbed casado = new EmbedBuilder()
+                .setTitle(roll.name())
+                .setDescription(roll.series() + "\n\n" + HaremEmojis.kakera(roll.kakera())
+                        + " **" + roll.kakera() + "** kakera")
+                .setImage(roll.image())
+                .setColor(cor)
+                .setFooter(rodape)
+                .build();
+        event.getChannel().editMessageEmbedsById(event.getMessageId(), casado)
+                .queue(ok -> {}, err -> {});
     }
 
     private void handleKakera(ButtonInteractionEvent event, String id) {
@@ -362,7 +408,7 @@ public class HaremService extends ListenerAdapter {
 
         repo.addKakera(guildId, userId, ganho);
         event.editComponents(ActionRow.of(event.getButton().asDisabled())).queue();
-        event.getChannel().sendMessage("💎 **" + event.getUser().getEffectiveName()
+        event.getChannel().sendMessage(HaremEmojis.kakera() + " **" + event.getUser().getEffectiveName()
                 + "** coletou **" + ganho + "** kakera!"
                 + (nivel > 0 ? " (bônus da torre " + TORRE_EMOJIS[nivel] + ")" : "") + " ✧").queue();
     }

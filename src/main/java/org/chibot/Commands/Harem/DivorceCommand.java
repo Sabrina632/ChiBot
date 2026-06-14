@@ -6,6 +6,7 @@ import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import org.chibot.Commands.CommandContext;
 import org.chibot.Commands.ICommand;
 import org.chibot.Database.HaremRepository;
+import org.chibot.Harem.HaremEmojis;
 import org.chibot.Harem.HaremService;
 import org.chibot.Music.MusicUi;
 
@@ -97,7 +98,8 @@ public class DivorceCommand implements ICommand {
                 .setTitle("ﾟ･✧ Divórcio ✧･ﾟ 💔")
                 .setThumbnail(alvo.imageUrl())
                 .setDescription("Você se divorciou de **" + alvo.name() + "**... que triste~ (｡•́︿•̀｡)\n"
-                        + "Como consolo, ficou com 💎 **" + devolucao + "** kakera (metade do valor).")
+                        + "Como consolo, ficou com " + HaremEmojis.kakera() + " **" + devolucao
+                        + "** kakera (metade do valor).")
                 .build());
     }
 }
