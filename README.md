@@ -4,7 +4,7 @@
 
 **Um bot de Discord fofo e enxuto, feito em Java com a [JDA](https://github.com/discord-jda/JDA).**
 
-Música via Lavalink · Harém estilo Mudae · Party Finder de FFXIV · console kawaii~ (｡•ᴗ•｡)♡
+Música via Lavalink · Harém estilo Mudae · Party Finder de FFXIV · console fofo~ (｡•ᴗ•｡)♡
 
 [![Java 17](assets/badges/java.svg)](https://adoptium.net/)
 [![JDA 6.4.2](assets/badges/jda.svg)](https://github.com/discord-jda/JDA)
@@ -44,7 +44,7 @@ Música via Lavalink · Harém estilo Mudae · Party Finder de FFXIV · console 
 - **Ajuda embutida** — `/help` lista os comandos por categoria num embed fofo; `/help <comando>` mostra uso e atalhos.
 - **Comandos por prefixo e por slash (`/`)** — o mesmo comando funciona dos dois jeitos.
 - **Auto-load de comandos** — basta criar uma classe que implementa `ICommand` no pacote `org.chibot.Commands`; ela é descoberta e registrada sozinha por reflection, sem precisar editar nada.
-- **Console kawaii** — banner com degradê pastel e logs coloridos em truecolor (veja [`KawaiiLayout`](src/main/java/org/chibot/Logging/KawaiiLayout.java)).
+- **Console fofo** — banner com degradê pastel e logs coloridos em truecolor (veja [`KawaiiLayout`](src/main/java/org/chibot/Logging/KawaiiLayout.java)).
 - **Configuração simples** — um único `.env` que é criado automaticamente na primeira execução.
 - **Pronto pra Docker** — build multi-stage e `docker-compose` com bot + Lavalink, tudo na rede interna.
 
@@ -351,5 +351,4 @@ Distribuído sob a licença **MIT** — veja o arquivo [`LICENSE`](LICENSE) para
 ---
 
 <div align="center">
-<sub>Feito com ♡ em Java · (｡•ᴗ•｡)♡</sub>
 </div>
