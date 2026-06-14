@@ -7,11 +7,23 @@ import net.dv8tion.jda.api.entities.emoji.Emoji;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+
+import javax.imageio.ImageIO;
 
 /**
  * Emojis customizados do harem, no estilo Mudae: a cor do kakera varia conforme
@@ -22,8 +34,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * (funcionam em qualquer servidor onde o ChiBot esta). No boot, o
  * {@link #sync(JDA)} sobe automaticamente os PNGs que estao em
  * {@code src/main/resources/emojis/<nome>.png} e ainda nao existem na aplicacao
- * — entao basta soltar os arquivos e fazer o redeploy. Enquanto um emoji nao
- * existir, cai no unicode {@code 💎}/{@code 💗}, sem quebrar nada.
+ * — entao basta soltar os arquivos e fazer o redeploy. Os badges de personagem
+ * ({@code badge_<id>}) sao um caso a parte: a arte e baixada do AniList e
+ * recortada na hora (veja {@link #syncPersonagens}), sem precisar de PNG. Enquanto
+ * um emoji nao existir, cai no fallback unicode, sem quebrar nada.
  */
 public final class HaremEmojis {
 
@@ -69,11 +83,17 @@ public final class HaremEmojis {
                 KAKERA, "kakera_b", "kakera_c", "kakera_g",
                 "kakera_y", "kakera_o", "kakera_r", "kakera_w"));
         nomes.addAll(List.of(TORRE_NOMES));
+        nomes.addAll(HaremBadges.emojiNames());
         return List.copyOf(nomes);
     }
 
     /** Mapa nome → emoji carregado da aplicacao (vazio ate o sync rodar). */
     private static volatile Map<String, ApplicationEmoji> carregados = Map.of();
+
+    /** Cliente HTTP pra baixar as imagens dos badges de personagem (AniList). */
+    private static final HttpClient HTTP = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(10))
+            .build();
 
     /**
      * Carrega os application emojis ja existentes e sobe os que faltam a partir
@@ -107,7 +127,105 @@ public final class HaremEmojis {
             }
             log.info("Emojis de harem: {} ja existiam, {} sendo enviados.",
                     mapa.size(), subindo);
+
+            // Badges de personagem: a arte vem do AniList (rede), entao roda fora
+            // da thread de callback do JDA.
+            syncPersonagens(jda, mapa);
         }, err -> log.warn("Falha ao carregar os application emojis do harem.", err));
+    }
+
+    /**
+     * Cria os emojis dos badges de personagem que ainda nao existem, puxando o
+     * rosto de cada um do AniList. Roda numa thread daemon propria (faz HTTP
+     * bloqueante) e e idempotente: pula os que ja foram criados.
+     */
+    private static void syncPersonagens(JDA jda, Map<String, ApplicationEmoji> mapa) {
+        List<HaremBadges.Badge> personagens = HaremBadges.personagens();
+        if (personagens.stream().allMatch(b -> mapa.containsKey(b.emojiNome()))) {
+            return; // todos ja existem
+        }
+        Thread worker = new Thread(() -> {
+            AniListClient aniList = new AniListClient();
+            int criados = 0;
+            for (HaremBadges.Badge b : personagens) {
+                String nome = b.emojiNome();
+                if (mapa.containsKey(nome)) {
+                    continue;
+                }
+                try {
+                    AnimeCharacter ch = aniList.searchCharacter(b.busca());
+                    if (ch == null) {
+                        log.warn("Badge '{}': AniList nao achou '{}'.", b.id(), b.busca());
+                        continue;
+                    }
+                    Icon icon = iconFromUrl(ch.imageUrl());
+                    if (icon == null) {
+                        continue;
+                    }
+                    jda.createApplicationEmoji(nome, icon).queue(
+                            e -> {
+                                mapa.put(e.getName(), e);
+                                log.info("Emoji de personagem '{}' ({}) criado.", nome, ch.name());
+                            },
+                            err -> log.warn("Falha ao criar o emoji de personagem '{}'.", nome, err));
+                    criados++;
+                    Thread.sleep(400); // pacing gentil pro AniList e pro rate limit de emoji
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    return;
+                } catch (Exception ex) {
+                    log.warn("Falha ao montar o badge de personagem '{}'.", b.id(), ex);
+                }
+            }
+            log.info("Badges de personagem: {} enviados a partir do AniList.", criados);
+        }, "harem-badge-emojis");
+        worker.setDaemon(true);
+        worker.start();
+    }
+
+    /** Baixa a imagem da URL e devolve um {@link Icon} quadrado (ou null se falhar). */
+    private static Icon iconFromUrl(String url) {
+        try {
+            HttpResponse<byte[]> resp = HTTP.send(
+                    HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(15)).GET().build(),
+                    HttpResponse.BodyHandlers.ofByteArray());
+            if (resp.statusCode() != 200) {
+                return null;
+            }
+            byte[] png = paraQuadradoPng(resp.body());
+            return Icon.from(png != null ? png : resp.body());
+        } catch (Exception e) {
+            log.warn("Falha ao baixar a imagem do badge ({}).", url, e);
+            return null;
+        }
+    }
+
+    /** Recorta no centro pra um quadrado e reduz pra 160x160 PNG (null se nao der). */
+    private static byte[] paraQuadradoPng(byte[] origem) {
+        try {
+            BufferedImage src = ImageIO.read(new ByteArrayInputStream(origem));
+            if (src == null) {
+                return null;
+            }
+            int lado = Math.min(src.getWidth(), src.getHeight());
+            int x = (src.getWidth() - lado) / 2;
+            int y = (src.getHeight() - lado) / 2;
+            BufferedImage quadrado = src.getSubimage(x, y, lado, lado);
+
+            int destino = 160;
+            BufferedImage out = new BufferedImage(destino, destino, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g = out.createGraphics();
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+                    RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g.drawImage(quadrado, 0, 0, destino, destino, null);
+            g.dispose();
+
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            ImageIO.write(out, "png", bos);
+            return bos.toByteArray();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private static Icon lerIcon(String nome) {
@@ -117,6 +235,15 @@ public final class HaremEmojis {
             log.warn("Erro ao ler o PNG do emoji '{}'.", nome, e);
             return null;
         }
+    }
+
+    /**
+     * Application emoji pelo nome ({@code <:nome:id>}) ou o {@code fallback}
+     * unicode se ele ainda nao foi carregado/criado. Usado pelos badges.
+     */
+    public static String custom(String nome, String fallback) {
+        ApplicationEmoji e = carregados.get(nome);
+        return e != null ? e.getFormatted() : fallback;
     }
 
     /** Kakera generico (saldos, custos, daily): {@code <:kakera:id>} ou {@code 💎}. */

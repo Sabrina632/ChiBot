@@ -25,7 +25,7 @@ public class TowerCommand implements ICommand {
 
     @Override
     public List<String> getAliases() {
-        return List.of("torre", "badges");
+        return List.of("torre");
     }
 
     @Override

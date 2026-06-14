@@ -6,6 +6,7 @@ import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import org.chibot.Commands.CommandContext;
 import org.chibot.Commands.ICommand;
 import org.chibot.Database.HaremRepository;
+import org.chibot.Harem.HaremBadges;
 import org.chibot.Harem.HaremEmojis;
 import org.chibot.Harem.HaremService;
 import org.chibot.Music.MusicUi;
@@ -13,6 +14,7 @@ import org.chibot.Music.MusicUi;
 import java.awt.Color;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
 
 public class ProfileCommand implements ICommand {
@@ -124,6 +126,11 @@ public class ProfileCommand implements ICommand {
         HaremRepository repo = service.getRepo();
         String guildId = ctx.getGuild().getId();
 
+        // Ver o próprio perfil já concede as conquistas pendentes.
+        if (donoId.equals(ctx.getAuthor().getId())) {
+            service.grantNewAchievements(guildId, donoId);
+        }
+
         HaremRepository.Profile profile = repo.getProfile(guildId, donoId);
         HaremRepository.HaremStats stats = repo.haremStats(guildId, donoId);
         HaremRepository.Player player = repo.getPlayer(guildId, donoId);
@@ -148,6 +155,16 @@ public class ProfileCommand implements ICommand {
         if (stats.primeiroClaimMs() > 0) {
             eb.addField("📅 Primeiro casamento",
                     "<t:" + stats.primeiroClaimMs() / 1000L + ":D>", true);
+        }
+
+        List<String> badges = repo.equippedBadges(guildId, donoId);
+        if (!badges.isEmpty()) {
+            String fileira = badges.stream()
+                    .map(HaremBadges::byId)
+                    .filter(Objects::nonNull)
+                    .map(HaremBadges.Badge::emoji)
+                    .reduce((a, c) -> a + " " + c).orElse("");
+            eb.addField("🎖️ Badges", fileira, false);
         }
 
         // Personagem favorito vira a imagem grande do perfil (se ainda for do jogador).

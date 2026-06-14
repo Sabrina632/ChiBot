@@ -362,6 +362,11 @@ public class HaremService extends ListenerAdapter {
         editarRoll(event, roll, COR_RECEM_CASADA, "💍 Pertence a " + nome);
         event.getChannel().sendMessage("💖 **" + nome + "** e **" + roll.name()
                 + "** agora são casados! Que sejam felizes~ (´｡• ᵕ •｡`) ♡").queue();
+
+        String aviso = anuncioBadges(nome, grantNewAchievements(guildId, userId));
+        if (aviso != null) {
+            event.getChannel().sendMessage(aviso).queue();
+        }
     }
 
     /** Reescreve o embed do roll (mesma arte) com a cor/rodape de "casado". */
@@ -496,6 +501,51 @@ public class HaremService extends ListenerAdapter {
         event.getMessage()
                 .editMessageComponents(ActionRow.of(event.getButton().asDisabled()))
                 .queue(ok -> {}, err -> {});
+    }
+
+    // ---------------------------------------------------------------- badges
+
+    /**
+     * Confere as conquistas do jogador e concede os badges recem-desbloqueados,
+     * retornando a lista deles (vazia se nada novo). Idempotente: um badge ja
+     * possuido nunca e concedido de novo.
+     */
+    public List<HaremBadges.Badge> grantNewAchievements(String guildId, String userId) {
+        HaremRepository.HaremStats st = repo.haremStats(guildId, userId);
+        HaremRepository.Player p = repo.getPlayer(guildId, userId);
+        HaremBadges.Stats stats = new HaremBadges.Stats(
+                st.count(), st.valorTotal(), p.towerLevel(), p.kakera(),
+                repo.listWishes(guildId, userId).size(), repo.haremRank(guildId, userId),
+                repo.claimNamesLower(guildId, userId));
+
+        Set<String> owned = repo.ownedBadges(guildId, userId);
+        long agora = System.currentTimeMillis();
+        List<HaremBadges.Badge> novos = new ArrayList<>();
+        for (HaremBadges.Badge b : HaremBadges.autoDesbloqueaveis()) {
+            if (!owned.contains(b.id()) && b.desbloqueado(stats)
+                    && repo.grantBadge(guildId, userId, b.id(), agora)) {
+                novos.add(b);
+            }
+        }
+        return novos;
+    }
+
+    /** Frase de anuncio dos badges recem-ganhos (ou null se a lista veio vazia). */
+    public static String anuncioBadges(String nome, List<HaremBadges.Badge> novos) {
+        if (novos.isEmpty()) {
+            return null;
+        }
+        StringBuilder sb = new StringBuilder("🎖️ **" + nome + "** desbloqueou ");
+        sb.append(novos.size() == 1 ? "um novo badge: " : "novos badges: ");
+        for (int i = 0; i < novos.size(); i++) {
+            HaremBadges.Badge b = novos.get(i);
+            if (i > 0) {
+                sb.append(", ");
+            }
+            sb.append(b.emoji()).append(" **").append(b.nome()).append("**");
+        }
+        sb.append("! ✧");
+        return sb.toString();
     }
 
     /** Timestamp relativo do Discord ("em 23 minutos"). */

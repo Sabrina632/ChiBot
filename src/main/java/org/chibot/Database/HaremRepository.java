@@ -10,8 +10,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * Persistencia local (SQLite) do sistema de waifu/husbando. Guarda os
@@ -127,6 +129,16 @@ public class HaremRepository {
                         bio         TEXT,
                         fav_char_id INTEGER NOT NULL DEFAULT 0,
                         PRIMARY KEY (guild_id, user_id)
+                    )
+                    """);
+            st.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS harem_badge (
+                        guild_id  TEXT    NOT NULL,
+                        user_id   TEXT    NOT NULL,
+                        badge_id  TEXT    NOT NULL,
+                        acquired  INTEGER NOT NULL DEFAULT 0,
+                        equipped  INTEGER NOT NULL DEFAULT 0,
+                        PRIMARY KEY (guild_id, user_id, badge_id)
                     )
                     """);
         }
@@ -704,6 +716,151 @@ public class HaremRepository {
             log.warn("Falha ao calcular o rank de {}/{}.", guildId, userId, e);
         }
         return 0;
+    }
+
+    /** Nomes (em minusculas) dos personagens no harem do jogador — pros badges de personagem. */
+    public synchronized Set<String> claimNamesLower(String guildId, String userId) {
+        Set<String> out = new LinkedHashSet<>();
+        if (!available()) {
+            return out;
+        }
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT LOWER(name) FROM harem_claim WHERE guild_id = ? AND owner_id = ?")) {
+            ps.setString(1, guildId);
+            ps.setString(2, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    out.add(rs.getString(1));
+                }
+            }
+        } catch (SQLException e) {
+            log.warn("Falha ao listar os nomes do harem de {}/{}.", guildId, userId, e);
+        }
+        return out;
+    }
+
+    // ------------------------------------------------------------------ badges
+
+    /** IDs dos badges que o jogador possui nesse servidor. */
+    public synchronized Set<String> ownedBadges(String guildId, String userId) {
+        Set<String> out = new LinkedHashSet<>();
+        if (!available()) {
+            return out;
+        }
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT badge_id FROM harem_badge WHERE guild_id = ? AND user_id = ? ORDER BY acquired")) {
+            ps.setString(1, guildId);
+            ps.setString(2, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    out.add(rs.getString(1));
+                }
+            }
+        } catch (SQLException e) {
+            log.warn("Falha ao listar os badges de {}/{}.", guildId, userId, e);
+        }
+        return out;
+    }
+
+    /** IDs dos badges equipados (exibidos no perfil), na ordem em que foram ganhos. */
+    public synchronized List<String> equippedBadges(String guildId, String userId) {
+        List<String> out = new ArrayList<>();
+        if (!available()) {
+            return out;
+        }
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT badge_id FROM harem_badge
+                WHERE guild_id = ? AND user_id = ? AND equipped = 1 ORDER BY acquired
+                """)) {
+            ps.setString(1, guildId);
+            ps.setString(2, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    out.add(rs.getString(1));
+                }
+            }
+        } catch (SQLException e) {
+            log.warn("Falha ao listar os badges equipados de {}/{}.", guildId, userId, e);
+        }
+        return out;
+    }
+
+    /** Quantos badges o jogador exibe no perfil agora. */
+    public synchronized int equippedBadgeCount(String guildId, String userId) {
+        if (!available()) {
+            return 0;
+        }
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT COUNT(*) FROM harem_badge WHERE guild_id = ? AND user_id = ? AND equipped = 1")) {
+            ps.setString(1, guildId);
+            ps.setString(2, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
+            }
+        } catch (SQLException e) {
+            log.warn("Falha ao contar os badges equipados de {}/{}.", guildId, userId, e);
+            return 0;
+        }
+    }
+
+    /** Concede um badge (conquista). Retorna true so se ele ainda nao tinha. */
+    public synchronized boolean grantBadge(String guildId, String userId, String badgeId, long epochMs) {
+        if (!available()) {
+            return false;
+        }
+        try (PreparedStatement ps = conn.prepareStatement(
+                "INSERT OR IGNORE INTO harem_badge (guild_id, user_id, badge_id, acquired) VALUES (?,?,?,?)")) {
+            ps.setString(1, guildId);
+            ps.setString(2, userId);
+            ps.setString(3, badgeId);
+            ps.setLong(4, epochMs);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            log.warn("Falha ao conceder o badge '{}' pra {}/{}.", badgeId, guildId, userId, e);
+            return false;
+        }
+    }
+
+    /**
+     * Compra um badge da loja: debita o kakera e concede o badge, atomico.
+     * Retorna false se ja possuia o badge ou se faltou kakera.
+     */
+    public synchronized boolean buyBadge(String guildId, String userId, String badgeId, long preco, long epochMs) {
+        if (!available()) {
+            return false;
+        }
+        try {
+            ensurePlayer(guildId, userId);
+            if (ownedBadges(guildId, userId).contains(badgeId)) {
+                return false;
+            }
+            if (!trySpendKakera(guildId, userId, preco)) {
+                return false;
+            }
+            grantBadge(guildId, userId, badgeId, epochMs);
+            return true;
+        } catch (SQLException e) {
+            log.warn("Falha ao comprar o badge '{}' pra {}/{}.", badgeId, guildId, userId, e);
+            return false;
+        }
+    }
+
+    /** Equipa/desequipa um badge (so se o jogador o possui). Retorna true se mudou algo. */
+    public synchronized boolean setBadgeEquipped(String guildId, String userId, String badgeId, boolean equipped) {
+        if (!available()) {
+            return false;
+        }
+        try (PreparedStatement ps = conn.prepareStatement(
+                "UPDATE harem_badge SET equipped = ? WHERE guild_id = ? AND user_id = ? AND badge_id = ?")) {
+            ps.setInt(1, equipped ? 1 : 0);
+            ps.setString(2, guildId);
+            ps.setString(3, userId);
+            ps.setString(4, badgeId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            log.warn("Falha ao equipar o badge '{}' de {}/{}.", badgeId, guildId, userId, e);
+            return false;
+        }
     }
 
     private Claim readClaim(ResultSet rs) throws SQLException {
