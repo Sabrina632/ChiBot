@@ -12,6 +12,7 @@ Música via Lavalink · Harém estilo Mudae · Party Finder de FFXIV · console 
 [![SQLite 3](assets/badges/sqlite.svg)](https://www.sqlite.org/)
 [![Docker](assets/badges/docker.svg)](https://www.docker.com/)
 [![Gradle](assets/badges/gradle.svg)](https://gradle.org/)
+[![MIT License](assets/badges/license.svg)](LICENSE)
 
 </div>
 
@@ -30,6 +31,7 @@ Música via Lavalink · Harém estilo Mudae · Party Finder de FFXIV · console 
 - [📂 Estrutura do projeto](#-estrutura-do-projeto)
 - [🔐 Segurança](#-segurança)
 - [🧰 Stack](#-stack)
+- [📜 Licença](#-licença)
 
 ---
 
@@ -341,6 +343,10 @@ O **`.env`** guarda credenciais em texto puro (token do bot, chave da API do You
 - [org.json](https://github.com/stleary/JSON-java) — parsing das respostas JSON das APIs (OAuth do YouTube, AniList, xivpf)
 - JUnit 5 — testes
 - Gradle (wrapper incluído) + plugin `application`
+
+## 📜 Licença
+
+Distribuído sob a licença **MIT** — veja o arquivo [`LICENSE`](LICENSE) para os detalhes. Em resumo: pode usar, copiar, modificar e distribuir à vontade, desde que mantenha o aviso de copyright. ♡
 
 ---
 
