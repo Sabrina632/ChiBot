@@ -40,8 +40,12 @@ public class HaremRepository {
     /** Resultado de {@link #addWish}. */
     public enum WishResult { OK, DUPLICADO, CHEIO }
 
-    /** Personalizacao do perfil de um jogador ({@code color} -1 = padrao). */
-    public record Profile(int color, String bio, long favCharId) {}
+    /**
+     * Personalizacao do perfil de um jogador ({@code color} -1 = padrao).
+     * {@code favCharId} = personagem em destaque no {@code profile};
+     * {@code haremCharId} = personagem que vira a imagem do {@code harem}.
+     */
+    public record Profile(int color, String bio, long favCharId, long haremCharId) {}
 
     /** Estatisticas do harem de um jogador num servidor. */
     public record HaremStats(int count, long valorTotal, long primeiroClaimMs) {}
@@ -110,9 +114,9 @@ public class HaremRepository {
                     """);
             // Migracao de bancos criados antes das colunas novas (o ALTER falha
             // com "duplicate column" em bancos novos e e ignorado de proposito).
-            addColumnIfMissing(st, "last_daily INTEGER NOT NULL DEFAULT 0");
-            addColumnIfMissing(st, "bonus_rolls INTEGER NOT NULL DEFAULT 0");
-            addColumnIfMissing(st, "tower_level INTEGER NOT NULL DEFAULT 0");
+            addColumnIfMissing(st, "harem_player", "last_daily INTEGER NOT NULL DEFAULT 0");
+            addColumnIfMissing(st, "harem_player", "bonus_rolls INTEGER NOT NULL DEFAULT 0");
+            addColumnIfMissing(st, "harem_player", "tower_level INTEGER NOT NULL DEFAULT 0");
             st.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS harem_wish (
                         guild_id   TEXT NOT NULL,
@@ -123,14 +127,16 @@ public class HaremRepository {
                     """);
             st.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS harem_profile (
-                        guild_id    TEXT    NOT NULL,
-                        user_id     TEXT    NOT NULL,
-                        color       INTEGER NOT NULL DEFAULT -1,
-                        bio         TEXT,
-                        fav_char_id INTEGER NOT NULL DEFAULT 0,
+                        guild_id      TEXT    NOT NULL,
+                        user_id       TEXT    NOT NULL,
+                        color         INTEGER NOT NULL DEFAULT -1,
+                        bio           TEXT,
+                        fav_char_id   INTEGER NOT NULL DEFAULT 0,
+                        harem_char_id INTEGER NOT NULL DEFAULT 0,
                         PRIMARY KEY (guild_id, user_id)
                     )
                     """);
+            addColumnIfMissing(st, "harem_profile", "harem_char_id INTEGER NOT NULL DEFAULT 0");
             st.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS harem_badge (
                         guild_id  TEXT    NOT NULL,
@@ -647,21 +653,22 @@ public class HaremRepository {
     /** Personalizacao do perfil (cor/bio/favorito padrao se nunca mexeu / banco indisponivel). */
     public synchronized Profile getProfile(String guildId, String userId) {
         if (!available()) {
-            return new Profile(-1, null, 0);
+            return new Profile(-1, null, 0, 0);
         }
         try (PreparedStatement ps = conn.prepareStatement(
-                "SELECT color, bio, fav_char_id FROM harem_profile WHERE guild_id = ? AND user_id = ?")) {
+                "SELECT color, bio, fav_char_id, harem_char_id FROM harem_profile WHERE guild_id = ? AND user_id = ?")) {
             ps.setString(1, guildId);
             ps.setString(2, userId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return new Profile(rs.getInt("color"), rs.getString("bio"), rs.getLong("fav_char_id"));
+                    return new Profile(rs.getInt("color"), rs.getString("bio"),
+                            rs.getLong("fav_char_id"), rs.getLong("harem_char_id"));
                 }
             }
         } catch (SQLException e) {
             log.warn("Falha ao ler o perfil de {}/{}.", guildId, userId, e);
         }
-        return new Profile(-1, null, 0);
+        return new Profile(-1, null, 0, 0);
     }
 
     public synchronized void setProfileColor(String guildId, String userId, int color) {
@@ -674,6 +681,11 @@ public class HaremRepository {
 
     public synchronized void setProfileFav(String guildId, String userId, long charId) {
         setProfileField(guildId, userId, "fav_char_id", ps -> ps.setLong(1, charId));
+    }
+
+    /** Define qual personagem do harem vira a imagem (thumbnail) do comando {@code harem}. */
+    public synchronized void setHaremChar(String guildId, String userId, long charId) {
+        setProfileField(guildId, userId, "harem_char_id", ps -> ps.setLong(1, charId));
     }
 
     private interface ParamSetter {
@@ -912,9 +924,9 @@ public class HaremRepository {
                 rs.getString("owner_name"));
     }
 
-    private static void addColumnIfMissing(Statement st, String columnDef) {
+    private static void addColumnIfMissing(Statement st, String table, String columnDef) {
         try {
-            st.executeUpdate("ALTER TABLE harem_player ADD COLUMN " + columnDef);
+            st.executeUpdate("ALTER TABLE " + table + " ADD COLUMN " + columnDef);
         } catch (SQLException ignored) {
             // coluna ja existe (bancos novos ja nascem com ela no CREATE TABLE)
         }

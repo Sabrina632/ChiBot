@@ -37,13 +37,16 @@ public class HaremCommand implements ICommand {
 
     @Override
     public String getUsage() {
-        return "harem [@usuario]";
+        return "harem [@usuario] | harem <personagem> (define a imagem)";
     }
 
     @Override
     public List<OptionData> getOptions() {
-        return List.of(new OptionData(OptionType.USER, "usuario",
-                "De quem ver o harém (vazio = o seu)", false));
+        return List.of(
+                new OptionData(OptionType.USER, "usuario",
+                        "De quem ver o harém (vazio = o seu)", false),
+                new OptionData(OptionType.STRING, "personagem",
+                        "Personagem do seu harém pra usar como imagem", false));
     }
 
     @Override
@@ -65,12 +68,22 @@ public class HaremCommand implements ICommand {
         }
 
         String alvoId = ctx.getOption("usuario");
-        if (alvoId == null && !ctx.getArgs().isEmpty()) {
-            alvoId = HaremUtils.resolveUserId(ctx.getArgs().get(0));
-            if (alvoId == null) {
-                ctx.reply("Não entendi quem é~ marca a pessoa ou manda o ID! (・∀・)");
-                return;
+        String personagem = ctx.getOption("personagem");
+
+        // Prefixo: !harem @user (ver harém de alguém) vs !harem Rem (definir imagem).
+        List<String> args = ctx.getArgs();
+        if (alvoId == null && personagem == null && !args.isEmpty()) {
+            String uid = HaremUtils.resolveUserId(args.get(0));
+            if (uid != null) {
+                alvoId = uid;
+            } else {
+                personagem = String.join(" ", args);
             }
+        }
+
+        if (personagem != null) {
+            definirImagem(ctx, service, personagem);
+            return;
         }
 
         if (alvoId == null || alvoId.equals(ctx.getAuthor().getId())) {
@@ -86,16 +99,50 @@ public class HaremCommand implements ICommand {
                 err -> ctx.reply("Não achei esse usuário em lugar nenhum~ (・_・;)"));
     }
 
+    /** Define a personagem (do próprio harém) que vira a imagem do comando {@code harem}. */
+    private void definirImagem(CommandContext ctx, HaremService service, String nome) {
+        HaremRepository repo = service.getRepo();
+        String guildId = ctx.getGuild().getId();
+        String userId = ctx.getAuthor().getId();
+        nome = nome.trim();
+
+        HaremRepository.Claim alvo = HaremUtils.escolher(repo.findClaims(guildId, userId, nome), nome);
+        if (alvo == null) {
+            ctx.reply("Não achei **" + nome + "** no seu harém (ou achei mais de um)~ "
+                    + "manda o nome certinho! (・_・;)");
+            return;
+        }
+        repo.setHaremChar(guildId, userId, alvo.charId());
+        ctx.replyEmbeds(new EmbedBuilder()
+                .setColor(MusicUi.KAWAII_PINK)
+                .setDescription("🖼️ **" + alvo.name() + "** agora é a carinha do seu `harem`~ (✿◠‿◠)")
+                .setThumbnail(alvo.imageUrl())
+                .build());
+    }
+
     private void render(CommandContext ctx, HaremService service,
                         String donoId, String donoNome, boolean proprio) {
-        List<HaremRepository.Claim> harem =
-                service.getRepo().listHarem(ctx.getGuild().getId(), donoId);
+        HaremRepository repo = service.getRepo();
+        String guildId = ctx.getGuild().getId();
+        List<HaremRepository.Claim> harem = repo.listHarem(guildId, donoId);
         if (harem.isEmpty()) {
             String prefix = ChiConfig.get() == null ? "!" : ChiConfig.get().getPrefix();
             ctx.reply(proprio
                     ? "Seu harém tá vazio~ usa `" + prefix + "w` pra rolar uma waifu! (・∀・)"
                     : "O harém de **" + donoNome + "** tá vazio~ (・_・;)");
             return;
+        }
+
+        // Imagem: a personagem escolhida (se ainda for do dono), senão a mais valiosa.
+        String thumb = harem.get(0).imageUrl();
+        long escolhida = repo.getProfile(guildId, donoId).haremCharId();
+        if (escolhida > 0) {
+            for (HaremRepository.Claim c : harem) {
+                if (c.charId() == escolhida) {
+                    thumb = c.imageUrl();
+                    break;
+                }
+            }
         }
 
         long valorTotal = harem.stream().mapToLong(HaremRepository.Claim::kakera).sum();
@@ -111,7 +158,8 @@ public class HaremCommand implements ICommand {
                     .append("** · ").append(claim.series()).append('\n');
             exibidos++;
             if (exibidos % POR_PAGINA == 0 || exibidos == harem.size()) {
-                paginas.add(pagina(donoNome, sb.toString(), paginas.isEmpty(), harem, valorTotal));
+                paginas.add(pagina(donoNome, sb.toString(), paginas.isEmpty(),
+                        harem.size(), valorTotal, thumb));
                 sb.setLength(0);
             }
         }
@@ -119,15 +167,15 @@ public class HaremCommand implements ICommand {
     }
 
     private MessageEmbed pagina(String donoNome, String descricao, boolean primeira,
-                                List<HaremRepository.Claim> harem, long valorTotal) {
+                                int total, long valorTotal, String thumbUrl) {
         EmbedBuilder eb = new EmbedBuilder()
                 .setColor(MusicUi.KAWAII_PINK)
                 .setDescription(descricao);
         if (primeira) {
             eb.setTitle("ﾟ･✧ Harém de " + donoNome + " ✧･ﾟ")
-                    .setThumbnail(harem.get(0).imageUrl());
+                    .setThumbnail(thumbUrl);
         }
-        eb.setFooter(harem.size() + " personagem(ns) · valor total: " + valorTotal + " kakera 💎");
+        eb.setFooter(total + " personagem(ns) · valor total: " + valorTotal + " kakera 💎");
         return eb.build();
     }
 }

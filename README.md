@@ -253,7 +253,7 @@ O contexto ([`CommandContext`](src/main/java/org/chibot/Commands/CommandContext.
 | `waifu`     | `w`, `wa`                | Rola uma waifu aleatória — clica no 💗 em até 45s pra casar (10 rolls/hora). |
 | `husbando`  | `h`, `ha`                | Rola um husbando aleatório.                                                 |
 | `roll`      | `m`, `mx`                | Rola qualquer personagem (waifu ou husbando).                               |
-| `harem`     | `mm`, `meuharem`         | Mostra seu harém (ou o de outra pessoa: `harem @user`), ordenado por valor.  |
+| `harem`     | `mm`, `meuharem`         | Mostra seu harém (ou o de outra pessoa: `harem @user`), ordenado por valor; `harem <personagem>` escolhe qual personagem aparece na imagem. |
 | `divorce`   | `divorciar`              | Se divorcia de um personagem (devolve metade do valor em kakera).           |
 | `trade`     | `trocar`                 | Propõe troca: `trade @user <seu personagem> por <o dele>` — a outra pessoa aceita/recusa por botão (expira em 2 min). |
 | `daily`     | `diario`, `dk`           | Coleta kakera diário (a cada 20h, com bônus da torre).                      |
