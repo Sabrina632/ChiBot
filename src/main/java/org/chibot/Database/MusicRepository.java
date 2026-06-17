@@ -35,7 +35,7 @@ import java.util.Locale;
 public class MusicRepository {
 
     private static final Logger log = LoggerFactory.getLogger(MusicRepository.class);
-    private static final String DEFAULT_DB_PATH = "ChiData.db";
+    private static final String DEFAULT_DB_FILE = "ChiMusic.db";
 
     /** Uma faixa persistida: o encoded do Lavalink + o titulo (pra listar sem decodificar). */
     public record StoredTrack(String encoded, String title) {}
@@ -54,6 +54,7 @@ public class MusicRepository {
         try {
             ensureParentDir(dbUrl);
             conn = DriverManager.getConnection(dbUrl);
+            applyPragmas();
             createSchema();
             log.info("Banco da musica pronto ({}).", dbUrl);
         } catch (SQLException e) {
@@ -62,12 +63,41 @@ public class MusicRepository {
         }
     }
 
+    /**
+     * A musica fica num arquivo SEPARADO do banco principal (harem/PF), de
+     * proposito: a fila e gravada a cada faixa, e dividir o {@code ChiData.db}
+     * faria as gravacoes da musica disputarem o lock do SQLite com o resto e
+     * engasgarem o audio. Por padrao fica ao lado do banco principal (mesmo
+     * diretorio/volume no Docker); {@code CHIBOT_MUSIC_DB_PATH} sobrescreve.
+     */
     private static String defaultDbUrl() {
-        String path = System.getenv("CHIBOT_DB_PATH");
-        if (path == null || path.isBlank()) {
-            path = DEFAULT_DB_PATH;
+        String explicit = System.getenv("CHIBOT_MUSIC_DB_PATH");
+        if (explicit != null && !explicit.isBlank()) {
+            return "jdbc:sqlite:" + explicit;
         }
-        return "jdbc:sqlite:" + path;
+        String mainDb = System.getenv("CHIBOT_DB_PATH");
+        if (mainDb != null && !mainDb.isBlank()) {
+            java.nio.file.Path parent = java.nio.file.Paths.get(mainDb).getParent();
+            java.nio.file.Path musicPath = parent != null
+                    ? parent.resolve(DEFAULT_DB_FILE)
+                    : java.nio.file.Paths.get(DEFAULT_DB_FILE);
+            return "jdbc:sqlite:" + musicPath;
+        }
+        return "jdbc:sqlite:" + DEFAULT_DB_FILE;
+    }
+
+    /** Liga WAL + busy_timeout: leituras nao travam gravacoes e um lock espera em vez de falhar. */
+    private void applyPragmas() {
+        try (Statement st = conn.createStatement()) {
+            // WAL: leitor e escritor nao se bloqueiam — menos engasgo no audio.
+            st.execute("PRAGMA journal_mode = WAL");
+            // Espera ate 5s por um lock em vez de estourar SQLITE_BUSY na hora.
+            st.execute("PRAGMA busy_timeout = 5000");
+            // Seguro com WAL e bem mais rapido pra gravar a fila a cada faixa.
+            st.execute("PRAGMA synchronous = NORMAL");
+        } catch (SQLException e) {
+            log.warn("Nao foi possivel aplicar os PRAGMAs de performance no banco da musica.", e);
+        }
     }
 
     private static void ensureParentDir(String dbUrl) {
