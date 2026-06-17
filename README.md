@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/banner.png" alt="ChiBot" width="540" />
+
 # ChiBot ♡
 
 **Um bot de Discord fofo e enxuto, feito em Java com a [JDA](https://github.com/discord-jda/JDA).**
