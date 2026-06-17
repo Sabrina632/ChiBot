@@ -120,7 +120,7 @@ public abstract class MusicCommand implements ICommand {
     }
 
     /** Canal de voz + conexao + defer. Devolve o manager, ou null se o autor nao pode tocar. */
-    private GuildMusicManager preparePlayback(CommandContext ctx) {
+    protected GuildMusicManager preparePlayback(CommandContext ctx) {
         AudioChannelUnion authorChannel = requireAuthorVoiceChannel(ctx);
         if (authorChannel == null) {
             return null;
@@ -134,7 +134,10 @@ public abstract class MusicCommand implements ICommand {
         }
 
         ctx.deferReply();
-        return getManager(ctx);
+        GuildMusicManager manager = getManager(ctx);
+        // Lembra onde estamos tocando pro restore reconectar depois de um restart.
+        manager.rememberChannels(authorChannel.getId(), ctx.getChannel().getId());
+        return manager;
     }
 
     private static boolean isUrl(String query) {

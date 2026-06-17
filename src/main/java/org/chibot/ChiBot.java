@@ -45,6 +45,10 @@ public class ChiBot
                 .build()
                 .awaitReady();
 
+        // Agora que o JDA esta pronto, a musica pode reconectar nos canais e
+        // retomar as filas que sobreviveram ao ultimo restart.
+        musicService.setJda(jda);
+
         registerSlashCommands(commandManager);
 
         // Sobe/carrega os emojis customizados do harem (kakera colorido estilo Mudae).
