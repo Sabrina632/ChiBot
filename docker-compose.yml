@@ -32,7 +32,9 @@ services:
     restart: unless-stopped
     environment:
       # G1 com pausa-alvo curta: pausas longas de GC viram travada no audio.
-      - _JAVA_OPTIONS=-Xmx512M -XX:+UseG1GC -XX:MaxGCPauseMillis=40
+      # ParallelRefProcEnabled encurta a fase de processar referencias do G1
+      # (uma das maiores fontes de pausa), reduzindo ainda mais os engasgos.
+      - _JAVA_OPTIONS=-Xmx512M -XX:+UseG1GC -XX:MaxGCPauseMillis=40 -XX:+ParallelRefProcEnabled
       # Login do YouTube no NODE: necessario pro loadtracks (busca/resolucao)
       # em IP de datacenter — o token por track que o bot manda cobre so o
       # play. Crie um arquivo .env ao lado deste compose (NUNCA versionar):

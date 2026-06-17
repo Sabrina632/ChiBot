@@ -15,6 +15,9 @@ lavalink:
     # (custo: ~10s de audio pre-decodificado na memoria, alguns MB so).
     bufferDurationMs: 1000        # padrao 400: quanto o Lavalink envia adiantado
     frameBufferDurationMs: 10000  # padrao 5000: quanto fica pre-decodificado
+    # Buffer de frames que NAO realoca a cada frame: corta o lixo de GC do audio
+    # (pausa de GC = travada). Casa com o frameBuffer grande acima.
+    nonAllocatingFrameBuffer: true
     opusEncodingQuality: 10
     resamplingQuality: LOW        # resampling barato; HIGH come CPU a toa aqui
     useSeekGhosting: true
@@ -61,5 +64,7 @@ plugins:
 
 logging:
   level:
-    root: INFO
+    # root em WARN corta o ruido de Spring/Netty; o logger do Lavalink fica em
+    # INFO pra ainda mostrar conexao do node, faixas e erros de playback.
+    root: WARN
     lavalink: INFO
