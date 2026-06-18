@@ -39,7 +39,8 @@ Música via Lavalink · Harém estilo Mudae · Party Finder de FFXIV · console 
 
 ## ✨ Features
 
-- **Música** — toca do YouTube (link ou busca), SoundCloud, Bandcamp, Twitch e streams HTTP. O áudio roda num servidor [Lavalink](https://github.com/lavalink-devs/Lavalink), que resolve e toca tudo; a busca por nome pode usar a **YouTube Data API** (chave opcional no config).
+- **Música** — toca do YouTube (link ou busca), SoundCloud, Bandcamp, Twitch e streams HTTP. O áudio roda num servidor [Lavalink](https://github.com/lavalink-devs/Lavalink), que resolve e toca tudo; a busca por nome pode usar a **YouTube Data API** (chave opcional no config). Controle de **volume** (0–200) e **fila, playlists salvas e volume persistidos** num banco próprio (`ChiMusic.db`, separado pra não disputar lock com o resto e engasgar o áudio).
+- **Diversão** — comandos de roleplay fofos (`hug`, `kiss`, `pat`, `slap`) que respondem com um gif de anime aleatório (via [nekos.best](https://nekos.best), sem chave) num embed fofo.
 - **Harém (estilo Mudae)** — rola waifus/husbandos reais de anime (via [AniList](https://anilist.co)), casa clicando no 💗 dentro de 45s (um dono por personagem por servidor), kakera por popularidade, harém, divórcio, trocas com confirmação por botão, daily, torre de kakera com perks, badges colecionáveis (conquistas, loja e personagens de anime com a arte do AniList), rolls extras comprados com kakera, lista de desejos com ping e timers — tudo persistido em SQLite.
 - **Party Finder de FFXIV** — `/pf` lista os PF de Ultimates e Savage do data center Aether (via [xivpf.com](https://xivpf.com)), com emojis de job e composição; `/strats` mostra as strats mais citadas nas descrições dos PF de cada duty (acumuladas em SQLite ao longo do tempo).
 - **Moderação** — `ban`, `kick`, `mute` (timeout do Discord: bloqueia voz **e** chat, com duração e expiração automática), `unmute` e `clear`, tudo em embed, com checagem de hierarquia de cargos e motivo no audit log.
@@ -90,7 +91,8 @@ As mesmas chaves também podem vir de variáveis de ambiente do processo, que **
 
 | Variável                | Para quê serve                                                                       | Padrão                |
 |--------------------------|---------------------------------------------------------------------------------------|-----------------------|
-| `CHIBOT_DB_PATH`         | Caminho do banco SQLite (Party Finder + harém).                                       | `ChiData.db`          |
+| `CHIBOT_DB_PATH`         | Caminho do banco SQLite principal (Party Finder + harém).                             | `ChiData.db`          |
+| `CHIBOT_MUSIC_DB_PATH`   | Caminho do banco da música (fila, playlists salvas e volume). Vazio = ao lado do principal. | `ChiMusic.db`   |
 
 Qualquer chave do `.env` (`DISCORD_TOKEN`, `LAVALINK_URI`, `YOUTUBE_REFRESH_TOKEN`...) também pode ser passada como variável de ambiente do processo, que tem prioridade sobre o arquivo.
 
@@ -145,7 +147,7 @@ O que é montado do host (sobrevive a restart, rebuild e `down -v`):
 - **`.env`** → `/app/.env` — trocar token/prefixo/servidor é só editar e `docker compose restart chibot`, sem rebuildar. O mesmo `.env` alimenta o `chibot` (montado como volume) e o `lavalink` (substituição de variáveis do compose).
 - **`lavalink/application.yml`** → config do Lavalink.
 
-E o volume nomeado `chibot-data` (`/app/data`) guarda o banco do Party Finder (`ChiData.db`) entre recriações do container.
+E o volume nomeado `chibot-data` (`/app/data`) guarda os bancos SQLite — `ChiData.db` (Party Finder + harém) e `ChiMusic.db` (fila, playlists e volume da música) — entre recriações do container.
 
 Quem resolve o YouTube é o plugin do Lavalink. Em IP de datacenter o YouTube pode exigir login ("This video requires login") — veja a seção abaixo.
 
@@ -240,6 +242,16 @@ O contexto ([`CommandContext`](src/main/java/org/chibot/Commands/CommandContext.
 | `skip`      | `pular`, `s`             | Pula pra próxima da fila.                                                   |
 | `stop`      | `parar`, `leave`, `sair` | Para tudo, limpa a fila e sai do canal de voz.                              |
 | `playlist`  | `queue`, `fila`, `q`     | Mostra o que tá tocando e a fila; `playlist add` enfileira uma playlist inteira do YouTube (até 100 músicas). |
+| `volume`    | `vol`                    | Mostra ou muda o volume (0 a 200); o valor fica salvo por servidor.         |
+
+### ★ Diversão
+
+| Comando     | Aliases                          | Descrição                                                                 |
+|-------------|----------------------------------|----------------------------------------------------------------------------|
+| `hug`       | `abraco`, `abracar`, `abraço`    | Dá um abraço apertadinho em alguém~ (responde com gif de anime).            |
+| `kiss`      | `beijo`, `beijar`                | Dá um beijinho em alguém~                                                   |
+| `pat`       | `cafune`, `cafuné`, `carinho`    | Faz um cafuné em alguém~                                                    |
+| `slap`      | `tapa`, `tapar`                  | Dá um tapa (de brincadeira!) em alguém~                                     |
 
 ### ★ FFXIV
 
@@ -259,6 +271,7 @@ O contexto ([`CommandContext`](src/main/java/org/chibot/Commands/CommandContext.
 | `divorce`   | `divorciar`              | Se divorcia de um personagem (devolve metade do valor em kakera).           |
 | `trade`     | `trocar`                 | Propõe troca: `trade @user <seu personagem> por <o dele>` — a outra pessoa aceita/recusa por botão (expira em 2 min). |
 | `daily`     | `diario`, `dk`           | Coleta kakera diário (a cada 20h, com bônus da torre).                      |
+| `kakera`    | `ka`, `kk`               | Mostra seu saldo de kakera e como ganhar/gastar.                            |
 | `buyrolls`  | `comprarrolls`, `br`     | Compra rolls extras com kakera (30 💎 cada; não expiram).                    |
 | `tower`     | `torre`                  | Torre de kakera (6 níveis): cada nível dá +1 roll/hora, +15% de saque e +50 no daily; `tower up` pra subir. |
 | `badge`     | `badges`, `bg`, `emblema`| Badges colecionáveis (estilo Mudae): conquistas por marcos, emblemas de loja e **badges de personagem** (com o rosto real puxado do AniList — desbloqueia casando com o personagem ou comprando). `badge buy <nome>` compra, `badge equip <nome>` exibe até 6 no perfil. |
@@ -295,8 +308,11 @@ src/main/java/org/chibot/
 │   ├── Core/                   # help (lista por categoria) e clear (faxina do canal)
 │   ├── Admin/                  # ban, kick, mute (timeout), unmute
 │   │   └── ModUtils.java       # alvo/motivo/hierarquia + embed compartilhados
-│   ├── Harem/                  # waifu, husbando, roll, harem, divorce, trade, daily, buyrolls, tower, badge, profile, wish, timers
-│   ├── Music/                  # play, pause, resume, skip, stop, playlist (+ add)
+│   ├── Fun/                    # hug, kiss, pat, slap (roleplay com gif de anime)
+│   │   ├── RoleplayAction.java # base: marca alguém + embed com gif
+│   │   └── FunGifService.java  # busca os gifs na API do nekos.best (sem chave)
+│   ├── Harem/                  # waifu, husbando, roll, harem, divorce, trade, daily, kakera, buyrolls, tower, badge, profile, wish, timers
+│   ├── Music/                  # play, pause, resume, skip, stop, playlist (+ add), volume
 │   │   └── MusicCommand.java   # base: guild-only + atalhos de voz
 │   └── PartyFinderCommands/
 │       ├── PartyFinderCommand.java  # /pf — embeds por duty com emojis de job
@@ -311,7 +327,8 @@ src/main/java/org/chibot/
 │   └── ChiConfig.java          # leitura/criação do .env
 ├── Database/
 │   ├── PfRepository.java       # SQLite: snapshot dos PF + contagem de strats
-│   └── HaremRepository.java    # SQLite: casamentos, kakera/cooldowns e desejos
+│   ├── HaremRepository.java    # SQLite: casamentos, kakera/cooldowns e desejos
+│   └── MusicRepository.java    # SQLite (ChiMusic.db, WAL): fila, playlists salvas e volume
 ├── Harem/
 │   ├── HaremService.java       # singleton: pools de personagens + botões de claim/kakera + conquistas
 │   ├── HaremBadges.java        # catálogo dos badges (conquistas + loja)
