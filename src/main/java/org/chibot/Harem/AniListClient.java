@@ -98,6 +98,12 @@ public class AniListClient {
                 .build();
 
         HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+        // Queries de objeto unico (Character(search:)) respondem 404 quando nao
+        // acham match, em vez de 200 com Character:null. Tratamos igual a "nao
+        // achou" pra nao virar stack trace no log.
+        if (response.statusCode() == 404) {
+            return null;
+        }
         if (response.statusCode() != 200) {
             throw new IOException("AniList respondeu HTTP " + response.statusCode());
         }

@@ -193,7 +193,7 @@ public final class HaremBadges {
             personagem("megumin", "Megumin", "KonoSuba", "Megumin", "💥", 1200),
             personagem("zerotwo", "Zero Two", "Darling in the FranXX", "Zero Two", "🦖", 1500),
             personagem("miku", "Hatsune Miku", "Vocaloid", "Hatsune Miku", "🎤", 1300),
-            personagem("levi", "Levi", "Attack on Titan", "Levi Ackerman", "🗡️", 1500),
+            personagem("levi", "Levi", "Attack on Titan", "Levi", "🗡️", 1500),
             personagem("mikasa", "Mikasa", "Attack on Titan", "Mikasa Ackerman", "🧣", 1300),
             personagem("naruto", "Naruto", "Naruto", "Naruto Uzumaki", "🍥", 1200),
             personagem("luffy", "Luffy", "One Piece", "Monkey D. Luffy", "👒", 1200),
