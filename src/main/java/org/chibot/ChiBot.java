@@ -55,6 +55,20 @@ public class ChiBot
         HaremEmojis.sync(jda);
 
         log.info("ChiBot conectado como {}", jda.getSelfUser().getName());
+
+        logOwner();
+    }
+
+    /** Confirma no console qual usuário foi reconhecido como dono (OWNER_ID do .env). */
+    private void logOwner() {
+        String ownerId = config.getOwnerId();
+        if (ownerId == null || ownerId.isBlank()) {
+            log.warn("OWNER_ID não configurado no .env — comandos do dono ficam indisponíveis.");
+            return;
+        }
+        jda.retrieveUserById(ownerId).queue(
+                owner -> log.info("Dono reconhecido: {} (ID {})", owner.getName(), ownerId),
+                err -> log.warn("OWNER_ID {} configurado, mas não achei esse usuário no Discord.", ownerId));
     }
 
     private void registerSlashCommands(CommandManager commandManager) {

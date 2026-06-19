@@ -27,10 +27,12 @@ public class ChiConfig {
     private final String lavalinkPassword;
     private final String youtubeApiKey;
     private final String youtubeRefreshToken;
+    private final String ownerId;
 
     private ChiConfig(String token, String prefix, String guildId,
                       String lavalinkUri, String lavalinkPassword,
-                      String youtubeApiKey, String youtubeRefreshToken) {
+                      String youtubeApiKey, String youtubeRefreshToken,
+                      String ownerId) {
         this.token = token;
         this.prefix = prefix;
         this.guildId = guildId;
@@ -38,6 +40,7 @@ public class ChiConfig {
         this.lavalinkPassword = lavalinkPassword;
         this.youtubeApiKey = youtubeApiKey;
         this.youtubeRefreshToken = youtubeRefreshToken;
+        this.ownerId = ownerId;
     }
 
     public static ChiConfig load() throws IOException {
@@ -56,9 +59,10 @@ public class ChiConfig {
         String lavalinkPassword = value(env, "LAVALINK_PASSWORD", "youshallnotpass");
         String youtubeApiKey = value(env, "YOUTUBE_API_KEY", "");
         String youtubeRefreshToken = value(env, "YOUTUBE_REFRESH_TOKEN", "");
+        String ownerId = value(env, "OWNER_ID", "");
 
         ChiConfig config = new ChiConfig(token, prefix, guildId, lavalinkUri, lavalinkPassword,
-                youtubeApiKey, youtubeRefreshToken);
+                youtubeApiKey, youtubeRefreshToken, ownerId);
         loaded = config;
         return config;
     }
@@ -160,6 +164,10 @@ public class ChiConfig {
                 "# Vazio = registro global (pode levar ate ~1h pra propagar).",
                 "GUILD_ID=",
                 "",
+                "# ID do dono do bot: unico que pode usar comandos restritos (ex.: manutencao).",
+                "# Vazio = ninguem tem acesso a esses comandos.",
+                "OWNER_ID=",
+                "",
                 "# ─── Musica (Lavalink) ────────────────────────────────────",
                 "# No Docker da VPS use ws://lavalink:2333.",
                 "LAVALINK_URI=ws://localhost:2333",
@@ -207,5 +215,10 @@ public class ChiConfig {
 
     public String getYoutubeRefreshToken() {
         return youtubeRefreshToken;
+    }
+
+    /** ID do dono do bot (comandos restritos, ex.: manutencao). Vazio = nao configurado. */
+    public String getOwnerId() {
+        return ownerId;
     }
 }

@@ -4,6 +4,7 @@ import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import org.chibot.Commands.Admin.MaintenanceCommand;
 import org.chibot.Config.ChiConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,6 +67,13 @@ public class CommandListener extends ListenerAdapter {
 
     /** Roda as verificacoes comuns (servidor/permissoes) e executa o comando. */
     private void dispatch(ICommand command, CommandContext ctx, String commandName) {
+        // Modo manutencao: pausa tudo, menos o proprio comando de manutencao
+        // (pro dono conseguir desligar). Demais comandos respondem um avisinho.
+        if (MaintenanceCommand.isActive() && !command.getName().equals("maintenance")) {
+            ctx.reply("Tô em manutenção agora~ volto já já! (˘ω˘) ♡");
+            return;
+        }
+
         if (command.isGuildOnly() && !ctx.isFromGuild()) {
             ctx.reply("Esse comando só funciona dentro de um servidor~ (>_<)");
             return;
