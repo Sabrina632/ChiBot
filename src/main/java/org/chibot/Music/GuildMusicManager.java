@@ -21,7 +21,7 @@ import java.util.function.Consumer;
  *
  * <p>A fila, a faixa atual, o volume e o canal de voz/texto sao persistidos no
  * {@link MusicRepository} a cada mudanca, pro bot voltar de onde parou depois
- * de um redeploy (ver {@link MusicService#restoreQueues}).
+ * de um redeploy (ver {@code MusicService#restoreQueues}).
  */
 public class GuildMusicManager {
 
