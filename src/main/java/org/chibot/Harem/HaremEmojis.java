@@ -38,7 +38,7 @@ import javax.imageio.ImageIO;
  * {@code src/main/resources/emojis/<nome>.png} e ainda nao existem na aplicacao
  * — entao basta soltar os arquivos e fazer o redeploy. Os badges de personagem
  * ({@code badge_<id>}) sao um caso a parte: a arte e baixada do AniList e
- * recortada na hora (veja {@link #syncPersonagens}), sem precisar de PNG. Enquanto
+ * recortada na hora (veja {@link #syncImagens}), sem precisar de PNG. Enquanto
  * um emoji nao existir, cai no fallback unicode, sem quebrar nada.
  */
 public final class HaremEmojis {
