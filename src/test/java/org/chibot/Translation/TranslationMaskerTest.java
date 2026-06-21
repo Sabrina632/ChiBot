@@ -14,17 +14,19 @@ class TranslationMaskerTest {
     }
 
     /**
-     * Simula o Amazon Translate: traduz a parte visível e DESCARTA os caracteres
-     * invisíveis da Área de Uso Privado (U+E000–U+F8FF). Foi exatamente isso que
-     * quebrou em produção ("0 Playing now! 1"): o marcador sumia e sobrava o índice.
+     * Simula as duas manhas do Amazon Translate que já quebraram o marcador em
+     * produção: (1) DESCARTA os invisíveis da Área de Uso Privado (U+E000–U+F8FF) —
+     * virava "0 Playing now! 1"; (2) mete ESPAÇO entre pontuações ASCII adjacentes —
+     * "@@0@@" virava "@ @0 @@". Um marcador alfanumérico passa imune às duas.
      */
     private static String fakeAmazonTranslate(String masked) {
-        String semInvisiveis = masked.replaceAll("[\\x{E000}-\\x{F8FF}]", "");
-        return semInvisiveis.replace("Tocando agora", "Playing now");
+        String out = masked.replaceAll("[\\x{E000}-\\x{F8FF}]", "");
+        out = out.replaceAll("(?<=\\p{Punct})(?=\\p{Punct})", " ");
+        return out.replace("Tocando agora", "Playing now");
     }
 
     @Test
-    void restauraMesmoQuandoTradutorDescartaCharsInvisiveis() {
+    void restauraMesmoQuandoTradutorMexeNosMarcadores() {
         String s = "ﾟ･✧ Tocando agora! ✧･ﾟ";
         TranslationMasker.Masked m = TranslationMasker.mask(s);
         String traduzido = fakeAmazonTranslate(m.text());

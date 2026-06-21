@@ -7,9 +7,11 @@ import java.util.regex.Pattern;
 
 /**
  * Esconde, antes da tradução, os trechos que a API não deve mexer e restaura
- * depois. Cada trecho protegido vira um marcador {@code @@índice@@} — um símbolo
- * ASCII comum, que o Amazon Translate preserva. (Marcadores invisíveis da Área de
- * Uso Privado NÃO servem: o Translate os descarta, e o índice nu vaza no texto.)
+ * depois. Cada trecho protegido vira um marcador {@code ZZíndiceZZ} — um token
+ * ALFANUMÉRICO, que o Amazon Translate trata como uma palavra/código única e
+ * preserva colado. Já tentei invisíveis (U+E000: o Translate descarta) e símbolo
+ * dobrado ({@code @@}: o Translate mete espaço no meio, "@ @"); só o alfanumérico
+ * passa imune às duas manhas.
  *
  * <p>Protege, nesta ordem: spans de crase ({@code `comando`}), menções/emojis do
  * Discord, URLs e emoticons/emoji (kaomoji). A detecção de emoticon é heurística:
@@ -22,10 +24,11 @@ public final class TranslationMasker {
     /** Texto com os trechos protegidos trocados por marcadores, e a lista dos originais. */
     public record Masked(String text, List<String> originals) {}
 
-    // Delimitador do marcador. "@@" é ASCII comum (o Translate preserva) e está fora
-    // de todos os padrões de máscara abaixo, então o marcador nunca é re-mascarado.
-    private static final String OPEN = "@@";
-    private static final String CLOSE = "@@";
+    // Delimitador do marcador. "ZZ" é alfanumérico: o Translate o mantém colado ao
+    // índice (não mete espaço como faz com pontuação) e está fora de todos os padrões
+    // de máscara abaixo, então o marcador nunca é re-mascarado.
+    private static final String OPEN = "ZZ";
+    private static final String CLOSE = "ZZ";
 
     // Caracteres "decorativos" típicos de kaomoji/emoji (não devem ser traduzidos).
     private static final String DECO =
@@ -48,8 +51,8 @@ public final class TranslationMasker {
     private static final Pattern EMOTICON_RUN =
             Pattern.compile("[" + KAOMOJI_PUNCT + DECO + "]+");
     private static final Pattern HAS_DECO = Pattern.compile("[" + DECO + "]");
-    // \\s* tolera o tradutor inserir espaços ao redor do índice (ex.: "@@ 0 @@").
-    private static final Pattern PLACEHOLDER = Pattern.compile("@@\\s*(\\d+)\\s*@@");
+    // Marcador alfanumérico colado; CASE_INSENSITIVE caso o Translate troque a caixa.
+    private static final Pattern PLACEHOLDER = Pattern.compile("zz(\\d+)zz", Pattern.CASE_INSENSITIVE);
 
     public static Masked mask(String text) {
         if (text == null || text.isEmpty()) {

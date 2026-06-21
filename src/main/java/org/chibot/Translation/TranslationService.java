@@ -30,11 +30,11 @@ public class TranslationService {
 
     /**
      * Versão do esquema de cache. Entra no hash, então ao subir esse número as
-     * traduções antigas são ignoradas (e recalculadas). Subi pra v2 porque o cache
-     * gravado com o marcador velho (U+E000) guardou resultados quebrados tipo
-     * "0 Playing now! 1" — ver {@link TranslationMasker}.
+     * traduções antigas são ignoradas (e recalculadas). v2 limpou o lixo do marcador
+     * invisível (U+E000 → "0 ... 1"); v3 limpa o do "@@" (que virava "@ @0 @@"),
+     * agora resolvido com o marcador alfanumérico — ver {@link TranslationMasker}.
      */
-    private static final String CACHE_VERSION = "v2";
+    private static final String CACHE_VERSION = "v3";
 
     /** Idiomas oferecidos no {@code !language}. */
     private static final Set<String> SUPORTADOS = Set.of(
