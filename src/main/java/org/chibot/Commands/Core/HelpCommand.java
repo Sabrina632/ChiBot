@@ -136,7 +136,7 @@ public class HelpCommand implements ICommand {
                 .setTitle("ﾟ･✧♡ Comandos da Chi ♡✧･ﾟ")
                 .setThumbnail(jda.getSelfUser().getEffectiveAvatarUrl())
                 .setDescription(desc.toString())
-                .setFooter("clica numa categoria · " + prefix + "help <comando> mostra os detalhes~ ♡")
+                .setFooter("clica numa categoria pra ver os comandos~ ♡")
                 .build();
     }
 
@@ -174,7 +174,7 @@ public class HelpCommand implements ICommand {
                 .setColor(MusicUi.KAWAII_PINK)
                 .setTitle("ﾟ･✧ " + grupo.categoria() + " ✧･ﾟ")
                 .setDescription(desc.toString())
-                .setFooter("usa " + prefix + "help <comando> pra ver os detalhes~ ♡")
+                .setFooter("usa " + prefix + "help com o nome de um comando pra ver os detalhes~ ♡")
                 .build();
     }
 
