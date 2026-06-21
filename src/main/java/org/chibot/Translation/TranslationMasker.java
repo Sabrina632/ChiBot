@@ -7,11 +7,12 @@ import java.util.regex.Pattern;
 
 /**
  * Esconde, antes da tradução, os trechos que a API não deve mexer e restaura
- * depois. Cada trecho protegido vira um marcador {@code ZZíndiceZZ} — um token
- * ALFANUMÉRICO, que o Amazon Translate trata como uma palavra/código única e
- * preserva colado. Já tentei invisíveis (U+E000: o Translate descarta) e símbolo
- * dobrado ({@code @@}: o Translate mete espaço no meio, "@ @"); só o alfanumérico
- * passa imune às duas manhas.
+ * depois. Cada trecho protegido vira um marcador {@code Qíndice X} (sem espaço,
+ * ex.: {@code Q0X}) — um token ALFANUMÉRICO, que o Amazon Translate trata como um
+ * código e preserva colado. Histórico das tentativas que NÃO sobreviveram:
+ * invisíveis (U+E000: o Translate descarta); símbolo dobrado ({@code @@}: vira
+ * "@ @"); e delimitador igual dos dois lados ({@code ZZ}: dois marcadores colados
+ * formavam "ZZZZ", que o Translate mexe). Aberto ≠ fechado evita o run igual.
  *
  * <p>Protege, nesta ordem: spans de crase ({@code `comando`}), menções/emojis do
  * Discord, URLs e emoticons/emoji (kaomoji). A detecção de emoticon é heurística:
@@ -24,11 +25,12 @@ public final class TranslationMasker {
     /** Texto com os trechos protegidos trocados por marcadores, e a lista dos originais. */
     public record Masked(String text, List<String> originals) {}
 
-    // Delimitador do marcador. "ZZ" é alfanumérico: o Translate o mantém colado ao
-    // índice (não mete espaço como faz com pontuação) e está fora de todos os padrões
-    // de máscara abaixo, então o marcador nunca é re-mascarado.
-    private static final String OPEN = "ZZ";
-    private static final String CLOSE = "ZZ";
+    // Delimitadores do marcador: alfanuméricos (o Translate mantém colados ao índice)
+    // e fora de todos os padrões de máscara abaixo (nunca re-mascarados). Abertura e
+    // fechamento DIFERENTES: assim dois marcadores adjacentes ("Q0XQ1X") não formam um
+    // run de letras iguais — que era o que o Translate bagunçava no "ZZ".
+    private static final String OPEN = "Q";
+    private static final String CLOSE = "X";
 
     // Caracteres "decorativos" típicos de kaomoji/emoji (não devem ser traduzidos).
     private static final String DECO =
@@ -57,7 +59,7 @@ public final class TranslationMasker {
             Pattern.compile("[" + KAOMOJI_PUNCT + DECO + "]+");
     private static final Pattern HAS_DECO = Pattern.compile("[" + DECO + "]");
     // Marcador alfanumérico colado; CASE_INSENSITIVE caso o Translate troque a caixa.
-    private static final Pattern PLACEHOLDER = Pattern.compile("zz(\\d+)zz", Pattern.CASE_INSENSITIVE);
+    private static final Pattern PLACEHOLDER = Pattern.compile("q(\\d+)x", Pattern.CASE_INSENSITIVE);
 
     public static Masked mask(String text) {
         if (text == null || text.isEmpty()) {

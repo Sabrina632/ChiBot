@@ -32,11 +32,11 @@ public class TranslationService {
      * Versão do esquema de cache. Entra no hash, então ao subir esse número as
      * traduções antigas são ignoradas (e recalculadas). v2 limpou o lixo do marcador
      * invisível (U+E000 → "0 ... 1"); v3 limpa o do "@@" (que virava "@ @0 @@"),
-     * agora resolvido com o marcador alfanumérico. v4 limpa os kaomoji que tinham
-     * perdido caracteres internos (ex.: o ᵕ) antes da máscara cobrir o grupo de
-     * parênteses inteiro — ver {@link TranslationMasker}.
+     * agora resolvido com o marcador alfanumérico. v4 cobriu o grupo de parênteses
+     * inteiro (kaomoji que perdiam o ᵕ); v5 limpa os "QZZ✧" de quando dois marcadores
+     * colados formavam um run igual — ver {@link TranslationMasker}.
      */
-    private static final String CACHE_VERSION = "v4";
+    private static final String CACHE_VERSION = "v5";
 
     /** Idiomas oferecidos no {@code !language}. */
     private static final Set<String> SUPORTADOS = Set.of(

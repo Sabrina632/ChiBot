@@ -52,6 +52,17 @@ class TranslationMaskerTest {
     }
 
     @Test
+    void marcadoresAdjacentesNaoFormamRunDeLetrasIguais() {
+        // Kaomoji colado a um símbolo vira dois marcadores adjacentes; eles não podem
+        // formar um run de letras iguais (tipo "ZZZZ"), senão o Translate mexe e sobra
+        // lixo — foi o "(｡•̀ᴗ-)ZZ✧".
+        String masked = TranslationMasker.mask("(｡•̀ᴗ-)✧").text();
+        assertFalse(masked.matches(".*([A-Za-z])\\1\\1.*"),
+                "marcadores formaram run de 3+ letras iguais: " + masked);
+        assertEquals("(｡•̀ᴗ-)✧", roundTrip("(｡•̀ᴗ-)✧"));
+    }
+
+    @Test
     void preservaSpanDeCrase() {
         String s = "Use `daily` pra coletar";
         assertEquals(s, roundTrip(s));
