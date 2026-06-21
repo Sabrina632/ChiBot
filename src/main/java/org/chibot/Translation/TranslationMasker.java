@@ -46,6 +46,11 @@ public final class TranslationMasker {
     // Pontuação ASCII que costuma compor kaomoji (só mascarada junto se houver DECO).
     private static final String KAOMOJI_PUNCT = "()\\[\\]{}<>|/\\\\^~*;:._=+\\-'\"!?";
 
+    // Termos do jogo/bot que o Translate erra (ex.: "kakera" vira "camera"). Ficam
+    // intactos, como nome próprio. Pra proteger mais um, é só somar com "|" aqui.
+    private static final Pattern GLOSSARY =
+            Pattern.compile("\\b(?:kakeras?)\\b", Pattern.CASE_INSENSITIVE);
+
     private static final Pattern BACKTICK = Pattern.compile("`[^`]+`");
     private static final Pattern DISCORD = Pattern.compile("<a?:\\w+:\\d+>|<@[!&]?\\d+>|<#\\d+>");
     private static final Pattern URL = Pattern.compile("https?://\\S+");
@@ -67,6 +72,10 @@ public final class TranslationMasker {
         }
         List<String> originals = new ArrayList<>();
         String out = text;
+        // Glossário primeiro: enquanto os vizinhos ainda são originais (símbolos =
+        // fronteira de palavra), o \b casa direito. Se o marcador acabar dentro de
+        // outra máscara depois, o restore desaninha.
+        out = maskPattern(out, GLOSSARY, originals, false);
         out = maskPattern(out, BACKTICK, originals, false);
         out = maskPattern(out, DISCORD, originals, false);
         out = maskPattern(out, URL, originals, false);
@@ -101,14 +110,30 @@ public final class TranslationMasker {
         if (maskedText == null || originals.isEmpty()) {
             return maskedText;
         }
-        Matcher m = PLACEHOLDER.matcher(maskedText);
-        StringBuilder sb = new StringBuilder();
-        while (m.find()) {
-            int idx = Integer.parseInt(m.group(1));
-            String original = idx >= 0 && idx < originals.size() ? originals.get(idx) : m.group();
-            m.appendReplacement(sb, Matcher.quoteReplacement(original));
+        // Repete porque um original pode conter outro marcador (máscaras aninhadas:
+        // ex.: crase dentro de kaomoji). Um original só referencia índices menores que
+        // o seu, então no máximo originals.size() passadas; o "não mudou" corta antes.
+        String text = maskedText;
+        for (int pass = 0; pass <= originals.size(); pass++) {
+            Matcher m = PLACEHOLDER.matcher(text);
+            StringBuilder sb = new StringBuilder();
+            boolean achou = false;
+            while (m.find()) {
+                achou = true;
+                int idx = Integer.parseInt(m.group(1));
+                String original = idx >= 0 && idx < originals.size() ? originals.get(idx) : m.group();
+                m.appendReplacement(sb, Matcher.quoteReplacement(original));
+            }
+            if (!achou) {
+                break;
+            }
+            m.appendTail(sb);
+            String next = sb.toString();
+            if (next.equals(text)) {
+                break; // só sobraram marcadores órfãos (índice inválido); evita loop
+            }
+            text = next;
         }
-        m.appendTail(sb);
-        return sb.toString();
+        return text;
     }
 }

@@ -63,6 +63,22 @@ class TranslationMaskerTest {
     }
 
     @Test
+    void naoTraduzKakera() {
+        // "kakera" é termo do jogo; o Translate vira "camera". Tem que ficar intacto.
+        String s = "Você coletou 50 kakera!";
+        assertEquals(s, roundTrip(s));
+        assertFalse(TranslationMasker.mask(s).text().toLowerCase().contains("kakera"));
+    }
+
+    @Test
+    void restauraMarcadoresAninhados() {
+        // Um trecho protegido pode cair dentro de outro (crase dentro de kaomoji):
+        // o restore precisa desaninhar, não parar na primeira passada.
+        String s = "(`x` ✧)";
+        assertEquals(s, roundTrip(s));
+    }
+
+    @Test
     void preservaSpanDeCrase() {
         String s = "Use `daily` pra coletar";
         assertEquals(s, roundTrip(s));
@@ -92,7 +108,7 @@ class TranslationMaskerTest {
 
     @Test
     void textoSemNadaProtegidoNaoMuda() {
-        String s = "Você tem 5 kakera";
+        String s = "Você tem 5 rolls";
         TranslationMasker.Masked m = TranslationMasker.mask(s);
         assertEquals(s, m.text());
         assertTrue(m.originals().isEmpty());
