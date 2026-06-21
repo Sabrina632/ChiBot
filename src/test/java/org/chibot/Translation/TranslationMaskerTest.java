@@ -43,6 +43,15 @@ class TranslationMaskerTest {
     }
 
     @Test
+    void preservaKaomojiComEspacosInternos() {
+        // Kaomoji com espaços e o 'ᵕ' (modifier letter, fora das faixas DECO) — o
+        // espaço quebrava o run e o 'ᵕ' vazava, daí o tradutor o descartava.
+        String s = "(´｡• ᵕ •｡`) ♡";
+        assertEquals(s, roundTrip(s));
+        assertFalse(TranslationMasker.mask(s).text().contains("ᵕ"));
+    }
+
+    @Test
     void preservaSpanDeCrase() {
         String s = "Use `daily` pra coletar";
         assertEquals(s, roundTrip(s));

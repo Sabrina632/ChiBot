@@ -47,6 +47,11 @@ public final class TranslationMasker {
     private static final Pattern BACKTICK = Pattern.compile("`[^`]+`");
     private static final Pattern DISCORD = Pattern.compile("<a?:\\w+:\\d+>|<@[!&]?\\d+>|<#\\d+>");
     private static final Pattern URL = Pattern.compile("https?://\\S+");
+    // Kaomoji entre parênteses: pega o grupo inteiro — espaços e caracteres "exóticos"
+    // (modifier letters tipo ᵕ/ᴗ, crases de bochecha) inclusos — como UMA unidade. Sem
+    // isso o espaço interno quebrava o run e esses caracteres vazavam pro tradutor.
+    // O filtro "tem DECO?" evita pegar parêntese comum tipo "(importante)".
+    private static final Pattern KAOMOJI_PAREN = Pattern.compile("\\([^()]*\\)");
     // Sequência de pontuação-de-kaomoji/decoração; o filtro "tem DECO?" é aplicado depois.
     private static final Pattern EMOTICON_RUN =
             Pattern.compile("[" + KAOMOJI_PUNCT + DECO + "]+");
@@ -63,6 +68,7 @@ public final class TranslationMasker {
         out = maskPattern(out, BACKTICK, originals, false);
         out = maskPattern(out, DISCORD, originals, false);
         out = maskPattern(out, URL, originals, false);
+        out = maskPattern(out, KAOMOJI_PAREN, originals, true);
         out = maskPattern(out, EMOTICON_RUN, originals, true);
         return new Masked(out, originals);
     }
