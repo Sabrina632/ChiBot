@@ -46,10 +46,20 @@ bin/
 # Config com segredos (token do bot, refresh token do YouTube etc.) — nunca versionar
 .env
 
-# Banco local do Party Finder (gerado em runtime; inclui -wal/-shm do SQLite)
+# Bancos locais (gerados em runtime; incluem -wal/-shm do SQLite):
+# ChiData = Party Finder/harem, ChiMusic = musica, ChiState = estado global (manutencao).
 ChiData.db
 ChiData.db-wal
 ChiData.db-shm
+ChiMusic.db
+ChiMusic.db-wal
+ChiMusic.db-shm
+ChiState.db
+ChiState.db-wal
+ChiState.db-shm
+ChiLang.db
+ChiLang.db-wal
+ChiLang.db-shm
 
 # Screenshots de referencia (ex.: IDs dos emojis) ficam so local
 Imagem/Screenshot*.png

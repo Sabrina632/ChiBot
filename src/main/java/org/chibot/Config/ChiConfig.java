@@ -28,11 +28,16 @@ public class ChiConfig {
     private final String youtubeApiKey;
     private final String youtubeRefreshToken;
     private final String ownerId;
+    private final String awsAccessKeyId;
+    private final String awsSecretAccessKey;
+    private final String awsRegion;
 
     private ChiConfig(String token, String prefix, String guildId,
                       String lavalinkUri, String lavalinkPassword,
                       String youtubeApiKey, String youtubeRefreshToken,
-                      String ownerId) {
+                      String ownerId,
+                      String awsAccessKeyId, String awsSecretAccessKey, String awsRegion) {
+
         this.token = token;
         this.prefix = prefix;
         this.guildId = guildId;
@@ -41,6 +46,9 @@ public class ChiConfig {
         this.youtubeApiKey = youtubeApiKey;
         this.youtubeRefreshToken = youtubeRefreshToken;
         this.ownerId = ownerId;
+        this.awsAccessKeyId = awsAccessKeyId;
+        this.awsSecretAccessKey = awsSecretAccessKey;
+        this.awsRegion = awsRegion;
     }
 
     public static ChiConfig load() throws IOException {
@@ -60,9 +68,13 @@ public class ChiConfig {
         String youtubeApiKey = value(env, "YOUTUBE_API_KEY", "");
         String youtubeRefreshToken = value(env, "YOUTUBE_REFRESH_TOKEN", "");
         String ownerId = value(env, "OWNER_ID", "");
+        String awsAccessKeyId = value(env, "AWS_ACCESS_KEY_ID", "");
+        String awsSecretAccessKey = value(env, "AWS_SECRET_ACCESS_KEY", "");
+        String awsRegion = value(env, "AWS_REGION", "");
 
         ChiConfig config = new ChiConfig(token, prefix, guildId, lavalinkUri, lavalinkPassword,
-                youtubeApiKey, youtubeRefreshToken, ownerId);
+                youtubeApiKey, youtubeRefreshToken, ownerId,
+                awsAccessKeyId, awsSecretAccessKey, awsRegion);
         loaded = config;
         return config;
     }
@@ -181,6 +193,12 @@ public class ChiConfig {
                 "# deixe vazio e o bot mostra no log o codigo do google.com/device e",
                 "# depois salva o refresh token aqui sozinho (veja YtOauth).",
                 "YOUTUBE_REFRESH_TOKEN=",
+                "",
+                "# ─── Traducao (Amazon Translate) ──────────────────────────",
+                "# Credencial IAM com a politica TranslateReadOnly. Vazio = traducao desligada.",
+                "AWS_ACCESS_KEY_ID=",
+                "AWS_SECRET_ACCESS_KEY=",
+                "AWS_REGION=sa-east-1",
                 "");
         Files.writeString(ENV_PATH, content, StandardCharsets.UTF_8);
     }
@@ -220,5 +238,18 @@ public class ChiConfig {
     /** ID do dono do bot (comandos restritos, ex.: manutencao). Vazio = nao configurado. */
     public String getOwnerId() {
         return ownerId;
+    }
+
+    /** Credenciais do Amazon Translate (traducao por usuario). Vazias = traducao desligada. */
+    public String getAwsAccessKeyId() {
+        return awsAccessKeyId;
+    }
+
+    public String getAwsSecretAccessKey() {
+        return awsSecretAccessKey;
+    }
+
+    public String getAwsRegion() {
+        return awsRegion;
     }
 }

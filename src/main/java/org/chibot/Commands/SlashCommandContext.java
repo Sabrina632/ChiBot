@@ -11,6 +11,7 @@ import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
+import org.chibot.Translation.TranslationService;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -81,46 +82,56 @@ public class SlashCommandContext implements CommandContext {
 
     @Override
     public void reply(String message) {
+        String userId = event.getUser().getId();
+        String out = TranslationService.forUser(userId, message);
         if (deferred) {
-            event.getHook().sendMessage(message).queue();
+            event.getHook().sendMessage(out).queue();
         } else {
-            event.reply(message).queue();
+            event.reply(out).queue();
         }
     }
 
     @Override
     public void replyEmbeds(MessageEmbed embed) {
+        String userId = event.getUser().getId();
+        MessageEmbed out = TranslationService.embedForUser(userId, embed);
         if (deferred) {
-            event.getHook().sendMessageEmbeds(embed).queue();
+            event.getHook().sendMessageEmbeds(out).queue();
         } else {
-            event.replyEmbeds(embed).queue();
+            event.replyEmbeds(out).queue();
         }
     }
 
     @Override
     public void replyEmbeds(List<MessageEmbed> embeds) {
+        String userId = event.getUser().getId();
+        List<MessageEmbed> out = TranslationService.embedsForUser(userId, embeds);
         if (deferred) {
-            event.getHook().sendMessageEmbeds(embeds).queue();
+            event.getHook().sendMessageEmbeds(out).queue();
         } else {
-            event.replyEmbeds(embeds).queue();
+            event.replyEmbeds(out).queue();
         }
     }
 
     @Override
     public void replyEmbedWithButtons(String content, MessageEmbed embed, List<Button> buttons) {
+        String userId = event.getUser().getId();
+        MessageEmbed outEmbed = TranslationService.embedForUser(userId, embed);
+        String outContent = content == null || content.isBlank()
+                ? content : TranslationService.forUser(userId, content);
         if (deferred) {
-            var action = event.getHook().sendMessageEmbeds(embed);
-            if (content != null && !content.isBlank()) {
-                action.setContent(content);
+            var action = event.getHook().sendMessageEmbeds(outEmbed);
+            if (outContent != null && !outContent.isBlank()) {
+                action.setContent(outContent);
             }
             if (!buttons.isEmpty()) {
                 action.setComponents(ActionRow.of(buttons));
             }
             action.queue();
         } else {
-            var action = event.replyEmbeds(embed);
-            if (content != null && !content.isBlank()) {
-                action.setContent(content);
+            var action = event.replyEmbeds(outEmbed);
+            if (outContent != null && !outContent.isBlank()) {
+                action.setContent(outContent);
             }
             if (!buttons.isEmpty()) {
                 action.setComponents(ActionRow.of(buttons));
@@ -131,16 +142,20 @@ public class SlashCommandContext implements CommandContext {
 
     @Override
     public void replyEmbedAndThen(String content, MessageEmbed embed, Consumer<Message> onSent) {
+        String userId = event.getUser().getId();
+        MessageEmbed outEmbed = TranslationService.embedForUser(userId, embed);
+        String outContent = content == null || content.isBlank()
+                ? content : TranslationService.forUser(userId, content);
         if (deferred) {
-            var action = event.getHook().sendMessageEmbeds(embed);
-            if (content != null && !content.isBlank()) {
-                action.setContent(content);
+            var action = event.getHook().sendMessageEmbeds(outEmbed);
+            if (outContent != null && !outContent.isBlank()) {
+                action.setContent(outContent);
             }
             action.queue(onSent);
         } else {
-            var action = event.replyEmbeds(embed);
-            if (content != null && !content.isBlank()) {
-                action.setContent(content);
+            var action = event.replyEmbeds(outEmbed);
+            if (outContent != null && !outContent.isBlank()) {
+                action.setContent(outContent);
             }
             action.queue(hook -> hook.retrieveOriginal().queue(onSent));
         }

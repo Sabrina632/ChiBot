@@ -6,6 +6,7 @@ import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import org.chibot.Commands.CommandContext;
 import org.chibot.Commands.ICommand;
 import org.chibot.Config.ChiConfig;
+import org.chibot.Database.MaintenanceRepository;
 import org.chibot.Music.MusicUi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +25,27 @@ public class MaintenanceCommand implements ICommand {
 
     /** Flag global lida pelo CommandListener pra saber se deve pausar os comandos. */
     private static volatile boolean active = false;
+
+    /**
+     * Banco onde o flag é persistido pra sobreviver a restart. Setado no boot
+     * por {@link #init(MaintenanceRepository)}; null = só em memória (degrada).
+     */
+    private static volatile MaintenanceRepository repository;
+
+    /**
+     * Liga a persistência e restaura o estado salvo. Chamado uma vez no boot
+     * (antes do JDA subir), pro bot voltar como estava: se a manutenção ficou
+     * ligada no último desligamento, ela continua ligada agora.
+     */
+    public static void init(MaintenanceRepository repo) {
+        repository = repo;
+        if (repo != null) {
+            active = repo.isMaintenanceActive();
+            if (active) {
+                log.info("Modo manutenção restaurado do banco: ainda LIGADO.");
+            }
+        }
+    }
 
     /** Se o modo manutencao esta ligado (todos os comandos pausados). */
     public static boolean isActive() {
@@ -97,6 +119,9 @@ public class MaintenanceCommand implements ICommand {
         }
 
         active = target;
+        if (repository != null) {
+            repository.setMaintenanceActive(active);
+        }
         log.info("Modo manutenção {} por {}", active ? "LIGADO" : "DESLIGADO", ctx.getAuthor().getId());
 
         EmbedBuilder embed = new EmbedBuilder().setColor(MusicUi.KAWAII_PINK);

@@ -10,6 +10,7 @@ import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
+import org.chibot.Translation.TranslationService;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -73,24 +74,28 @@ public class PrefixCommandContext implements CommandContext {
 
     @Override
     public void reply(String message) {
-        event.getMessage().reply(message).queue();
+        String userId = event.getAuthor().getId();
+        event.getMessage().reply(TranslationService.forUser(userId, message)).queue();
     }
 
     @Override
     public void replyEmbeds(MessageEmbed embed) {
-        event.getMessage().replyEmbeds(embed).queue();
+        String userId = event.getAuthor().getId();
+        event.getMessage().replyEmbeds(TranslationService.embedForUser(userId, embed)).queue();
     }
 
     @Override
     public void replyEmbeds(List<MessageEmbed> embeds) {
-        event.getMessage().replyEmbeds(embeds).queue();
+        String userId = event.getAuthor().getId();
+        event.getMessage().replyEmbeds(TranslationService.embedsForUser(userId, embeds)).queue();
     }
 
     @Override
     public void replyEmbedWithButtons(String content, MessageEmbed embed, List<Button> buttons) {
-        var action = event.getMessage().replyEmbeds(embed);
+        String userId = event.getAuthor().getId();
+        var action = event.getMessage().replyEmbeds(TranslationService.embedForUser(userId, embed));
         if (content != null && !content.isBlank()) {
-            action.setContent(content);
+            action.setContent(TranslationService.forUser(userId, content));
         }
         if (!buttons.isEmpty()) {
             action.setComponents(ActionRow.of(buttons));
@@ -100,9 +105,10 @@ public class PrefixCommandContext implements CommandContext {
 
     @Override
     public void replyEmbedAndThen(String content, MessageEmbed embed, Consumer<Message> onSent) {
-        var action = event.getMessage().replyEmbeds(embed);
+        String userId = event.getAuthor().getId();
+        var action = event.getMessage().replyEmbeds(TranslationService.embedForUser(userId, embed));
         if (content != null && !content.isBlank()) {
-            action.setContent(content);
+            action.setContent(TranslationService.forUser(userId, content));
         }
         action.queue(onSent);
     }

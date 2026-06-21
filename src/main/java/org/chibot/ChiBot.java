@@ -5,9 +5,14 @@ import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 import net.dv8tion.jda.api.requests.GatewayIntent;
+import org.chibot.Commands.Admin.MaintenanceCommand;
 import org.chibot.Commands.CommandListener;
 import org.chibot.Commands.CommandManager;
 import org.chibot.Config.ChiConfig;
+import org.chibot.Database.LanguageRepository;
+import org.chibot.Database.MaintenanceRepository;
+import org.chibot.Translation.AwsTranslator;
+import org.chibot.Translation.TranslationService;
 import org.chibot.Harem.HaremEmojis;
 import org.chibot.Harem.HaremService;
 import org.chibot.Music.MusicService;
@@ -30,6 +35,14 @@ public class ChiBot
 
     public void start() throws InterruptedException {
         CommandManager commandManager = new CommandManager();
+
+        // Estado global do bot (banco separado): restaura o modo manutenção antes
+        // do JDA subir, pro bot voltar pausado se foi assim que ele desligou.
+        MaintenanceCommand.init(new MaintenanceRepository());
+
+        // Tradução por usuário (banco ChiLang.db + Amazon Translate). Sem credencial
+        // AWS no .env, o tradutor é null e tudo fica em português.
+        TranslationService.init(new LanguageRepository(), AwsTranslator.fromConfig(config));
 
         // Musica via Lavalink: o servico precisa existir antes do JDA por causa
         // do interceptor de voz (e dos comandos, que o acessam como singleton).
