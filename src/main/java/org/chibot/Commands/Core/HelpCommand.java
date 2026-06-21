@@ -121,7 +121,7 @@ public class HelpCommand implements ICommand {
     static MessageEmbed buildOverviewEmbed(JDA jda, String prefix) {
         StringBuilder desc = new StringBuilder()
                 .append("Oii~ eu sou a Chi! (✿◠‿◠) Escolhe uma categoria aqui embaixo pra ver os comandos:\n")
-                .append("dá pra usar `/comando` ou `").append(prefix).append("comando`, como preferir~ ♪\n\n");
+                .append("dá pra usar `/` ou `").append(prefix).append("` antes do comando, como preferir~ ♪\n\n");
         for (CategoryGroup g : agruparPorCategoria(CommandManager.get().getCommands())) {
             Meta m = metaFor(g.categoria());
             desc.append(HaremEmojis.custom(m.emojiNome(), m.fallback()))
