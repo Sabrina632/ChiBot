@@ -9,6 +9,7 @@ import org.chibot.Commands.CommandContext;
 import org.chibot.Commands.ICommand;
 import org.chibot.Commands.PrefixCommandContext;
 import org.chibot.Music.MusicUi;
+import org.chibot.Translation.TranslationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -101,9 +102,12 @@ public class ClearCommand implements ICommand {
                             String aviso = "Não consegui apagar tudo~ (；△；) "
                                     + "confere se eu tenho permissão e se as mensagens não são velhinhas demais...";
                             // No prefixo a mensagem original ja pode ter sido apagada,
-                            // entao nada de reply: manda direto no canal.
+                            // entao nada de reply: manda direto no canal. Como o
+                            // sendMessage nao passa pelo context, traduz aqui na mao
+                            // pro idioma de quem chamou (o slash ja traduz via ctx).
                             if (isPrefix) {
-                                channel.sendMessage(aviso).queue();
+                                String userId = ctx.getAuthor().getId();
+                                channel.sendMessage(TranslationService.forUser(userId, aviso)).queue();
                             } else {
                                 ctx.reply(aviso);
                             }
@@ -115,7 +119,9 @@ public class ClearCommand implements ICommand {
                                 .setDescription("Limpei **" + deleted + "** mensagen(s)~ "
                                         + "ficou tudo brilhando! ✧･ﾟ(≧◡≦)♡");
                         if (isPrefix) {
-                            channel.sendMessageEmbeds(embed.build()).queue();
+                            String userId = ctx.getAuthor().getId();
+                            channel.sendMessageEmbeds(
+                                    TranslationService.embedForUser(userId, embed.build())).queue();
                         } else {
                             ctx.replyEmbeds(embed.build());
                         }

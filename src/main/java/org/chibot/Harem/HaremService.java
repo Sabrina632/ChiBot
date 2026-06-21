@@ -12,6 +12,7 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import org.chibot.Commands.CommandContext;
 import org.chibot.Database.HaremRepository;
 import org.chibot.Music.MusicUi;
+import org.chibot.Translation.TranslationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -493,7 +494,10 @@ public class HaremService extends ListenerAdapter {
 
     private void responderEfemero(ButtonInteractionEvent event, String texto) {
         if (!event.isAcknowledged()) {
-            event.reply(texto).setEphemeral(true).queue();
+            // Efemero: so quem clicou ve, entao da pra traduzir pro idioma dele.
+            // (Os anuncios publicos do harem ficam em pt — sao pro canal inteiro.)
+            String traduzido = TranslationService.forUser(event.getUser().getId(), texto);
+            event.reply(traduzido).setEphemeral(true).queue();
         }
     }
 
