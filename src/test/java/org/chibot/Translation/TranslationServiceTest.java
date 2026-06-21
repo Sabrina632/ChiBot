@@ -1,5 +1,7 @@
 package org.chibot.Translation;
 
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.entities.MessageEmbed;
 import org.chibot.Database.LanguageRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -95,6 +97,19 @@ class TranslationServiceTest {
         assertTrue(svc.setLanguage("u1", "en"));
         assertFalse(svc.setLanguage("u1", "xx"));
         assertTrue(svc.supportedLanguages().contains("ja"));
+    }
+
+    @Test
+    void traduzRodapeDoEmbed() {
+        FakeTranslator fake = new FakeTranslator();
+        TranslationService svc = new TranslationService(inMemory(), fake);
+        svc.setLanguage("u1", "en");
+        MessageEmbed embed = new EmbedBuilder()
+                .setDescription("Olá")
+                .setFooter("clica numa categoria~ ♡")
+                .build();
+        MessageEmbed out = svc.translateEmbedForUser("u1", embed);
+        assertEquals("<en>clica numa categoria~ ♡", out.getFooter().getText());
     }
 
     @Test

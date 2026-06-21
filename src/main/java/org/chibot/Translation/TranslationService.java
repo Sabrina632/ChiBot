@@ -48,6 +48,7 @@ public class TranslationService {
     private static final int MAX_DESC = 4096;
     private static final int MAX_CAMPO_NOME = 256;
     private static final int MAX_CAMPO_VALOR = 1024;
+    private static final int MAX_RODAPE = 2048;
 
     private static volatile TranslationService instance;
 
@@ -146,6 +147,10 @@ public class TranslationService {
             String nome = f.getName() == null ? "" : clamp(translate(f.getName(), lang), MAX_CAMPO_NOME);
             String valor = f.getValue() == null ? "" : clamp(translate(f.getValue(), lang), MAX_CAMPO_VALOR);
             b.addField(nome, valor, f.isInline());
+        }
+        if (embed.getFooter() != null && embed.getFooter().getText() != null) {
+            b.setFooter(clamp(translate(embed.getFooter().getText(), lang), MAX_RODAPE),
+                    embed.getFooter().getIconUrl());
         }
         return b.build();
     }
