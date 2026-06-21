@@ -35,9 +35,10 @@ public class TranslationService {
      * agora resolvido com o marcador alfanumérico. v4 cobriu o grupo de parênteses
      * inteiro (kaomoji que perdiam o ᵕ); v5, os "ZZ" sobrando de marcadores colados;
      * v6 limpa os termos do glossário que já foram traduzidos errados (kakera ->
-     * camera) — ver {@link TranslationMasker}.
+     * camera); v7, as referências de comando manjadas (ex.: "!help" -> "! Help") —
+     * ver {@link TranslationMasker}.
      */
-    private static final String CACHE_VERSION = "v6";
+    private static final String CACHE_VERSION = "v7";
 
     /** Idiomas oferecidos no {@code !language}. */
     private static final Set<String> SUPORTADOS = Set.of(

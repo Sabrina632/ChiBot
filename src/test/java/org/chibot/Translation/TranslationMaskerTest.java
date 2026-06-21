@@ -79,6 +79,15 @@ class TranslationMaskerTest {
     }
 
     @Test
+    void naoTraduzReferenciaDeComando() {
+        // "!help" é uma referência de comando — tem que ficar literal (senão o
+        // tradutor faz "! Help"). Sem crase porque footer não renderiza markdown.
+        String s = "usa !help pra ver os detalhes";
+        assertEquals(s, roundTrip(s));
+        assertFalse(TranslationMasker.mask(s).text().contains("!help"));
+    }
+
+    @Test
     void preservaSpanDeCrase() {
         String s = "Use `daily` pra coletar";
         assertEquals(s, roundTrip(s));

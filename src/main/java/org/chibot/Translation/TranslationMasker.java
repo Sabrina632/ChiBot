@@ -54,6 +54,9 @@ public final class TranslationMasker {
     private static final Pattern BACKTICK = Pattern.compile("`[^`]+`");
     private static final Pattern DISCORD = Pattern.compile("<a?:\\w+:\\d+>|<@[!&]?\\d+>|<#\\d+>");
     private static final Pattern URL = Pattern.compile("https?://\\S+");
+    // Referência de comando por prefixo (ex.: "!help", "!daily"): fica literal, senão
+    // o Translate faz "! Help". Em prosa "!" não costuma vir grudado numa palavra.
+    private static final Pattern COMANDO = Pattern.compile("![\\p{L}][\\p{L}\\d_]*");
     // Kaomoji entre parênteses: pega o grupo inteiro — espaços e caracteres "exóticos"
     // (modifier letters tipo ᵕ/ᴗ, crases de bochecha) inclusos — como UMA unidade. Sem
     // isso o espaço interno quebrava o run e esses caracteres vazavam pro tradutor.
@@ -79,6 +82,7 @@ public final class TranslationMasker {
         out = maskPattern(out, BACKTICK, originals, false);
         out = maskPattern(out, DISCORD, originals, false);
         out = maskPattern(out, URL, originals, false);
+        out = maskPattern(out, COMANDO, originals, false);
         out = maskPattern(out, KAOMOJI_PAREN, originals, true);
         out = maskPattern(out, EMOTICON_RUN, originals, true);
         return new Masked(out, originals);
