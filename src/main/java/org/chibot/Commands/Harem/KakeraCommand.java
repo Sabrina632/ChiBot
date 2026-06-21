@@ -57,26 +57,37 @@ public class KakeraCommand implements ICommand {
 
         int nivel = player.towerLevel();
         String k = HaremEmojis.kakera();
+        // Emojis customizados do emoji.gg (igual badge/profile). Caem no unicode se
+        // ainda não subiram pra aplicação. Veja ARTE_DECOR em HaremEmojis.
+        String eGanhar = HaremEmojis.custom("kak_ganhar", "💰");
+        String eDaily = HaremEmojis.custom("kak_daily", "🌅");
+        String eDivorce = HaremEmojis.custom("kak_divorce", "💔");
+        String eTrade = HaremEmojis.custom("kak_trade", "🤝");
+        String eGastar = HaremEmojis.custom("kak_gastar", "🛒");
+        String eBuyrolls = HaremEmojis.custom("kak_buyrolls", "🎲");
+        String eTorre = HaremEmojis.custom("kak_torre", "🏰");
+        String eMax = HaremEmojis.custom("kak_max", "👑");
+
         String torre = nivel < HaremService.TORRE_MAX
                 ? HaremEmojis.torre(nivel) + " nível **" + nivel + "/" + HaremService.TORRE_MAX
                         + "** · próximo nível custa " + k + " **" + HaremService.custoTorre(nivel + 1) + "**"
-                : HaremEmojis.torre(nivel) + " nível **máximo** alcançado~ 👑";
+                : HaremEmojis.torre(nivel) + " nível **máximo** alcançado~ " + eMax;
 
         ctx.replyEmbeds(new EmbedBuilder()
                 .setColor(MusicUi.KAWAII_PINK)
                 .setTitle("ﾟ･✧ Kakera de " + ctx.getAuthor().getEffectiveName() + " ✧･ﾟ")
                 .setThumbnail(ctx.getAuthor().getEffectiveAvatarUrl())
                 .setDescription("Você tem " + k + " **" + player.kakera() + "** kakera!")
-                .addField("💰 Como ganhar",
-                        "🌅 `daily` — coleta a cada 20h\n"
+                .addField(eGanhar + " Como ganhar",
+                        eDaily + " `daily` — coleta a cada 20h\n"
                         + k + " Clica no kakera dos personagens **já casados** (no roll)\n"
-                        + "💔 `divorce` — recupera metade do valor do personagem\n"
-                        + "🤝 `trade` — troca personagens com outra pessoa", false)
-                .addField("🛒 Onde gastar",
-                        "🎲 `buyrolls` — rolls extras (" + k + " " + HaremService.CUSTO_ROLL_EXTRA + " cada)\n"
-                        + "🏰 `tower` — sobe a torre: +rolls/hora, +" + HaremService.SAQUE_POR_NIVEL
+                        + eDivorce + " `divorce` — recupera metade do valor do personagem\n"
+                        + eTrade + " `trade` — troca personagens com outra pessoa", false)
+                .addField(eGastar + " Onde gastar",
+                        eBuyrolls + " `buyrolls` — rolls extras (" + k + " " + HaremService.CUSTO_ROLL_EXTRA + " cada)\n"
+                        + eTorre + " `tower` — sobe a torre: +rolls/hora, +" + HaremService.SAQUE_POR_NIVEL
                         + "% de saque e +" + HaremService.DAILY_POR_NIVEL + " no daily por nível", false)
-                .addField("🏰 Sua torre", torre, false)
+                .addField(eTorre + " Sua torre", torre, false)
                 .setFooter("Veja seus tempos com `timers` · seu perfil com `profile`")
                 .build());
     }

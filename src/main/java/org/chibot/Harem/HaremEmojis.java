@@ -176,18 +176,28 @@ public final class HaremEmojis {
             Map.entry("badge_realeza", "https://cdn3.emoji.gg/emojis/435134-chalkcrown.png"));
 
     /**
-     * Arte fofa do emoji.gg pros enfeites do comando {@code profile} (titulos dos
-     * campos). O kakera fica de fora de proposito — esse continua sendo o emoji
-     * roxo proprio. Acessada via {@link #custom(String, String)} no ProfileCommand.
+     * Arte fofa do emoji.gg pros enfeites dos comandos {@code profile} e {@code kakera}
+     * (titulos dos campos e itens). Tudo emoji.gg, no mesmo estilo pastel dos badges.
+     * O kakera (saldo) fica de fora de proposito — esse continua o emoji roxo proprio.
+     * Acessada via {@link #custom(String, String)} nos comandos.
      */
-    private static final Map<String, String> ARTE_PERFIL = Map.ofEntries(
+    private static final Map<String, String> ARTE_DECOR = Map.ofEntries(
             Map.entry("prof_harem", "https://cdn3.emoji.gg/emojis/35822-heart-rings.png"),
             Map.entry("prof_rank", "https://cdn3.emoji.gg/emojis/59686-trophy.png"),
             Map.entry("prof_torre", "https://cdn3.emoji.gg/emojis/7037-cute-pink-castle.png"),
             Map.entry("prof_wish", "https://cdn3.emoji.gg/emojis/11240-wishbottle.png"),
             Map.entry("prof_date", "https://cdn3.emoji.gg/emojis/956263-calendar.png"),
             Map.entry("prof_badges", "https://cdn3.emoji.gg/emojis/878925-medalstaff.png"),
-            Map.entry("prof_fav", "https://cdn3.emoji.gg/emojis/18875-chalkheartred.png"));
+            Map.entry("prof_fav", "https://cdn3.emoji.gg/emojis/18875-chalkheartred.png"),
+            // Enfeites do !kakera — todos emoji.gg.
+            Map.entry("kak_ganhar", "https://cdn3.emoji.gg/emojis/257090-bagofrubles.png"),
+            Map.entry("kak_daily", "https://cdn3.emoji.gg/emojis/956263-calendar.png"),
+            Map.entry("kak_divorce", "https://cdn3.emoji.gg/emojis/2846-broken-heart.png"),
+            Map.entry("kak_trade", "https://cdn3.emoji.gg/emojis/5494-pink-gift.png"),
+            Map.entry("kak_gastar", "https://cdn3.emoji.gg/emojis/8916-shoppingcart.png"),
+            Map.entry("kak_buyrolls", "https://cdn3.emoji.gg/emojis/1823-pinkdice.png"),
+            Map.entry("kak_torre", "https://cdn3.emoji.gg/emojis/7037-cute-pink-castle.png"),
+            Map.entry("kak_max", "https://cdn3.emoji.gg/emojis/435134-chalkcrown.png"));
 
     /**
      * Cria, numa thread daemon propria, os emojis dos badges que tem arte vinda
@@ -204,7 +214,7 @@ public final class HaremEmojis {
         boolean faltam = personagens.stream().anyMatch(b -> !mapa.containsKey(b.emojiNome()))
                 || emblemas.stream().anyMatch(b -> !mapa.containsKey(b.emojiNome())
                         && lerIcon(b.emojiNome()) == null)
-                || ARTE_PERFIL.keySet().stream().anyMatch(n -> !mapa.containsKey(n) && lerIcon(n) == null);
+                || ARTE_DECOR.keySet().stream().anyMatch(n -> !mapa.containsKey(n) && lerIcon(n) == null);
         if (!refresh && !faltam) {
             return;
         }
@@ -226,7 +236,7 @@ public final class HaremEmojis {
                         log.warn("Falha ao apagar o emblema '{}'.", nome, ex);
                     }
                 }
-                for (String nome : ARTE_PERFIL.keySet()) {
+                for (String nome : ARTE_DECOR.keySet()) {
                     ApplicationEmoji e = mapa.get(nome);
                     if (e == null || lerIcon(nome) != null) {
                         continue;
@@ -234,9 +244,9 @@ public final class HaremEmojis {
                     try {
                         e.delete().complete();
                         mapa.remove(nome);
-                        log.info("Emoji de perfil '{}' apagado pra recriar com a arte nova.", nome);
+                        log.info("Emoji de decoração '{}' apagado pra recriar com a arte nova.", nome);
                     } catch (Exception ex) {
-                        log.warn("Falha ao apagar o emoji de perfil '{}'.", nome, ex);
+                        log.warn("Falha ao apagar o emoji de decoração '{}'.", nome, ex);
                     }
                 }
             }
@@ -289,28 +299,28 @@ public final class HaremEmojis {
                 }
             }
 
-            int perfilCriados = 0;
-            for (Map.Entry<String, String> entrada : ARTE_PERFIL.entrySet()) {
+            int decorCriados = 0;
+            for (Map.Entry<String, String> entrada : ARTE_DECOR.entrySet()) {
                 String nome = entrada.getKey();
                 if (mapa.containsKey(nome) || lerIcon(nome) != null) {
                     continue;
                 }
                 try {
                     if (criarEmoji(jda, mapa, nome, iconFromUrl(entrada.getValue()),
-                            "perfil '" + nome + "' (emoji.gg)")) {
-                        perfilCriados++;
+                            "decoração '" + nome + "' (emoji.gg)")) {
+                        decorCriados++;
                         Thread.sleep(300);
                     }
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
                     return;
                 } catch (Exception ex) {
-                    log.warn("Falha ao montar o emoji de perfil '{}'.", nome, ex);
+                    log.warn("Falha ao montar o emoji de decoração '{}'.", nome, ex);
                 }
             }
 
-            log.info("Badges com arte da rede: {} personagens (AniList) + {} emblemas + {} perfil (emoji.gg).",
-                    rostos, emblemasCriados, perfilCriados);
+            log.info("Badges com arte da rede: {} personagens (AniList) + {} emblemas + {} decorações (emoji.gg).",
+                    rostos, emblemasCriados, decorCriados);
             if (refresh && repo != null) {
                 repo.setMeta(META_ART, ART_VERSION);
             }
