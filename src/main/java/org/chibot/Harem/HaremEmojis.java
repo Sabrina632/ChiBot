@@ -197,7 +197,15 @@ public final class HaremEmojis {
             Map.entry("kak_gastar", "https://cdn3.emoji.gg/emojis/8916-shoppingcart.png"),
             Map.entry("kak_buyrolls", "https://cdn3.emoji.gg/emojis/1823-pinkdice.png"),
             Map.entry("kak_torre", "https://cdn3.emoji.gg/emojis/7037-cute-pink-castle.png"),
-            Map.entry("kak_max", "https://cdn3.emoji.gg/emojis/435134-chalkcrown.png"));
+            Map.entry("kak_max", "https://cdn3.emoji.gg/emojis/435134-chalkcrown.png"),
+            // Categorias do !help — todas emoji.gg.
+            Map.entry("cat_musica", "https://cdn3.emoji.gg/emojis/74065-musicnote.gif"),
+            Map.entry("cat_harem", "https://cdn3.emoji.gg/emojis/35822-heart-rings.png"),
+            Map.entry("cat_diversao", "https://cdn3.emoji.gg/emojis/930532-ribbonpink.png"),
+            Map.entry("cat_moderacao", "https://cdn3.emoji.gg/emojis/33759-shield.png"),
+            Map.entry("cat_utils", "https://cdn3.emoji.gg/emojis/4522-question-mark-pink.png"),
+            Map.entry("cat_dono", "https://cdn3.emoji.gg/emojis/435134-chalkcrown.png"),
+            Map.entry("cat_ffxiv", "https://cdn3.emoji.gg/emojis/3900-crossed-katanas.png"));
 
     /**
      * Cria, numa thread daemon propria, os emojis dos badges que tem arte vinda
@@ -427,6 +435,15 @@ public final class HaremEmojis {
     public static String custom(String nome, String fallback) {
         ApplicationEmoji e = carregados.get(nome);
         return e != null ? e.getFormatted() : fallback;
+    }
+
+    /**
+     * Versão {@link Emoji} de um application emoji pelo nome (pro {@code withEmoji}
+     * de botão), ou o {@code fallbackUnicode} se ele ainda não foi carregado.
+     */
+    public static Emoji customEmoji(String nome, String fallbackUnicode) {
+        ApplicationEmoji e = carregados.get(nome);
+        return e != null ? e : Emoji.fromUnicode(fallbackUnicode);
     }
 
     /** Kakera generico (saldos, custos, daily): {@code <:kakera:id>} ou {@code 💎}. */

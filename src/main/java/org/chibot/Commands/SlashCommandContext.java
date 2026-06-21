@@ -125,7 +125,7 @@ public class SlashCommandContext implements CommandContext {
                 action.setContent(outContent);
             }
             if (!buttons.isEmpty()) {
-                action.setComponents(ActionRow.of(buttons));
+                action.setComponents(ActionRow.partitionOf(buttons));
             }
             action.queue();
         } else {
@@ -134,7 +134,7 @@ public class SlashCommandContext implements CommandContext {
                 action.setContent(outContent);
             }
             if (!buttons.isEmpty()) {
-                action.setComponents(ActionRow.of(buttons));
+                action.setComponents(ActionRow.partitionOf(buttons));
             }
             action.queue();
         }

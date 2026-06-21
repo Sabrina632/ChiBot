@@ -12,6 +12,11 @@ public class ResumeCommand extends MusicCommand {
     }
 
     @Override
+    public String getCategory() {
+        return "Música";
+    }
+
+    @Override
     public List<String> getAliases() {
         return List.of("continuar", "unpause");
     }

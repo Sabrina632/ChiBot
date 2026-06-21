@@ -8,6 +8,7 @@ import net.dv8tion.jda.api.requests.GatewayIntent;
 import org.chibot.Commands.Admin.MaintenanceCommand;
 import org.chibot.Commands.CommandListener;
 import org.chibot.Commands.CommandManager;
+import org.chibot.Commands.Core.HelpButtons;
 import org.chibot.Config.ChiConfig;
 import org.chibot.Database.LanguageRepository;
 import org.chibot.Database.MaintenanceRepository;
@@ -57,7 +58,8 @@ public class ChiBot
         jda = JDABuilder.createDefault(config.getToken())
                 .enableIntents(GatewayIntent.MESSAGE_CONTENT, GatewayIntent.GUILD_MESSAGE_REACTIONS)
                 .setVoiceDispatchInterceptor(musicService.getVoiceInterceptor())
-                .addEventListeners(new CommandListener(config, commandManager), haremService)
+                .addEventListeners(new CommandListener(config, commandManager), haremService,
+                        new HelpButtons())
                 .build()
                 .awaitReady();
 

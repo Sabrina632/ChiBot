@@ -38,7 +38,7 @@ public class LanguageCommand implements ICommand {
 
     @Override
     public String getCategory() {
-        return "Core";
+        return "Utilidades";
     }
 
     @Override

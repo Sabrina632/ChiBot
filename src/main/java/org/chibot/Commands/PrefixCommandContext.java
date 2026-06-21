@@ -98,7 +98,7 @@ public class PrefixCommandContext implements CommandContext {
             action.setContent(TranslationService.forUser(userId, content));
         }
         if (!buttons.isEmpty()) {
-            action.setComponents(ActionRow.of(buttons));
+            action.setComponents(ActionRow.partitionOf(buttons));
         }
         action.queue();
     }
