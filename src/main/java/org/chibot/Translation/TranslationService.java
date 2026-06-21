@@ -28,6 +28,14 @@ public class TranslationService {
     /** Idioma nativo da Chi — não traduz. */
     private static final String IDIOMA_FONTE = "pt";
 
+    /**
+     * Versão do esquema de cache. Entra no hash, então ao subir esse número as
+     * traduções antigas são ignoradas (e recalculadas). Subi pra v2 porque o cache
+     * gravado com o marcador velho (U+E000) guardou resultados quebrados tipo
+     * "0 Playing now! 1" — ver {@link TranslationMasker}.
+     */
+    private static final String CACHE_VERSION = "v2";
+
     /** Idiomas oferecidos no {@code !language}. */
     private static final Set<String> SUPORTADOS = Set.of(
             "pt", "en", "es", "ja", "fr", "de", "it", "ru", "ko", "zh");
@@ -94,7 +102,7 @@ public class TranslationService {
         if (translator == null || text == null || text.isBlank() || IDIOMA_FONTE.equals(lang)) {
             return text;
         }
-        String hash = sha256(text);
+        String hash = sha256(CACHE_VERSION + " " + text);
         String memKey = lang + " " + hash;
 
         String mem = memCache.get(memKey);
