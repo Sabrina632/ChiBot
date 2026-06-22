@@ -5,6 +5,9 @@ import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 import net.dv8tion.jda.api.requests.GatewayIntent;
+import net.dv8tion.jda.api.utils.ChunkingFilter;
+import net.dv8tion.jda.api.utils.MemberCachePolicy;
+import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import org.chibot.Commands.Admin.MaintenanceCommand;
 import org.chibot.Commands.CommandListener;
 import org.chibot.Commands.CommandManager;
@@ -57,7 +60,14 @@ public class ChiBot
         HaremService haremService = HaremService.init();
 
         jda = JDABuilder.createDefault(config.getToken())
-                .enableIntents(GatewayIntent.MESSAGE_CONTENT, GatewayIntent.GUILD_MESSAGE_REACTIONS)
+                .enableIntents(GatewayIntent.MESSAGE_CONTENT, GatewayIntent.GUILD_MESSAGE_REACTIONS,
+                        GatewayIntent.GUILD_MEMBERS, GatewayIntent.GUILD_PRESENCES)
+                // Cacheia todos os membros + status online pra contagem da atividade
+                // (!help | N online). Exige os intents privilegiados acima ligados
+                // também no Developer Portal, senão o login falha.
+                .setMemberCachePolicy(MemberCachePolicy.ALL)
+                .setChunkingFilter(ChunkingFilter.ALL)
+                .enableCache(CacheFlag.ONLINE_STATUS)
                 .setVoiceDispatchInterceptor(musicService.getVoiceInterceptor())
                 .addEventListeners(new CommandListener(config, commandManager), haremService,
                         new HelpButtons())
