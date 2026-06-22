@@ -83,8 +83,11 @@ public class ChiBot
         // Sobe/carrega os emojis customizados do harem (kakera colorido estilo Mudae).
         HaremEmojis.sync(jda);
 
-        // Atividade dinâmica: "!help | <usuários>", atualizada de tempos em tempos.
-        new ChiActivity(jda, config.getPrefix()).start();
+        // Atividade em tempo real: "!help | <online>", recalculada quando alguém
+        // fica online/offline, entra ou sai (a própria ChiActivity escuta esses eventos).
+        ChiActivity chiActivity = new ChiActivity(jda, config.getPrefix());
+        jda.addEventListener(chiActivity);
+        chiActivity.start();
 
         log.info("ChiBot conectado como {}", jda.getSelfUser().getName());
 
