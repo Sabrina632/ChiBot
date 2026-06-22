@@ -8,6 +8,7 @@ import net.dv8tion.jda.api.requests.GatewayIntent;
 import org.chibot.Commands.Admin.MaintenanceCommand;
 import org.chibot.Commands.CommandListener;
 import org.chibot.Commands.CommandManager;
+import org.chibot.Commands.Core.ChiActivity;
 import org.chibot.Commands.Core.HelpButtons;
 import org.chibot.Config.ChiConfig;
 import org.chibot.Database.LanguageRepository;
@@ -72,6 +73,9 @@ public class ChiBot
         // Sobe/carrega os emojis customizados do harem (kakera colorido estilo Mudae).
         HaremEmojis.sync(jda);
 
+        // Atividade dinâmica: "!help | <usuários>", atualizada de tempos em tempos.
+        new ChiActivity(jda, config.getPrefix()).start();
+
         log.info("ChiBot conectado como {}", jda.getSelfUser().getName());
 
         logOwner();
@@ -95,26 +99,26 @@ public class ChiBot
             return;
         }
 
-        String guildId = config.getGuildId();
-        if (guildId != null && !guildId.isBlank()) {
-            // Registro no servidor: fica disponivel na hora (otimo pra desenvolvimento).
-            Guild guild = jda.getGuildById(guildId);
-            if (guild != null) {
-                guild.updateCommands().addCommands(slashCommands).queue(
-                        ok -> log.info("{} slash command(s) registrado(s) no servidor {}.",
-                                slashCommands.size(), guild.getName()),
-                        err -> log.error("Falha ao registrar slash commands no servidor.", err));
-                return;
-            }
-            log.warn("GUILD_ID '{}' configurado, mas o bot nao esta nesse servidor. " +
-                    "Registrando slash commands globalmente.", guildId);
-        }
-
-        // Registro global: pode levar ate ~1h pra propagar no Discord.
+        // Registro global: os comandos ficam disponíveis em qualquer servidor e
+        // aparecem na seção "Comandos" do perfil do bot (igual o Mudae). Pode
+        // levar até ~1h pra propagar no Discord.
         jda.updateCommands().addCommands(slashCommands).queue(
                 ok -> log.info("{} slash command(s) registrado(s) globalmente (pode demorar pra aparecer).",
                         slashCommands.size()),
                 err -> log.error("Falha ao registrar slash commands globais.", err));
+
+        // Limpa registros antigos presos a um servidor específico. Sem isso, os
+        // comandos guild + global apareceriam duplicados naquele servidor.
+        String guildId = config.getGuildId();
+        if (guildId != null && !guildId.isBlank()) {
+            Guild guild = jda.getGuildById(guildId);
+            if (guild != null) {
+                guild.updateCommands().queue(
+                        ok -> log.info("Comandos antigos do servidor {} limpos (agora tudo é global).",
+                                guild.getName()),
+                        err -> log.warn("Não consegui limpar os comandos antigos do servidor.", err));
+            }
+        }
     }
 
     public JDA getJda() {
