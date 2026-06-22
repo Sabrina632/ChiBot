@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit;
  * quantidade de usuários online (sem contar bots). Ex.: "!help | 42 online".
  *
  * A contagem muda o tempo todo conforme gente fica online/offline, então
- * atualizamos a cada 30s numa thread daemon.
+ * atualizamos a cada 10s numa thread daemon.
  *
  * Requer os intents GUILD_MEMBERS e GUILD_PRESENCES (e o cache ONLINE_STATUS)
  * ligados no JDA — senão o status dos membros vem sempre como offline.
@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit;
 public class ChiActivity {
 
     /** De quantos em quantos segundos a atividade é recalculada. */
-    private static final long REFRESH_SECONDS = 30;
+    private static final long REFRESH_SECONDS = 10;
 
     private final JDA jda;
     private final String prefix;
