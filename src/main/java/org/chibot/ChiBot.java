@@ -16,7 +16,7 @@ import org.chibot.Commands.Core.HelpButtons;
 import org.chibot.Config.ChiConfig;
 import org.chibot.Database.LanguageRepository;
 import org.chibot.Database.MaintenanceRepository;
-import org.chibot.Translation.AwsTranslator;
+import org.chibot.Translation.DeepLTranslator;
 import org.chibot.Translation.ResilientTranslator;
 import org.chibot.Translation.TranslationService;
 import org.chibot.Harem.HaremEmojis;
@@ -46,11 +46,11 @@ public class ChiBot
         // do JDA subir, pro bot voltar pausado se foi assim que ele desligou.
         MaintenanceCommand.init(new MaintenanceRepository());
 
-        // Tradução por usuário (banco ChiLang.db + Amazon Translate). Sem credencial
-        // AWS no .env, o tradutor é null e tudo fica em português. O ResilientTranslator
+        // Tradução por usuário (banco ChiLang.db + DeepL). Sem a chave da DeepL
+        // no .env, o tradutor é null e tudo fica em português. O ResilientTranslator
         // blinda contra falha de rede: degrada pro pt em silêncio em vez de travar.
         TranslationService.init(new LanguageRepository(),
-                ResilientTranslator.wrap(AwsTranslator.fromConfig(config)));
+                ResilientTranslator.wrap(DeepLTranslator.fromConfig(config)));
 
         // Musica via Lavalink: o servico precisa existir antes do JDA por causa
         // do interceptor de voz (e dos comandos, que o acessam como singleton).

@@ -7,7 +7,7 @@ import java.util.function.LongSupplier;
 
 /**
  * Decorator que blinda qualquer {@link Translator} contra falha de rede. Sem ele,
- * cada falha do {@link AwsTranslator} (ex.: DNS da AWS fora do ar na VPS) virava um
+ * cada falha do {@link DeepLTranslator} (ex.: DNS da DeepL fora do ar na VPS) virava um
  * stack trace gigante por chamada, na thread do gateway do JDA — e um embed sozinho
  * dispara dezenas de chamadas.
  *

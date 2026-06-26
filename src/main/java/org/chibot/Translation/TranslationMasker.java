@@ -8,11 +8,11 @@ import java.util.regex.Pattern;
 /**
  * Esconde, antes da tradução, os trechos que a API não deve mexer e restaura
  * depois. Cada trecho protegido vira um marcador {@code Qíndice X} (sem espaço,
- * ex.: {@code Q0X}) — um token ALFANUMÉRICO, que o Amazon Translate trata como um
+ * ex.: {@code Q0X}) — um token ALFANUMÉRICO, que a API de tradução trata como um
  * código e preserva colado. Histórico das tentativas que NÃO sobreviveram:
- * invisíveis (U+E000: o Translate descarta); símbolo dobrado ({@code @@}: vira
+ * invisíveis (U+E000: a API descarta); símbolo dobrado ({@code @@}: vira
  * "@ @"); e delimitador igual dos dois lados ({@code ZZ}: dois marcadores colados
- * formavam "ZZZZ", que o Translate mexe). Aberto ≠ fechado evita o run igual.
+ * formavam "ZZZZ", que a API mexe). Aberto ≠ fechado evita o run igual.
  *
  * <p>Protege, nesta ordem: spans de crase ({@code `comando`}), menções/emojis do
  * Discord, URLs e emoticons/emoji (kaomoji). A detecção de emoticon é heurística:

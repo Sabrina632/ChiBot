@@ -1,8 +1,8 @@
 package org.chibot.Translation;
 
 /**
- * Abstração da chamada de tradução. A implementação real ({@link AwsTranslator})
- * fala com o Amazon Translate; nos testes, um fake permite verificar o cache e a
+ * Abstração da chamada de tradução. A implementação real ({@link DeepLTranslator})
+ * fala com a API da DeepL; nos testes, um fake permite verificar o cache e a
  * máscara sem bater na rede.
  */
 public interface Translator {

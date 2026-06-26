@@ -41,9 +41,8 @@ dependencies {
     // Banco de dados local (persistencia do Party Finder)
     implementation 'org.xerial:sqlite-jdbc:3.46.1.3'
 
-    // Amazon Translate (traducao por usuario). BOM fixa as versoes do AWS SDK v2.
-    implementation platform('software.amazon.awssdk:bom:2.31.18')
-    implementation 'software.amazon.awssdk:translate'
+    // Traducao por usuario via DeepL: usa o HttpClient nativo do Java + a lib
+    // de JSON acima, entao nao precisa de dependencia extra.
 
     // Logging
     implementation 'ch.qos.logback:logback-classic:1.5.18'
