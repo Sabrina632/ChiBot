@@ -1,6 +1,7 @@
 package org.chibot.Translation;
 
 import org.chibot.Config.ChiConfig;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,97 +16,92 @@ import java.time.Duration;
 import java.util.Map;
 
 /**
- * Implementação de {@link Translator} sobre a API da DeepL. Roda na thread do
- * gateway do JDA, então é configurado pra falhar rápido: timeout curto e sem
- * retries. Em caso de falha, propaga a exceção — quem decide degradar (e blindar
- * o bot do spam de log) é o {@link ResilientTranslator}, que embrulha este aqui.
+ * Implementação de {@link Translator} sobre a API da DeepL (endpoint REST v2). Roda
+ * na thread do gateway do JDA, então é configurado pra falhar rápido: sem retries e
+ * com timeout curto. Em caso de falha (rede, HTTP != 200), propaga a exceção — quem
+ * decide degradar (e blindar o bot do spam de log) é o {@link ResilientTranslator},
+ * que embrulha este aqui.
  */
 public class DeepLTranslator implements Translator {
 
     private static final Logger log = LoggerFactory.getLogger(DeepLTranslator.class);
 
-    // Endpoints da DeepL. A chave da conta gratuita termina em ":fx" e usa o host
-    // api-free; a paga usa o api (sem o sufixo).
-    private static final String FREE_ENDPOINT = "https://api-free.deepl.com/v2/translate";
-    private static final String PRO_ENDPOINT = "https://api.deepl.com/v2/translate";
+    /** Teto pra não segurar a thread do gateway se a DeepL sumir. */
+    private static final Duration TIMEOUT = Duration.ofSeconds(3);
 
     /**
-     * Códigos de idioma alvo da DeepL. Para a maioria basta o código em maiúsculo,
-     * mas a DeepL pede a variante regional pra alguns (EN e PT) e não aceita mais o
-     * "EN"/"PT" puro como alvo. Quem não estiver no mapa é só passado em maiúsculo.
+     * DeepL exige variante de inglês como destino (EN sozinho é depreciado) e usa
+     * ZH pro chinês; o resto é só o código em maiúsculo. {@code pt} é a fonte, então
+     * nunca aparece como destino aqui. Códigos fora do mapa caem no maiúsculo direto.
      */
-    private static final Map<String, String> TARGET_LANG = Map.of(
+    private static final Map<String, String> TARGET = Map.of(
             "en", "EN-US",
-            "pt", "PT-BR");
+            "zh", "ZH");
 
     private final HttpClient http;
-    private final String apiKey;
     private final String endpoint;
+    private final String authKey;
 
-    public DeepLTranslator(HttpClient http, String apiKey, String endpoint) {
+    public DeepLTranslator(HttpClient http, String endpoint, String authKey) {
         this.http = http;
-        this.apiKey = apiKey;
         this.endpoint = endpoint;
+        this.authKey = authKey;
     }
 
     /**
      * Monta o tradutor a partir do .env. Retorna {@code null} (tradução desligada)
-     * se faltar a chave da DeepL — aí o bot segue todo em português.
+     * se faltar a chave — aí o bot segue todo em português. Chaves de conta Free
+     * terminam em ":fx" e batem no endpoint api-free; as Pro vão pro api.deepl.com.
      */
     public static DeepLTranslator fromConfig(ChiConfig config) {
         String key = config.getDeeplApiKey();
-        if (blank(key)) {
-            log.warn("Chave da DeepL ausente no .env; tradução desligada (tudo em pt).");
+        if (key == null || key.isBlank()) {
+            log.warn("DEEPL_API_KEY ausente no .env; tradução desligada (tudo em pt).");
             return null;
         }
-        // Teto de 3s pra não segurar a thread do gateway se a DeepL sumir.
+        boolean free = key.endsWith(":fx");
+        String endpoint = (free ? "https://api-free.deepl.com" : "https://api.deepl.com")
+                + "/v2/translate";
         HttpClient http = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(3))
+                .connectTimeout(TIMEOUT)
                 .build();
-        String endpoint = key.trim().endsWith(":fx") ? FREE_ENDPOINT : PRO_ENDPOINT;
-        log.info("DeepL pronto ({}).", endpoint.equals(FREE_ENDPOINT) ? "conta gratuita" : "conta paga");
-        return new DeepLTranslator(http, key.trim(), endpoint);
+        log.info("DeepL pronto (conta {}).", free ? "Free" : "Pro");
+        return new DeepLTranslator(http, endpoint, key);
     }
 
     @Override
     public String translate(String text, String sourceLang, String targetLang) {
         String body = "text=" + enc(text)
                 + "&source_lang=" + enc(sourceLang.toUpperCase())
-                + "&target_lang=" + enc(targetLang(targetLang));
+                + "&target_lang=" + enc(target(targetLang));
 
         HttpRequest request = HttpRequest.newBuilder(URI.create(endpoint))
-                .timeout(Duration.ofSeconds(3))
-                .header("Authorization", "DeepL-Auth-Key " + apiKey)
+                .timeout(TIMEOUT)
+                .header("Authorization", "DeepL-Auth-Key " + authKey)
                 .header("Content-Type", "application/x-www-form-urlencoded")
                 .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
                 .build();
 
-        HttpResponse<String> resp;
+        HttpResponse<String> response;
         try {
-            resp = http.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            response = http.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
         } catch (Exception e) {
             throw new RuntimeException("Falha ao chamar a DeepL", e);
         }
-        if (resp.statusCode() != 200) {
-            throw new RuntimeException("DeepL respondeu HTTP " + resp.statusCode() + ": " + resp.body());
+        if (response.statusCode() != 200) {
+            throw new RuntimeException("DeepL respondeu HTTP " + response.statusCode());
         }
-        return new JSONObject(resp.body())
-                .getJSONArray("translations")
-                .getJSONObject(0)
-                .getString("text");
+
+        JSONArray translations = new JSONObject(response.body()).getJSONArray("translations");
+        return translations.getJSONObject(0).getString("text");
     }
 
-    /** Código alvo da DeepL: variante regional pra EN/PT, maiúsculo pro resto. */
-    private static String targetLang(String lang) {
-        String code = lang.toLowerCase();
-        return TARGET_LANG.getOrDefault(code, code.toUpperCase());
+    /** Código de destino no formato que a DeepL espera (ver {@link #TARGET}). */
+    private static String target(String lang) {
+        return TARGET.getOrDefault(lang.toLowerCase(), lang.toUpperCase());
     }
 
     private static String enc(String s) {
         return URLEncoder.encode(s, StandardCharsets.UTF_8);
-    }
-
-    private static boolean blank(String s) {
-        return s == null || s.isBlank();
     }
 }

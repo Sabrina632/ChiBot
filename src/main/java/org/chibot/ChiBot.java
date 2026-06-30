@@ -46,8 +46,8 @@ public class ChiBot
         // do JDA subir, pro bot voltar pausado se foi assim que ele desligou.
         MaintenanceCommand.init(new MaintenanceRepository());
 
-        // Tradução por usuário (banco ChiLang.db + DeepL). Sem a chave da DeepL
-        // no .env, o tradutor é null e tudo fica em português. O ResilientTranslator
+        // Tradução por usuário (banco ChiLang.db + DeepL). Sem a DEEPL_API_KEY no
+        // .env, o tradutor é null e tudo fica em português. O ResilientTranslator
         // blinda contra falha de rede: degrada pro pt em silêncio em vez de travar.
         TranslationService.init(new LanguageRepository(),
                 ResilientTranslator.wrap(DeepLTranslator.fromConfig(config)));

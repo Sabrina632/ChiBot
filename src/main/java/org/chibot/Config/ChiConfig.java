@@ -188,9 +188,9 @@ public class ChiConfig {
                 "# depois salva o refresh token aqui sozinho (veja YtOauth).",
                 "YOUTUBE_REFRESH_TOKEN=",
                 "",
-                "# ─── Tradução (DeepL) ─────────────────────────────────────",
-                "# Chave da API da DeepL (conta gratuita termina em ':fx').",
-                "# Vazio = tradução desligada (tudo em pt).",
+                "# ─── Traducao (DeepL) ─────────────────────────────────────",
+                "# Chave da API DeepL (Free ou Pro). Vazio = traducao desligada.",
+                "# A chave da conta Free termina em ':fx'.",
                 "DEEPL_API_KEY=",
                 "");
         Files.writeString(ENV_PATH, content, StandardCharsets.UTF_8);
@@ -233,7 +233,7 @@ public class ChiConfig {
         return ownerId;
     }
 
-    /** Chave da API da DeepL (traducao por usuario). Vazia = traducao desligada. */
+    /** Chave da API DeepL (traducao por usuario). Vazia = traducao desligada. */
     public String getDeeplApiKey() {
         return deeplApiKey;
     }
