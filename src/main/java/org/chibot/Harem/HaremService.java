@@ -82,8 +82,12 @@ public class HaremService extends ListenerAdapter {
     private final ArrayDeque<AnimeCharacter> husbandos = new ArrayDeque<>();
     private final ArrayDeque<AnimeCharacter> outros = new ArrayDeque<>();
 
-    /** Mensagens cujo kakera ja foi coletado (guarda contra clique duplo). */
-    private final Set<Long> kakeraColetado = ConcurrentHashMap.newKeySet();
+    /**
+     * Mensagens cujo kakera ja foi coletado (guarda contra clique duplo), com o
+     * instante (epoch ms) em que o botao expira — assim a limpeza remove so as
+     * entradas vencidas, sem reabrir botoes ainda validos.
+     */
+    private final java.util.Map<Long, Long> kakeraColetado = new ConcurrentHashMap<>();
 
     /** Dados de um personagem livre rolado, esperando alguem reagir pra casar. */
     private record Roll(long charId, String name, String series, String image, int kakera,
@@ -93,8 +97,11 @@ public class HaremService extends ListenerAdapter {
     /** Rolls livres por id da mensagem — a primeira reacao valida casa o personagem. */
     private final java.util.Map<Long, Roll> rollsAbertos = new ConcurrentHashMap<>();
 
-    /** Pares "mensagem:usuario" ja avisados de cooldown (evita spam de aviso). */
-    private final Set<String> cooldownAvisado = ConcurrentHashMap.newKeySet();
+    /**
+     * Pares "mensagem:usuario" ja avisados de cooldown (evita spam de aviso),
+     * com o instante em que o roll expira — pra limpeza remover so os vencidos.
+     */
+    private final java.util.Map<String, Long> cooldownAvisado = new ConcurrentHashMap<>();
 
     private HaremService(HaremRepository repo) {
         this.repo = repo;
@@ -323,9 +330,9 @@ public class HaremService extends ListenerAdapter {
         if (agora < proximoClaim) {
             // Em cooldown: o roll continua livre pra outra pessoa. Avisa a pessoa
             // (no maximo uma vez por roll, pra nao spammar o canal).
-            if (cooldownAvisado.add(messageId + ":" + userId)) {
+            if (cooldownAvisado.putIfAbsent(messageId + ":" + userId, roll.expiraMs()) == null) {
                 if (cooldownAvisado.size() > 5000) {
-                    cooldownAvisado.clear();
+                    cooldownAvisado.values().removeIf(expira -> agora > expira);
                 }
                 event.getChannel().sendMessage("<@" + userId + "> calminha, coração apressado~ "
                         + "você pode casar de novo " + relativo(proximoClaim) + "! (・∀・)").queue();
@@ -397,12 +404,13 @@ public class HaremService extends ListenerAdapter {
             desabilitarBotao(event);
             return;
         }
-        if (!kakeraColetado.add(event.getMessageIdLong())) {
+        if (kakeraColetado.putIfAbsent(event.getMessageIdLong(), expiraSeg * 1000) != null) {
             responderEfemero(event, "Alguém pegou esse kakera primeiro~ (>_<)");
             return;
         }
         if (kakeraColetado.size() > 5000) {
-            kakeraColetado.clear();
+            long agora = System.currentTimeMillis();
+            kakeraColetado.values().removeIf(expira -> agora > expira);
         }
 
         String guildId = event.getGuild().getId();

@@ -872,7 +872,8 @@ public class HaremRepository {
     }
 
     /**
-     * Compra um badge da loja: debita o kakera e concede o badge, atomico.
+     * Compra um badge da loja: debita o kakera e concede o badge numa transacao
+     * (se qualquer passo falhar, o debito e desfeito — o jogador nao perde kakera).
      * Retorna false se ja possuia o badge ou se faltou kakera.
      */
     public synchronized boolean buyBadge(String guildId, String userId, String badgeId, long preco, long epochMs) {
@@ -884,14 +885,28 @@ public class HaremRepository {
             if (ownedBadges(guildId, userId).contains(badgeId)) {
                 return false;
             }
-            if (!trySpendKakera(guildId, userId, preco)) {
-                return false;
+            conn.setAutoCommit(false);
+            if (trySpendKakera(guildId, userId, preco)
+                    && grantBadge(guildId, userId, badgeId, epochMs)) {
+                conn.commit();
+                return true;
             }
-            grantBadge(guildId, userId, badgeId, epochMs);
-            return true;
+            conn.rollback();
+            return false;
         } catch (SQLException e) {
             log.warn("Falha ao comprar o badge '{}' pra {}/{}.", badgeId, guildId, userId, e);
+            try {
+                conn.rollback();
+            } catch (SQLException ignored) {
+                // ja estamos tratando uma falha; nada a fazer
+            }
             return false;
+        } finally {
+            try {
+                conn.setAutoCommit(true);
+            } catch (SQLException ignored) {
+                // idem
+            }
         }
     }
 

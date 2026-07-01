@@ -11,6 +11,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * OAuth do YouTube gerenciado pelo bot (modo "client-provided token" do
@@ -47,9 +50,21 @@ public final class YtOauth {
     private long validUntil;   // ate quando o accessToken vale
     private long nextAttempt;  // throttle de retry depois de uma falha
 
+    /** Renova em background quando faltar menos que isso pro token expirar. */
+    private static final long REFRESH_MARGIN_MS = 35 * 60_000;
+
     public YtOauth(String refreshToken) {
         this.refreshToken =
                 refreshToken == null || refreshToken.isBlank() ? null : refreshToken;
+        // Renovacao proativa: mantem o token sempre quente pra chamada sincrona
+        // do startTrack (que segura o lock) quase nunca precisar bater na rede.
+        ScheduledExecutorService scheduler =
+                Executors.newSingleThreadScheduledExecutor(runnable -> {
+                    Thread t = new Thread(runnable, "yt-oauth-refresh");
+                    t.setDaemon(true);
+                    return t;
+                });
+        scheduler.scheduleWithFixedDelay(this::refreshIfExpiringSoon, 0, 20, TimeUnit.MINUTES);
     }
 
     /**
@@ -68,6 +83,26 @@ public final class YtOauth {
         if (now < nextAttempt) {
             return null;
         }
+        renew(now);
+        return accessToken;
+    }
+
+    /** Chamado pelo scheduler: renova se o token estiver perto de expirar (ou vencido). */
+    private synchronized void refreshIfExpiringSoon() {
+        if (refreshToken == null) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (accessToken != null && now + REFRESH_MARGIN_MS < validUntil) {
+            return; // ainda folgado
+        }
+        if (now < nextAttempt) {
+            return;
+        }
+        renew(now);
+    }
+
+    private void renew(long now) {
         try {
             JSONObject res = post(TOKEN_URL, new JSONObject()
                     .put("client_id", CLIENT_ID)
@@ -85,7 +120,6 @@ public final class YtOauth {
             nextAttempt = now + 15_000;
             log.warn("Falha renovando o access token do YouTube: {}", e.toString());
         }
-        return accessToken;
     }
 
     /** Sem refresh token: roda o device flow em background (uma vez, no boot). */

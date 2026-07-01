@@ -15,7 +15,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Enumeration;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -31,7 +31,9 @@ public class CommandManager {
 
     private static volatile CommandManager instance;
 
-    private final Map<String, ICommand> commands = new HashMap<>();
+    // LinkedHashMap: mantem a ordem de registro, pro help e o registro de slash
+    // commands sairem sempre na mesma ordem entre boots.
+    private final Map<String, ICommand> commands = new LinkedHashMap<>();
 
     public CommandManager() {
         autoLoad(COMMANDS_PACKAGE);
@@ -82,7 +84,13 @@ public class CommandManager {
         if (description == null || description.isBlank()) {
             return "Sem descricao.";
         }
-        return description.length() > 100 ? description.substring(0, 100) : description;
+        if (description.length() <= 100) {
+            return description;
+        }
+        // Nao corta no meio de um surrogate pair (emoji), senao a string fica
+        // malformada e o Discord rejeita o registro do comando.
+        int cut = Character.isHighSurrogate(description.charAt(99)) ? 99 : 100;
+        return description.substring(0, cut);
     }
 
     private void autoLoad(String packageName) {

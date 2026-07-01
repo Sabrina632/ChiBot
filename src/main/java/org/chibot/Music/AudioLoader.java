@@ -41,6 +41,10 @@ public class AudioLoader extends AbstractAudioLoadResultHandler {
     @Override
     public void onPlaylistLoaded(@NotNull PlaylistLoaded result) {
         List<Track> tracks = result.getTracks();
+        if (tracks.isEmpty()) {
+            noMatches();
+            return;
+        }
         boolean truncated = tracks.size() > MAX_PLAYLIST_TRACKS;
         if (truncated) {
             tracks = tracks.subList(0, MAX_PLAYLIST_TRACKS);

@@ -62,7 +62,7 @@ ChiLang.db-wal
 ChiLang.db-shm
 
 # Screenshots de referencia (ex.: IDs dos emojis) ficam so local
-Imagem/Screenshot*.png
+Imagem/
 referencia/
 src/main/java/org/chibot/referencia/
 

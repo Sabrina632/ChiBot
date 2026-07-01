@@ -13,6 +13,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -69,17 +71,42 @@ public class DeepLTranslator implements Translator {
         return new DeepLTranslator(http, endpoint, key);
     }
 
+    /** Máximo de parâmetros {@code text} por requisição (limite da API v2). */
+    private static final int MAX_LOTE = 50;
+
     @Override
     public String translate(String text, String sourceLang, String targetLang) {
-        String body = "text=" + enc(text)
-                + "&source_lang=" + enc(sourceLang.toUpperCase())
-                + "&target_lang=" + enc(target(targetLang));
+        return translate(List.of(text), sourceLang, targetLang).get(0);
+    }
+
+    /**
+     * Lote de verdade: todos os textos vão numa única requisição (vários {@code text=}),
+     * e a DeepL devolve as traduções na mesma ordem. Um embed inteiro vira uma
+     * chamada só, em vez de uma por campo.
+     */
+    @Override
+    public List<String> translate(List<String> texts, String sourceLang, String targetLang) {
+        List<String> out = new ArrayList<>(texts.size());
+        for (int i = 0; i < texts.size(); i += MAX_LOTE) {
+            out.addAll(sendBatch(texts.subList(i, Math.min(i + MAX_LOTE, texts.size())),
+                    sourceLang, targetLang));
+        }
+        return out;
+    }
+
+    private List<String> sendBatch(List<String> texts, String sourceLang, String targetLang) {
+        StringBuilder body = new StringBuilder();
+        for (String text : texts) {
+            body.append("text=").append(enc(text)).append('&');
+        }
+        body.append("source_lang=").append(enc(sourceLang.toUpperCase()))
+                .append("&target_lang=").append(enc(target(targetLang)));
 
         HttpRequest request = HttpRequest.newBuilder(URI.create(endpoint))
                 .timeout(TIMEOUT)
                 .header("Authorization", "DeepL-Auth-Key " + authKey)
                 .header("Content-Type", "application/x-www-form-urlencoded")
-                .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
+                .POST(HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8))
                 .build();
 
         HttpResponse<String> response;
@@ -93,7 +120,15 @@ public class DeepLTranslator implements Translator {
         }
 
         JSONArray translations = new JSONObject(response.body()).getJSONArray("translations");
-        return translations.getJSONObject(0).getString("text");
+        if (translations.length() != texts.size()) {
+            throw new RuntimeException("DeepL devolveu " + translations.length()
+                    + " tradução(ões) pra " + texts.size() + " texto(s)");
+        }
+        List<String> out = new ArrayList<>(texts.size());
+        for (int i = 0; i < translations.length(); i++) {
+            out.add(translations.getJSONObject(i).getString("text"));
+        }
+        return out;
     }
 
     /** Código de destino no formato que a DeepL espera (ver {@link #TARGET}). */

@@ -120,10 +120,12 @@ final class XivpfApiClient {
         if (descEn == null || descEn.isBlank()) {
             return null;
         }
+        // Só apelidos específicos da fight: tokens de fase ("p1".."p4") são usados
+        // em qualquer ultimate e marcavam listagem errada como Dancing Mad.
         if ("HighEndDuty".equals(category) && containsAny(descEn,
                 "arrows", "arrow", "graven", "forsaken", "merry", "telepo",
                 "toxic", "xolo", "kff", "nukemaru", "yarn", "x13", "kefkabin",
-                "p1", "p2", "p3", "p4", "weapon farm")) {
+                "weapon farm")) {
             return "Dancing Mad (Ultimate)";
         }
         return null;

@@ -101,8 +101,12 @@ public class GuildMusicManager {
         this.textChannelId = textChannelId;
     }
 
-    /** Toca ja se nada estiver tocando; senao entra na fila. Retorna true se entrou na fila. */
-    public boolean enqueue(Track track) {
+    /**
+     * Toca ja se nada estiver tocando; senao entra na fila. Retorna true se entrou na fila.
+     * Sincronizado (como as demais mutacoes da fila): dois plays quase simultaneos
+     * sem isso podiam ambos ver "nada tocando" e um startTrack engolir o outro.
+     */
+    public synchronized boolean enqueue(Track track) {
         boolean queued;
         if (isPlaying()) {
             queue.offer(track);
@@ -116,7 +120,7 @@ public class GuildMusicManager {
     }
 
     /** Enfileira a playlist inteira e comeca a tocar se estiver parado. */
-    public void enqueuePlaylist(List<Track> tracks) {
+    public synchronized void enqueuePlaylist(List<Track> tracks) {
         queue.addAll(tracks);
         if (!isPlaying()) {
             Track next = queue.poll();
@@ -131,7 +135,7 @@ public class GuildMusicManager {
      * Reconstroi a fila a partir do snapshot salvo (posicao 0 = tocando agora):
      * comeca a faixa atual e enfileira o resto. Usado pelo restore no boot.
      */
-    public void restoreQueue(List<Track> tracks) {
+    public synchronized void restoreQueue(List<Track> tracks) {
         if (tracks.isEmpty()) {
             return;
         }
@@ -155,7 +159,7 @@ public class GuildMusicManager {
     }
 
     /** Pula pra proxima da fila. Retorna a nova faixa, ou empty se a fila acabou (e o player para). */
-    public Optional<Track> skip() {
+    public synchronized Optional<Track> skip() {
         Track next = queue.poll();
         if (next != null) {
             startTrack(next);
@@ -169,7 +173,7 @@ public class GuildMusicManager {
     }
 
     /** Para tudo: limpa a fila e zera o player. */
-    public void stop() {
+    public synchronized void stop() {
         queue.clear();
         getPlayer().ifPresent(player -> player.setPaused(false).setTrack(null).subscribe());
         current = null;
@@ -181,7 +185,7 @@ public class GuildMusicManager {
     }
 
     /** Chamado pelo MusicService quando o Lavalink avisa que a faixa terminou. */
-    void onTrackEnd(AudioTrackEndReason endReason) {
+    synchronized void onTrackEnd(AudioTrackEndReason endReason) {
         if (!endReason.getMayStartNext()) {
             // REPLACED/STOPPED: foi a gente que trocou/parou — ja persistimos la.
             return;

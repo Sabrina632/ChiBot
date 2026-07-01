@@ -49,12 +49,30 @@ public class ResilientTranslator implements Translator {
         try {
             return delegate.translate(text, sourceLang, targetLang);
         } catch (Exception e) {
-            openUntil = clock.getAsLong() + cooldownMillis;
-            // Uma linha enxuta por janela de descanso; o stack trace fica no DEBUG.
-            log.warn("Tradução falhou ({}); pausada por {}s — tudo em pt até lá.",
-                    e.getMessage(), cooldownMillis / 1000);
-            log.debug("Detalhe da falha de tradução:", e);
+            abrirDisjuntor(e);
             return text;
         }
+    }
+
+    @Override
+    public java.util.List<String> translate(java.util.List<String> texts,
+                                            String sourceLang, String targetLang) {
+        if (clock.getAsLong() < openUntil) {
+            return texts; // disjuntor aberto: degrada o lote inteiro na hora.
+        }
+        try {
+            return delegate.translate(texts, sourceLang, targetLang);
+        } catch (Exception e) {
+            abrirDisjuntor(e);
+            return texts;
+        }
+    }
+
+    private void abrirDisjuntor(Exception e) {
+        openUntil = clock.getAsLong() + cooldownMillis;
+        // Uma linha enxuta por janela de descanso; o stack trace fica no DEBUG.
+        log.warn("Tradução falhou ({}); pausada por {}s — tudo em pt até lá.",
+                e.getMessage(), cooldownMillis / 1000);
+        log.debug("Detalhe da falha de tradução:", e);
     }
 }
