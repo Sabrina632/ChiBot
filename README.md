@@ -28,6 +28,7 @@ Música via Lavalink · Harém estilo Mudae · Party Finder de FFXIV · console 
 - [🚀 Rodando localmente](#-rodando-localmente)
 - [🐳 Rodando com Docker](#-rodando-com-docker)
 - [🔑 Login do YouTube (OAuth)](#-login-do-youtube-oauth)
+- [🌎 Tradução por usuário (DeepL)](#-tradução-por-usuário-deepl)
 - [🧩 Criando um novo comando](#-criando-um-novo-comando)
 - [📖 Comandos incluídos](#-comandos-incluídos)
 - [📂 Estrutura do projeto](#-estrutura-do-projeto)
@@ -44,6 +45,7 @@ Música via Lavalink · Harém estilo Mudae · Party Finder de FFXIV · console 
 - **Harém (estilo Mudae)** — rola waifus/husbandos reais de anime (via [AniList](https://anilist.co)), casa clicando no 💗 dentro de 45s (um dono por personagem por servidor), kakera por popularidade, harém, divórcio, trocas com confirmação por botão, daily, torre de kakera com perks, badges colecionáveis (conquistas, loja e personagens de anime com a arte do AniList), rolls extras comprados com kakera, lista de desejos com ping e timers — tudo persistido em SQLite.
 - **Party Finder de FFXIV** — `/pf` lista os PF de Ultimates e Savage do data center Aether (via [xivpf.com](https://xivpf.com)), com emojis de job e composição; `/strats` mostra as strats mais citadas nas descrições dos PF de cada duty (acumuladas em SQLite ao longo do tempo).
 - **Moderação** — `ban`, `kick`, `mute` (timeout do Discord: bloqueia voz **e** chat, com duração e expiração automática), `unmute` e `clear`, tudo em embed, com checagem de hierarquia de cargos e motivo no audit log.
+- **Tradução por usuário (DeepL)** — cada pessoa escolhe com `/language` o idioma em que a Chi responde **só pra ela** (pt, en, es, ja, fr, de, it, ru, ko, zh); as respostas (texto **e** embeds) são traduzidas na hora pela [DeepL](https://www.deepl.com/). Comandos, kaomoji e termos do glossário (ex.: *kakera*) são mascarados pra não serem traduzidos, e cada tradução fica em cache (memória → `ChiLang.db` → API) pra não repetir chamada. É totalmente opcional: sem a chave, tudo fica em português. Veja [Tradução](#-tradução-por-usuário-deepl).
 - **Ajuda embutida** — `/help` lista os comandos por categoria num embed fofo; `/help <comando>` mostra uso e atalhos.
 - **Comandos por prefixo e por slash (`/`)** — o mesmo comando funciona dos dois jeitos.
 - **Auto-load de comandos** — basta criar uma classe que implementa `ICommand` no pacote `org.chibot.Commands`; ela é descoberta e registrada sozinha por reflection, sem precisar editar nada.
@@ -71,6 +73,7 @@ LAVALINK_URI=ws://localhost:2333
 LAVALINK_PASSWORD=youshallnotpass
 YOUTUBE_API_KEY=
 YOUTUBE_REFRESH_TOKEN=
+DEEPL_API_KEY=
 ```
 
 As mesmas chaves também podem vir de variáveis de ambiente do processo, que **têm prioridade** sobre o `.env` (útil no Docker).
@@ -84,6 +87,7 @@ As mesmas chaves também podem vir de variáveis de ambiente do processo, que **
 | `LAVALINK_PASSWORD`     | Senha do Lavalink — precisa bater com a do [`lavalink/application.yml`](lavalink/application.yml).          |
 | `YOUTUBE_API_KEY`       | (Opcional) Chave da YouTube Data API v3 — melhora a busca por nome. Vazio = busca pelo `ytsearch` do Lavalink. |
 | `YOUTUBE_REFRESH_TOKEN` | (Opcional) Login do YouTube via OAuth — necessário em IP de datacenter (veja [Login do YouTube](#-login-do-youtube-oauth)). |
+| `DEEPL_API_KEY`         | (Opcional) Chave da [API DeepL](https://www.deepl.com/pro-api) (Free ou Pro) para o `/language`. Vazio = tradução desligada (tudo em pt). A chave da conta **Free** termina em `:fx`. |
 
 > ⚠️ **Nunca compartilhe nem commite seu token.** Ele dá controle total sobre o bot. Veja [Segurança](#-segurança).
 
@@ -93,6 +97,7 @@ As mesmas chaves também podem vir de variáveis de ambiente do processo, que **
 |--------------------------|---------------------------------------------------------------------------------------|-----------------------|
 | `CHIBOT_DB_PATH`         | Caminho do banco SQLite principal (Party Finder + harém).                             | `ChiData.db`          |
 | `CHIBOT_MUSIC_DB_PATH`   | Caminho do banco da música (fila, playlists salvas e volume). Vazio = ao lado do principal. | `ChiMusic.db`   |
+| `CHIBOT_LANG_DB_PATH`    | Caminho do banco de idiomas (preferência por usuário + cache de traduções). Vazio = ao lado do principal. | `ChiLang.db`    |
 
 Qualquer chave do `.env` (`DISCORD_TOKEN`, `LAVALINK_URI`, `YOUTUBE_REFRESH_TOKEN`...) também pode ser passada como variável de ambiente do processo, que tem prioridade sobre o arquivo.
 
@@ -147,7 +152,7 @@ O que é montado do host (sobrevive a restart, rebuild e `down -v`):
 - **`.env`** → `/app/.env` — trocar token/prefixo/servidor é só editar e `docker compose restart chibot`, sem rebuildar. O mesmo `.env` alimenta o `chibot` (montado como volume) e o `lavalink` (substituição de variáveis do compose).
 - **`lavalink/application.yml`** → config do Lavalink.
 
-E o volume nomeado `chibot-data` (`/app/data`) guarda os bancos SQLite — `ChiData.db` (Party Finder + harém) e `ChiMusic.db` (fila, playlists e volume da música) — entre recriações do container.
+E o volume nomeado `chibot-data` (`/app/data`) guarda os bancos SQLite — `ChiData.db` (Party Finder + harém), `ChiMusic.db` (fila, playlists e volume da música) e `ChiLang.db` (idioma por usuário + cache de traduções) — entre recriações do container.
 
 Quem resolve o YouTube é o plugin do Lavalink. Em IP de datacenter o YouTube pode exigir login ("This video requires login") — veja a seção abaixo.
 
@@ -171,6 +176,24 @@ Passo a passo (uma vez só):
 4. `docker compose up -d` — recria o `lavalink` logado e reinicia o bot.
 
 Como o `.env` é único, o token vale pelos dois lados: o bot lê do arquivo montado e o compose injeta o mesmo `YOUTUBE_REFRESH_TOKEN` no `lavalink` — então com o token salvo nada mais pede login, nunca.
+
+## 🌎 Tradução por usuário (DeepL)
+
+A Chi é nativamente em **português**, mas cada pessoa pode escolher o idioma em que ela responde — **só pra ela**, sem afetar o resto do servidor:
+
+```
+!language en      # passo a receber tudo em inglês
+!language          # mostra meu idioma atual e os suportados
+!language pt      # volto ao padrão (português)
+```
+
+Suportados: `pt`, `en`, `es`, `ja`, `fr`, `de`, `it`, `ru`, `ko`, `zh`. A preferência fica salva por usuário no `ChiLang.db`.
+
+**Como funciona.** O [`TranslationService`](src/main/java/org/chibot/Translation/TranslationService.java) (singleton, estilo `HaremService`) traduz tanto texto quanto embeds. Antes de mandar pra API, o [`TranslationMasker`](src/main/java/org/chibot/Translation/TranslationMasker.java) **mascara** o que não pode ser traduzido — referências de comando (`!help`), kaomoji/emotes e termos do glossário (ex.: *kakera*) — e restaura depois. Cada tradução passa por um cache em três camadas (memória → `ChiLang.db` → DeepL), então cada frase só bate na API uma vez por idioma.
+
+**DeepL.** O [`DeepLTranslator`](src/main/java/org/chibot/Translation/DeepLTranslator.java) usa o endpoint REST v2. A chave da conta **Free** termina em `:fx` e cai no `api-free.deepl.com`; as **Pro** vão pro `api.deepl.com` — o bot detecta sozinho pelo sufixo. Como a tradução roda na thread do gateway do JDA, ela é *fail-fast* (timeout de 3s, sem retries) e vem embrulhada pelo [`ResilientTranslator`](src/main/java/org/chibot/Translation/ResilientTranslator.java): na primeira falha de rede ele abre um disjuntor por 60s e devolve o texto original na hora, degradando pro português **em silêncio** em vez de travar o bot ou spammar o log.
+
+> 💡 Tudo isso é **opcional**. Sem a `DEEPL_API_KEY` no `.env`, o tradutor nem é criado e a Chi segue 100% em português — nenhum comando quebra.
 
 ## 🧩 Criando um novo comando
 
@@ -231,6 +254,7 @@ O contexto ([`CommandContext`](src/main/java/org/chibot/Commands/CommandContext.
 | Comando     | Aliases                  | Descrição                                                                 |
 |-------------|--------------------------|----------------------------------------------------------------------------|
 | `ping`      | —                        | Mostra a latência de gateway e API num embed fofo~                          |
+| `language`  | `lang`, `idioma`         | Escolhe o idioma em que a Chi responde só pra você (via DeepL); `language` sozinho mostra o atual e os suportados. |
 
 ### ★ Música
 
@@ -328,7 +352,8 @@ src/main/java/org/chibot/
 ├── Database/
 │   ├── PfRepository.java       # SQLite: snapshot dos PF + contagem de strats
 │   ├── HaremRepository.java    # SQLite: casamentos, kakera/cooldowns e desejos
-│   └── MusicRepository.java    # SQLite (ChiMusic.db, WAL): fila, playlists salvas e volume
+│   ├── MusicRepository.java    # SQLite (ChiMusic.db, WAL): fila, playlists salvas e volume
+│   └── LanguageRepository.java # SQLite (ChiLang.db): idioma por usuário + cache de traduções
 ├── Harem/
 │   ├── HaremService.java       # singleton: pools de personagens + botões de claim/kakera + conquistas
 │   ├── HaremBadges.java        # catálogo dos badges (conquistas + loja)
@@ -337,6 +362,12 @@ src/main/java/org/chibot/
 │   └── AnimeCharacter.java
 ├── Logging/
 │   └── KawaiiLayout.java       # layout de log pastel em truecolor
+├── Translation/
+│   ├── TranslationService.java # singleton: preferência por usuário + cache + tradução de texto/embeds
+│   ├── Translator.java         # contrato de um tradutor (fonte -> destino)
+│   ├── DeepLTranslator.java    # implementação sobre a API REST v2 da DeepL (Free/Pro)
+│   ├── ResilientTranslator.java# decorator com disjuntor: degrada pro pt em silêncio na falha
+│   └── TranslationMasker.java  # mascara comandos/kaomoji/glossário antes de traduzir
 └── Music/
     ├── MusicService.java       # singleton: conexão com o Lavalink + manager por guild
     ├── GuildMusicManager.java  # player + fila de um servidor
@@ -359,10 +390,11 @@ O **`.env`** guarda credenciais em texto puro (token do bot, chave da API do You
 
 - [JDA 6.4.2](https://github.com/discord-jda/JDA) — Java Discord API
 - [lavalink-client 3.4.0](https://github.com/lavalink-devs/lavalink-client) — cliente do servidor [Lavalink v4](https://github.com/lavalink-devs/Lavalink) (+ [youtube-plugin](https://github.com/lavalink-devs/youtube-source))
+- [DeepL API](https://www.deepl.com/pro-api) (REST v2) — tradução das respostas por usuário
 - [jsoup 1.18.3](https://jsoup.org/) — scraping do xivpf.com
 - [sqlite-jdbc 3.46](https://github.com/xerial/sqlite-jdbc) — persistência do Party Finder
 - [logback-classic 1.5.18](https://logback.qos.ch/) — logging
-- [org.json](https://github.com/stleary/JSON-java) — parsing das respostas JSON das APIs (OAuth do YouTube, AniList, xivpf)
+- [org.json](https://github.com/stleary/JSON-java) — parsing das respostas JSON das APIs (OAuth do YouTube, AniList, xivpf, DeepL)
 - JUnit 5 — testes
 - Gradle (wrapper incluído) + plugin `application`
 
