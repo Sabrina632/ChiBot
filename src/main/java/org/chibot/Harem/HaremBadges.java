@@ -35,17 +35,11 @@ public final class HaremBadges {
 
     /** Numeros do jogador usados pra avaliar as conquistas. */
     public record Stats(int personagens, long valorTotal, int torre,
-                        long kakera, int desejos, int rank, Set<String> nomesNoHarem) {
+                        long kakera, int desejos, int rank, Set<Long> idsNoHarem) {
 
-        /** Se o jogador tem no harem algum personagem cujo nome contem {@code chave}. */
-        public boolean temPersonagem(String chave) {
-            String c = chave.toLowerCase(Locale.ROOT);
-            for (String nome : nomesNoHarem) {
-                if (nome.contains(c)) {
-                    return true;
-                }
-            }
-            return false;
+        /** Se o jogador tem no harem o personagem com esse id do AniList. */
+        public boolean temPersonagem(long charId) {
+            return idsNoHarem.contains(charId);
         }
     }
 
@@ -139,11 +133,16 @@ public final class HaremBadges {
         return new Badge(id, nome, "", null, fallback, descricao, Tipo.LOJA, preco, null);
     }
 
-    /** Badge de personagem: desbloqueia casando com ele (match pelo nome) ou comprando. */
+    /**
+     * Badge de personagem: desbloqueia casando com ele ou comprando. O match do
+     * casamento e pelo {@code charId} (id do personagem no AniList, o mesmo que o
+     * harem grava em cada claim) — assim homonimos de outras series nao destravam
+     * o badge por engano.
+     */
     private static Badge personagem(String id, String nome, String serie, String busca,
-                                    String fallback, long preco) {
+                                    long charId, String fallback, long preco) {
         return new Badge(id, nome, serie, busca, fallback, serie, Tipo.PERSONAGEM, preco,
-                s -> s.temPersonagem(nome));
+                s -> s.temPersonagem(charId));
     }
 
     private static final List<Badge> CATALOGO = List.of(
@@ -188,22 +187,33 @@ public final class HaremBadges {
             loja("arcoiris", "Arco-íris", "🌈", "Todas as cores do kakera.", 2500),
 
             // ---- Personagens (casar com o personagem ou comprar) ----
-            personagem("rem", "Rem", "Re:Zero", "Rem", "💙", 1500),
-            personagem("emilia", "Emilia", "Re:Zero", "Emilia", "💜", 1200),
-            personagem("megumin", "Megumin", "KonoSuba", "Megumin", "💥", 1200),
-            personagem("zerotwo", "Zero Two", "Darling in the FranXX", "Zero Two", "🦖", 1500),
-            personagem("miku", "Hatsune Miku", "Vocaloid", "Hatsune Miku", "🎤", 1300),
-            personagem("levi", "Levi", "Attack on Titan", "Levi", "🗡️", 1500),
-            personagem("mikasa", "Mikasa", "Attack on Titan", "Mikasa Ackerman", "🧣", 1300),
-            personagem("naruto", "Naruto", "Naruto", "Naruto Uzumaki", "🍥", 1200),
-            personagem("luffy", "Luffy", "One Piece", "Monkey D. Luffy", "👒", 1200),
-            personagem("goku", "Goku", "Dragon Ball", "Son Goku", "🔥", 1200),
-            personagem("gojo", "Gojo", "Jujutsu Kaisen", "Satoru Gojo", "🔵", 1500),
-            personagem("nezuko", "Nezuko", "Demon Slayer", "Nezuko Kamado", "🎍", 1300),
-            personagem("asuna", "Asuna", "Sword Art Online", "Asuna Yuuki", "⚔️", 1000),
-            personagem("marin", "Marin", "My Dress-Up Darling", "Marin Kitagawa", "👗", 1300),
-            personagem("makima", "Makima", "Chainsaw Man", "Makima", "🐶", 1400),
-            personagem("violet", "Violet", "Violet Evergarden", "Violet Evergarden", "💌", 1100));
+            personagem("rem", "Rem", "Re:Zero", "Rem", 88575, "💙", 1500),
+            personagem("emilia", "Emilia", "Re:Zero", "Emilia", 88572, "💜", 1200),
+            personagem("megumin", "Megumin", "KonoSuba", "Megumin", 89361, "💥", 1200),
+            personagem("zerotwo", "Zero Two", "Darling in the FranXX", "Zero Two", 124381, "🦖", 1500),
+            personagem("miku", "Hatsune Miku", "Vocaloid", "Hatsune Miku", 7156, "🎤", 1300),
+            personagem("levi", "Levi", "Attack on Titan", "Levi", 45627, "🗡️", 1500),
+            personagem("mikasa", "Mikasa", "Attack on Titan", "Mikasa Ackerman", 40881, "🧣", 1300),
+            personagem("naruto", "Naruto", "Naruto", "Naruto Uzumaki", 17, "🍥", 1200),
+            personagem("luffy", "Luffy", "One Piece", "Monkey D. Luffy", 40, "👒", 1200),
+            personagem("goku", "Goku", "Dragon Ball", "Son Goku", 246, "🔥", 1200),
+            personagem("gojo", "Gojo", "Jujutsu Kaisen", "Satoru Gojo", 127691, "🔵", 1500),
+            personagem("nezuko", "Nezuko", "Demon Slayer", "Nezuko Kamado", 127518, "🎍", 1300),
+            personagem("asuna", "Asuna", "Sword Art Online", "Asuna Yuuki", 36828, "⚔️", 1000),
+            personagem("marin", "Marin", "My Dress-Up Darling", "Marin Kitagawa", 133676, "👗", 1300),
+            personagem("makima", "Makima", "Chainsaw Man", "Makima", 137080, "🐶", 1400),
+            personagem("violet", "Violet", "Violet Evergarden", "Violet Evergarden", 90169, "💌", 1100),
+
+            // ---- Personagens de mangá ----
+            personagem("guts", "Guts", "Berserk", "Guts", 422, "🌑", 1500),
+            personagem("johan", "Johan", "Monster", "Johan Liebert", 719, "🖤", 1500),
+            personagem("musashi", "Musashi", "Vagabond", "Musashi Miyamoto", 6194, "🥋", 1400),
+            personagem("punpun", "Punpun", "Oyasumi Punpun", "Punpun Onodera", 17706, "🐤", 1400),
+            personagem("kirie", "Kirie", "Uzumaki", "Kirie Goshima", 6540, "🌀", 1300),
+            personagem("kenji", "Kenji", "20th Century Boys", "Kenji Endou", 3442, "🎸", 1300),
+            personagem("sakuragi", "Sakuragi", "Slam Dunk", "Hanamichi Sakuragi", 310, "🏀", 1200),
+            personagem("ippo", "Ippo", "Hajime no Ippo", "Ippo Makunouchi", 15, "🥊", 1200),
+            personagem("yotsuba", "Yotsuba", "Yotsuba&!", "Yotsuba Koiwai", 3568, "🍀", 1000));
 
     private static final List<Badge> CONQUISTAS =
             CATALOGO.stream().filter(b -> b.tipo() == Tipo.CONQUISTA).toList();

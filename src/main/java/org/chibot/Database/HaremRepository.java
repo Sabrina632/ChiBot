@@ -768,23 +768,23 @@ public class HaremRepository {
         return 0;
     }
 
-    /** Nomes (em minusculas) dos personagens no harem do jogador — pros badges de personagem. */
-    public synchronized Set<String> claimNamesLower(String guildId, String userId) {
-        Set<String> out = new LinkedHashSet<>();
+    /** Ids (AniList) dos personagens no harem do jogador — pros badges de personagem. */
+    public synchronized Set<Long> claimCharIds(String guildId, String userId) {
+        Set<Long> out = new LinkedHashSet<>();
         if (!available()) {
             return out;
         }
         try (PreparedStatement ps = conn.prepareStatement(
-                "SELECT LOWER(name) FROM harem_claim WHERE guild_id = ? AND owner_id = ?")) {
+                "SELECT char_id FROM harem_claim WHERE guild_id = ? AND owner_id = ?")) {
             ps.setString(1, guildId);
             ps.setString(2, userId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    out.add(rs.getString(1));
+                    out.add(rs.getLong(1));
                 }
             }
         } catch (SQLException e) {
-            log.warn("Falha ao listar os nomes do harem de {}/{}.", guildId, userId, e);
+            log.warn("Falha ao listar os ids do harem de {}/{}.", guildId, userId, e);
         }
         return out;
     }

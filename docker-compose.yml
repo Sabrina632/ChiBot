@@ -18,9 +18,11 @@ services:
         max-size: "10m"
         max-file: "3"
     # Limita a heap do bot: sem isso a JVM pega ate 25% da RAM da VPS e
-    # espreme o Lavalink (que e quem nao pode engasgar).
+    # espreme o Lavalink (que e quem nao pode engasgar). Orcamento pra VPS de
+    # 2G (t3a.small): 512M de teto pro bot + 768M fixos do Lavalink cabem com
+    # folga pro yt-cipher e o SO — mantenha 1-2G de swap pra absorver picos.
     environment:
-      - _JAVA_OPTIONS=-Xmx256M
+      - _JAVA_OPTIONS=-Xmx512M
     # Musica: o bot fala com o Lavalink pela rede interna do compose.
     # No .env da VPS, use LAVALINK_URI=ws://lavalink:2333.
     depends_on:
@@ -33,9 +35,10 @@ services:
     environment:
       # G1 com pausa-alvo curta: pausas longas de GC viram travada no audio.
       # ParallelRefProcEnabled encurta a fase de processar referencias do G1
-      # (uma das maiores fontes de pausa). A VPS tem ~3.8G de RAM com folga,
-      # entao: heap fixa de 768M (Xms=Xmx) pra menos GC, e AlwaysPreTouch pra
-      # commitar as paginas no boot — runtime sem page-fault nem resize de heap.
+      # (uma das maiores fontes de pausa). Heap fixa de 768M (Xms=Xmx) pra
+      # menos GC, e AlwaysPreTouch pra commitar as paginas no boot — runtime
+      # sem page-fault nem resize de heap. Numa VPS de 2G, esses 768M ficam
+      # reservados de cara; e proposital: o audio e quem nao pode engasgar.
       - _JAVA_OPTIONS=-Xms768M -Xmx768M -XX:+UseG1GC -XX:MaxGCPauseMillis=40 -XX:+ParallelRefProcEnabled -XX:+AlwaysPreTouch
       # Login do YouTube no NODE: necessario pro loadtracks (busca/resolucao)
       # em IP de datacenter — o token por track que o bot manda cobre so o

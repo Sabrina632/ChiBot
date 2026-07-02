@@ -528,7 +528,7 @@ public class HaremService extends ListenerAdapter {
         HaremBadges.Stats stats = new HaremBadges.Stats(
                 st.count(), st.valorTotal(), p.towerLevel(), p.kakera(),
                 repo.listWishes(guildId, userId).size(), repo.haremRank(guildId, userId),
-                repo.claimNamesLower(guildId, userId));
+                repo.claimCharIds(guildId, userId));
 
         Set<String> owned = repo.ownedBadges(guildId, userId);
         long agora = System.currentTimeMillis();
