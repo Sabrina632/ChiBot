@@ -161,10 +161,10 @@ public class StratsCommand implements ICommand {
         };
     }
 
-    /** Barra proporcional ao mais frequente (■ cheio, □ vazio). */
+    /** Barra proporcional ao mais frequente (▰ cheio, ▱ vazio). */
     private static String bar(int count, int max) {
         int filled = max <= 0 ? 0 : Math.max(1, Math.round((float) count / max * BAR_LEN));
-        return "`" + "█".repeat(filled) + "░".repeat(Math.max(0, BAR_LEN - filled)) + "`";
+        return "▰".repeat(filled) + "▱".repeat(Math.max(0, BAR_LEN - filled));
     }
 
     /** Aceita os valores do slash e tambem sinonimos digitados no prefixo. */
