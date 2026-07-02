@@ -28,27 +28,29 @@ public class StratsCommand implements ICommand {
 
     private static final Color KAWAII_PINK = new Color(0xFFB6C1);
     private static final int TOP_N = 10;
-    private static final int BAR_LEN = 12;
+    private static final int BAR_LEN = 10;
 
     private final StratsService service = new StratsService();
 
-    // Sigla -> trecho do nome da duty pra casar; rotulo amigavel; e cor de accent.
+    // Sigla -> trecho do nome da duty pra casar; rotulo; nome completo; cor de accent.
     private static final Map<String, String> DUTY_MATCH = new LinkedHashMap<>();
     private static final Map<String, String> DUTY_LABEL = new LinkedHashMap<>();
+    private static final Map<String, String> DUTY_FULL = new LinkedHashMap<>();
     private static final Map<String, Color> DUTY_COLOR = new LinkedHashMap<>();
     static {
-        duty("ucob", "Unending Coil",    "UCOB", 0xfce100);
-        duty("uwu",  "Weapon",           "UWU",  0x008bfc);
-        duty("tea",  "Epic of Alexander","TEA",  0xfcaa00);
-        duty("dsr",  "Dragonsong",       "DSR",  0xf12916);
-        duty("top",  "Omega Protocol",   "TOP",  0x13aa9e);
-        duty("fru",  "Futures Rewritten","FRU",  0xa05cd6);
-        duty("umad", "Dancing Mad",      "UMAD", 0xc850c0);
+        duty("ucob", "Unending Coil",    "UCOB", "The Unending Coil of Bahamut (Ultimate)", 0xfce100);
+        duty("uwu",  "Weapon",           "UWU",  "The Weapon's Refrain (Ultimate)",         0x008bfc);
+        duty("tea",  "Epic of Alexander","TEA",  "The Epic of Alexander (Ultimate)",        0xfcaa00);
+        duty("dsr",  "Dragonsong",       "DSR",  "Dragonsong's Reprise (Ultimate)",         0xf12916);
+        duty("top",  "Omega Protocol",   "TOP",  "The Omega Protocol (Ultimate)",           0x13aa9e);
+        duty("fru",  "Futures Rewritten","FRU",  "Futures Rewritten (Ultimate)",            0xa05cd6);
+        duty("umad", "Dancing Mad",      "UMAD", "Dancing Mad (Ultimate)",                  0xc850c0);
     }
 
-    private static void duty(String sigla, String match, String label, int rgb) {
+    private static void duty(String sigla, String match, String label, String full, int rgb) {
         DUTY_MATCH.put(sigla, match);
         DUTY_LABEL.put(sigla, label);
+        DUTY_FULL.put(sigla, full);
         DUTY_COLOR.put(sigla, new Color(rgb));
     }
 
@@ -127,13 +129,21 @@ public class StratsCommand implements ICommand {
             return embed.build();
         }
 
+        // Rank, barra e contagem num unico bloco monoespacado por linha: assim
+        // tudo alinha em coluna no Discord; o nome fica fora, em negrito, e o
+        // top 3 ganha medalha no fim (dentro do ` ` a largura do emoji quebraria
+        // o alinhamento).
         int max = tokens.get(0).count();
-        StringBuilder sb = new StringBuilder();
+        int digitos = String.valueOf(max).length();
+        StringBuilder sb = new StringBuilder("*").append(DUTY_FULL.getOrDefault(sel, label))
+                .append("*\n\n");
         for (int i = 0; i < tokens.size(); i++) {
             PfRepository.TokenCount t = tokens.get(i);
-            sb.append(rank(i + 1)).append(" **").append(t.token()).append("**")
-                    .append("  `").append(t.count()).append("`\n")
-                    .append(bar(t.count(), max)).append('\n');
+            sb.append('`')
+                    .append(String.format("#%-2d %s %" + digitos + "d", i + 1,
+                            bar(t.count(), max), t.count()))
+                    .append("` **").append(t.token()).append("**")
+                    .append(medal(i + 1)).append('\n');
         }
         embed.setDescription(sb.toString().stripTrailing());
         embed.setTimestamp(Instant.now());
@@ -141,13 +151,13 @@ public class StratsCommand implements ICommand {
         return embed.build();
     }
 
-    /** Medalha pro top 3, numero pro resto. */
-    private static String rank(int pos) {
+    /** Medalha pro top 3 (com espaco na frente), vazio pro resto. */
+    private static String medal(int pos) {
         return switch (pos) {
-            case 1 -> "🥇";
-            case 2 -> "🥈";
-            case 3 -> "🥉";
-            default -> "`#" + pos + "`";
+            case 1 -> " 🥇";
+            case 2 -> " 🥈";
+            case 3 -> " 🥉";
+            default -> "";
         };
     }
 
