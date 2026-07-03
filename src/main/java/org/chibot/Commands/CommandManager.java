@@ -24,7 +24,7 @@ import java.util.jar.JarFile;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class CommandManager {
+public final class CommandManager {
 
     private static final Logger log = LoggerFactory.getLogger(CommandManager.class);
     private static final String COMMANDS_PACKAGE = "org.chibot.Commands";

@@ -3,8 +3,6 @@ package org.chibot.Translation;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import org.chibot.Database.LanguageRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -23,8 +21,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * tudo degrada pro original.
  */
 public class TranslationService {
-
-    private static final Logger log = LoggerFactory.getLogger(TranslationService.class);
 
     /** Idioma nativo da Chi — não traduz. */
     private static final String IDIOMA_FONTE = "pt";
