@@ -30,14 +30,16 @@ import java.util.stream.Collectors;
 
 /**
  * Sistema de waifu/husbando estilo Mudae: rolls sorteiam personagens reais de
- * anime (AniList) ou de jogos (Giant Bomb) e quem reagir (com qualquer emoji)
- * dentro da janela casa com o personagem — um dono por personagem por servidor.
+ * anime (AniList) ou de jogos (dataset embarcado do giant-bomb-wiki) e quem
+ * reagir (com qualquer emoji) dentro da janela casa com o personagem — um dono
+ * por personagem por servidor.
  *
- * <p>O servico mantem pools de personagens pre-buscados por genero (pra cada
- * roll nao custar uma chamada de API). Os rolls livres ficam num mapa em
- * memoria ({@code rollsAbertos}) ate alguem reagir; como a janela e curta
- * (~45s), um restart so descarta rolls que ainda estavam abertos na hora. O
- * botao de kakera (personagem ja casado) carrega os dados no custom id
+ * <p>Pro lado de anime, o servico mantem pools de personagens pre-buscados por
+ * genero (pra cada roll nao custar uma chamada de API); os de jogos saem direto
+ * do dataset embarcado. Os rolls livres ficam num mapa em memoria
+ * ({@code rollsAbertos}) ate alguem reagir; como a janela e curta (~45s), um
+ * restart so descarta rolls que ainda estavam abertos na hora. O botao de
+ * kakera (personagem ja casado) carrega os dados no custom id
  * ({@code hkak:valor:expira}), entao esse sobrevive a restart.
  */
 public class HaremService extends ListenerAdapter {
