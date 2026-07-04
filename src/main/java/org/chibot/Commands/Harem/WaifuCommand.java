@@ -19,6 +19,11 @@ public class WaifuCommand implements ICommand {
     }
 
     @Override
+    public List<String> getSlashAliases() {
+        return List.of("wa");
+    }
+
+    @Override
     public String getDescription() {
         return "Rola uma waifu aleatória~ clica no 💗 pra casar! (✿◠‿◠)";
     }

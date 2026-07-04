@@ -19,6 +19,11 @@ public class GameRollCommand implements ICommand {
     }
 
     @Override
+    public List<String> getSlashAliases() {
+        return List.of("gr");
+    }
+
+    @Override
     public String getDescription() {
         return "Rola um personagem de jogos aleatório (waifu ou husbando)~ 🎮";
     }

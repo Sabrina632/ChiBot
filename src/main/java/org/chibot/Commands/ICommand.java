@@ -54,4 +54,14 @@ public interface ICommand {
     default boolean isSlashEnabled() {
         return true;
     }
+
+    /**
+     * Aliases que TAMBEM viram slash commands proprios (ex.: /wa alem de
+     * /waifu), aparecendo como atalhos no perfil do bot — estilo Mudae.
+     * Devem estar em {@link #getAliases()} pro roteamento resolver. Vazio =
+     * so o nome principal vira slash.
+     */
+    default List<String> getSlashAliases() {
+        return Collections.emptyList();
+    }
 }

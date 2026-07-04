@@ -307,6 +307,8 @@ O contexto ([`CommandContext`](src/main/java/org/chibot/Commands/CommandContext.
 | `timers`    | `tu`, `tempos`           | Rolls restantes, casamento, daily, kakera, torre e desejos.                 |
 
 > Personagens já casados aparecem com borda laranja e um botão 💎 — o primeiro a clicar coleta kakera. O claim fica disponível a cada 3 horas; os rolls resetam a cada hora cheia.
+>
+> Os atalhos `wa`, `ha`, `mx`, `wg`, `hg` e `gr` também são registrados como **slash commands** próprios (`/wa`, `/mx`...) — são eles que aparecem como chips na seção "Comandos" do perfil do bot, estilo Mudae.
 
 ### ★ Moderação
 

@@ -19,6 +19,11 @@ public class Husbando implements ICommand {
     }
 
     @Override
+    public List<String> getSlashAliases() {
+        return List.of("ha");
+    }
+
+    @Override
     public String getDescription() {
         return "Rola um husbando aleatório~ clica no 💗 pra casar! (✿◠‿◠)";
     }

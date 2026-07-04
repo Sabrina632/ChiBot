@@ -19,6 +19,11 @@ public class RollCommand implements ICommand {
     }
 
     @Override
+    public List<String> getSlashAliases() {
+        return List.of("mx");
+    }
+
+    @Override
     public String getDescription() {
         return "Rola um personagem aleatório (waifu ou husbando)~ (・∀・)";
     }

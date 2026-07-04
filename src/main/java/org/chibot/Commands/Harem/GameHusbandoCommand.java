@@ -19,6 +19,11 @@ public class GameHusbandoCommand implements ICommand {
     }
 
     @Override
+    public List<String> getSlashAliases() {
+        return List.of("hg");
+    }
+
+    @Override
     public String getDescription() {
         return "Rola um husbando de jogos~ clica no 💗 pra casar! 🎮";
     }

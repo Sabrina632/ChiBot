@@ -19,6 +19,11 @@ public class GameWaifuCommand implements ICommand {
     }
 
     @Override
+    public List<String> getSlashAliases() {
+        return List.of("wg");
+    }
+
+    @Override
     public String getDescription() {
         return "Rola uma waifu de jogos~ clica no 💗 pra casar! 🎮";
     }

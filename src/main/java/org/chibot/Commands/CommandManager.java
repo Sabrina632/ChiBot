@@ -75,6 +75,20 @@ public final class CommandManager {
                 data.addOptions(command.getOptions());
             }
             slashCommands.add(data);
+
+            // Atalhos slash (ex.: /wa): mesmo comando, mesma execucao — o
+            // roteamento resolve pelo mapa de aliases. So muda a descricao,
+            // que aponta pro comando principal.
+            for (String alias : command.getSlashAliases()) {
+                SlashCommandData atalho = Commands.slash(
+                        alias.toLowerCase(),
+                        trimDescription("Atalho de /" + command.getName().toLowerCase()
+                                + " · " + command.getDescription()));
+                if (!command.getOptions().isEmpty()) {
+                    atalho.addOptions(command.getOptions());
+                }
+                slashCommands.add(atalho);
+            }
         }
         return slashCommands;
     }
