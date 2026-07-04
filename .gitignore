@@ -68,3 +68,6 @@ src/main/java/org/chibot/referencia/
 
 # Imagem-fonte do banner (a versao com cantos arredondados fica em assets/) — so local
 src/main/resources/banner/
+
+# Cache dos dumps do giant-bomb-wiki (tools/extract_gb_characters.py)
+tools/.gb_dumps/
