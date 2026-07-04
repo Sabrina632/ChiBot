@@ -15,8 +15,8 @@ e o claim entra no mesmo harém do jogador.
 1. **Fonte de dados:** API pública do Giant Bomb (`giantbomb.com/api`), com
    chave gratuita lida da variável de ambiente `GIANTBOMB_API_KEY`.
 2. **Comandos separados:** o roll de jogos NÃO se mistura ao roll de anime.
-   Comandos novos: `gamewaifu` (alias `wg`), `gamehusbando` (alias `hg`),
-   `gameroll` (alias `gr`).
+   Comandos novos: `gamewaifu` (aliases `wg`, `gw`), `gamehusbando` (aliases
+   `hg`, `gh`), `gameroll` (aliases `gr`, `rg`).
 3. **Com gênero:** os três comandos espelham waifu/husbando/roll usando o campo
    de gênero do Giant Bomb (1 = masculino, 2 = feminino, 0 = desconhecido).
 4. **Economia parcialmente separada:**
@@ -114,9 +114,10 @@ public record GameCharacter(
 
 **Comandos (`Commands/Harem`):**
 
-- `GameWaifuCommand` (`gamewaifu`, alias `wg`), `GameHusbandoCommand`
-  (`gamehusbando`, alias `hg`), `GameRollCommand` (`gameroll`, alias `gr`) —
-  espelhos de `WaifuCommand`/`Husbando`/`RollCommand` chamando `rollGame`.
+- `GameWaifuCommand` (`gamewaifu`, aliases `wg`, `gw`), `GameHusbandoCommand`
+  (`gamehusbando`, aliases `hg`, `gh`), `GameRollCommand` (`gameroll`, aliases
+  `gr`, `rg`) — espelhos de `WaifuCommand`/`Husbando`/`RollCommand` chamando
+  `rollGame`.
 - Registro no `CommandManager` junto dos demais.
 - `TimersCommand`: campo novo mostrando rolls de jogo restantes e cooldown de
   casamento de jogos.

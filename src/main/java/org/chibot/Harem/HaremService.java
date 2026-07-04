@@ -89,6 +89,9 @@ public class HaremService extends ListenerAdapter {
     private final ArrayDeque<GameCharacter> gameHusbandos = new ArrayDeque<>();
     private final ArrayDeque<GameCharacter> gameOutros = new ArrayDeque<>();
 
+    /** Lock proprio dos pools de jogos: um travamento do Giant Bomb nao segura os rolls de anime. */
+    private final Object gameLock = new Object();
+
     /**
      * Mensagens cujo kakera ja foi coletado (guarda contra clique duplo), com o
      * instante (epoch ms) em que o botao expira — assim a limpeza remove so as
@@ -302,15 +305,17 @@ public class HaremService extends ListenerAdapter {
         }
     }
 
-    private synchronized GameCharacter pickGameCharacter(Genero genero) {
-        for (int tentativa = 0; tentativa < 3; tentativa++) {
-            GameCharacter ch = pollGamePool(genero);
-            if (ch != null) {
-                return ch;
+    private GameCharacter pickGameCharacter(Genero genero) {
+        synchronized (gameLock) {
+            for (int tentativa = 0; tentativa < 3; tentativa++) {
+                GameCharacter ch = pollGamePool(genero);
+                if (ch != null) {
+                    return ch;
+                }
+                refillGames();
             }
-            refillGames();
+            return pollGamePool(genero);
         }
-        return pollGamePool(genero);
     }
 
     private GameCharacter pollGamePool(Genero genero) {
@@ -440,7 +445,8 @@ public class HaremService extends ListenerAdapter {
                     cooldownAvisado.values().removeIf(expira -> agora > expira);
                 }
                 event.getChannel().sendMessage("<@" + userId + "> calminha, coração apressado~ "
-                        + "você pode casar de novo " + relativo(proximoClaim) + "! (・∀・)").queue();
+                        + "você pode casar" + (roll.game() ? " (jogos)" : "") + " de novo "
+                        + relativo(proximoClaim) + "! (・∀・)").queue();
             }
             return;
         }

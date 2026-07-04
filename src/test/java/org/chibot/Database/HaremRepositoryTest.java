@@ -255,5 +255,12 @@ class HaremRepositoryTest {
         assertEquals(ANA, repo.findOwner(GUILD, 42).ownerId());
         assertEquals(BIA, repo.findOwner(GUILD, -42).ownerId());
         assertEquals(1, repo.listHarem(GUILD, BIA).size());
+
+        // Troca entre um personagem de anime e um de jogo (id negativo) funciona.
+        assertTrue(repo.tradeClaims(GUILD,
+                42, ANA, BIA, "Dona " + BIA,
+                -42, BIA, ANA, "Dona " + ANA));
+        assertEquals(BIA, repo.findOwner(GUILD, 42).ownerId());
+        assertEquals(ANA, repo.findOwner(GUILD, -42).ownerId());
     }
 }
