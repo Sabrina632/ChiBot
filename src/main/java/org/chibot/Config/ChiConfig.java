@@ -29,12 +29,14 @@ public class ChiConfig {
     private final String youtubeRefreshToken;
     private final String ownerId;
     private final String deeplApiKey;
+    private final String giantBombApiKey;
 
     private ChiConfig(String token, String prefix, String guildId,
                       String lavalinkUri, String lavalinkPassword,
                       String youtubeApiKey, String youtubeRefreshToken,
                       String ownerId,
-                      String deeplApiKey) {
+                      String deeplApiKey,
+                      String giantBombApiKey) {
 
         this.token = token;
         this.prefix = prefix;
@@ -45,6 +47,7 @@ public class ChiConfig {
         this.youtubeRefreshToken = youtubeRefreshToken;
         this.ownerId = ownerId;
         this.deeplApiKey = deeplApiKey;
+        this.giantBombApiKey = giantBombApiKey;
     }
 
     public static ChiConfig load() throws IOException {
@@ -65,10 +68,11 @@ public class ChiConfig {
         String youtubeRefreshToken = value(env, "YOUTUBE_REFRESH_TOKEN", "");
         String ownerId = value(env, "OWNER_ID", "");
         String deeplApiKey = value(env, "DEEPL_API_KEY", "");
+        String giantBombApiKey = value(env, "GIANTBOMB_API_KEY", "");
 
         ChiConfig config = new ChiConfig(token, prefix, guildId, lavalinkUri, lavalinkPassword,
                 youtubeApiKey, youtubeRefreshToken, ownerId,
-                deeplApiKey);
+                deeplApiKey, giantBombApiKey);
         loaded = config;
         return config;
     }
@@ -192,6 +196,11 @@ public class ChiConfig {
                 "# Chave da API DeepL (Free ou Pro). Vazio = traducao desligada.",
                 "# A chave da conta Free termina em ':fx'.",
                 "DEEPL_API_KEY=",
+                "",
+                "# ─── Harem de jogos (Giant Bomb) ──────────────────────────",
+                "# Chave gratuita em giantbomb.com/api (rolls de personagens de jogos).",
+                "# Vazio = comandos gamewaifu/gamehusbando/gameroll desligados.",
+                "GIANTBOMB_API_KEY=",
                 "");
         Files.writeString(ENV_PATH, content, StandardCharsets.UTF_8);
     }
@@ -236,5 +245,10 @@ public class ChiConfig {
     /** Chave da API DeepL (traducao por usuario). Vazia = traducao desligada. */
     public String getDeeplApiKey() {
         return deeplApiKey;
+    }
+
+    /** Chave da API do Giant Bomb (rolls de personagens de jogos). Vazia = desligado. */
+    public String getGiantBombApiKey() {
+        return giantBombApiKey;
     }
 }

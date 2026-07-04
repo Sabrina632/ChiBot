@@ -88,6 +88,7 @@ As mesmas chaves também podem vir de variáveis de ambiente do processo, que **
 | `YOUTUBE_API_KEY`       | (Opcional) Chave da YouTube Data API v3 — melhora a busca por nome. Vazio = busca pelo `ytsearch` do Lavalink. |
 | `YOUTUBE_REFRESH_TOKEN` | (Opcional) Login do YouTube via OAuth — necessário em IP de datacenter (veja [Login do YouTube](#-login-do-youtube-oauth)). |
 | `DEEPL_API_KEY`         | (Opcional) Chave da [API DeepL](https://www.deepl.com/pro-api) (Free ou Pro) para o `/language`. Vazio = tradução desligada (tudo em pt). A chave da conta **Free** termina em `:fx`. |
+| `GIANTBOMB_API_KEY`     | (Opcional) Chave da [API do Giant Bomb](https://www.giantbomb.com/api/) — habilita os rolls de personagens de **jogos** (`gamewaifu`/`gamehusbando`/`gameroll`). Vazio = só personagens de anime. |
 
 > ⚠️ **Nunca compartilhe nem commite seu token.** Ele dá controle total sobre o bot. Veja [Segurança](#-segurança).
 
