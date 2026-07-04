@@ -31,7 +31,8 @@ public class HaremRepository {
 
     /** Estado de um jogador num servidor. */
     public record Player(long kakera, long lastClaimMs, int rollsUsed, long rollsHour,
-                         long lastDailyMs, int bonusRolls, int towerLevel) {}
+                         long lastDailyMs, int bonusRolls, int towerLevel,
+                         int gameRollsUsed, long gameRollsHour, long gameLastClaimMs) {}
 
     /** Um personagem casado num servidor. */
     public record Claim(long charId, String name, String series, String imageUrl,
@@ -100,15 +101,18 @@ public class HaremRepository {
                     "CREATE INDEX IF NOT EXISTS idx_harem_claim_owner ON harem_claim(guild_id, owner_id)");
             st.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS harem_player (
-                        guild_id    TEXT    NOT NULL,
-                        user_id     TEXT    NOT NULL,
-                        kakera      INTEGER NOT NULL DEFAULT 0,
-                        last_claim  INTEGER NOT NULL DEFAULT 0,
-                        rolls_used  INTEGER NOT NULL DEFAULT 0,
-                        rolls_hour  INTEGER NOT NULL DEFAULT 0,
-                        last_daily  INTEGER NOT NULL DEFAULT 0,
-                        bonus_rolls INTEGER NOT NULL DEFAULT 0,
-                        tower_level INTEGER NOT NULL DEFAULT 0,
+                        guild_id      TEXT    NOT NULL,
+                        user_id       TEXT    NOT NULL,
+                        kakera        INTEGER NOT NULL DEFAULT 0,
+                        last_claim    INTEGER NOT NULL DEFAULT 0,
+                        rolls_used    INTEGER NOT NULL DEFAULT 0,
+                        rolls_hour    INTEGER NOT NULL DEFAULT 0,
+                        last_daily    INTEGER NOT NULL DEFAULT 0,
+                        bonus_rolls   INTEGER NOT NULL DEFAULT 0,
+                        tower_level   INTEGER NOT NULL DEFAULT 0,
+                        game_rolls_used INTEGER NOT NULL DEFAULT 0,
+                        game_rolls_hour INTEGER NOT NULL DEFAULT 0,
+                        game_last_claim INTEGER NOT NULL DEFAULT 0,
                         PRIMARY KEY (guild_id, user_id)
                     )
                     """);
@@ -117,6 +121,9 @@ public class HaremRepository {
             addColumnIfMissing(st, "harem_player", "last_daily INTEGER NOT NULL DEFAULT 0");
             addColumnIfMissing(st, "harem_player", "bonus_rolls INTEGER NOT NULL DEFAULT 0");
             addColumnIfMissing(st, "harem_player", "tower_level INTEGER NOT NULL DEFAULT 0");
+            addColumnIfMissing(st, "harem_player", "game_rolls_used INTEGER NOT NULL DEFAULT 0");
+            addColumnIfMissing(st, "harem_player", "game_rolls_hour INTEGER NOT NULL DEFAULT 0");
+            addColumnIfMissing(st, "harem_player", "game_last_claim INTEGER NOT NULL DEFAULT 0");
             st.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS harem_wish (
                         guild_id   TEXT NOT NULL,
@@ -243,13 +250,56 @@ public class HaremRepository {
         }
     }
 
+    /**
+     * Consome um roll de jogos do jogador (cota propria, sem bonus de torre nem
+     * rolls comprados). Retorna quantos sobram depois desse, ou -1 se acabou.
+     * Sem banco, libera o roll (so nao conta).
+     */
+    public synchronized int tryUseGameRoll(String guildId, String userId, long hour, int maxRolls) {
+        if (!available()) {
+            return maxRolls - 1;
+        }
+        try {
+            ensurePlayer(guildId, userId);
+            int used = 0;
+            try (PreparedStatement ps = conn.prepareStatement("""
+                    SELECT game_rolls_used, game_rolls_hour
+                    FROM harem_player WHERE guild_id = ? AND user_id = ?
+                    """)) {
+                ps.setString(1, guildId);
+                ps.setString(2, userId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next() && rs.getLong("game_rolls_hour") == hour) {
+                        used = rs.getInt("game_rolls_used");
+                    }
+                }
+            }
+            if (used >= maxRolls) {
+                return -1;
+            }
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "UPDATE harem_player SET game_rolls_used = ?, game_rolls_hour = ? WHERE guild_id = ? AND user_id = ?")) {
+                ps.setInt(1, used + 1);
+                ps.setLong(2, hour);
+                ps.setString(3, guildId);
+                ps.setString(4, userId);
+                ps.executeUpdate();
+            }
+            return maxRolls - used - 1;
+        } catch (SQLException e) {
+            log.warn("Falha ao consumir roll de jogo de {}/{}.", guildId, userId, e);
+            return maxRolls - 1;
+        }
+    }
+
     /** Estado do jogador (tudo zerado se nunca jogou / banco indisponivel). */
     public synchronized Player getPlayer(String guildId, String userId) {
         if (!available()) {
-            return new Player(0, 0, 0, 0, 0, 0, 0);
+            return new Player(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
         }
         try (PreparedStatement ps = conn.prepareStatement("""
-                SELECT kakera, last_claim, rolls_used, rolls_hour, last_daily, bonus_rolls, tower_level
+                SELECT kakera, last_claim, rolls_used, rolls_hour, last_daily, bonus_rolls, tower_level,
+                       game_rolls_used, game_rolls_hour, game_last_claim
                 FROM harem_player WHERE guild_id = ? AND user_id = ?
                 """)) {
             ps.setString(1, guildId);
@@ -259,13 +309,15 @@ public class HaremRepository {
                     return new Player(rs.getLong("kakera"), rs.getLong("last_claim"),
                             rs.getInt("rolls_used"), rs.getLong("rolls_hour"),
                             rs.getLong("last_daily"), rs.getInt("bonus_rolls"),
-                            rs.getInt("tower_level"));
+                            rs.getInt("tower_level"),
+                            rs.getInt("game_rolls_used"), rs.getLong("game_rolls_hour"),
+                            rs.getLong("game_last_claim"));
                 }
             }
         } catch (SQLException e) {
             log.warn("Falha ao ler o jogador {}/{}.", guildId, userId, e);
         }
-        return new Player(0, 0, 0, 0, 0, 0, 0);
+        return new Player(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     }
 
     public synchronized void setLastClaim(String guildId, String userId, long epochMs) {
@@ -283,6 +335,24 @@ public class HaremRepository {
             }
         } catch (SQLException e) {
             log.warn("Falha ao registrar o claim de {}/{}.", guildId, userId, e);
+        }
+    }
+
+    public synchronized void setLastGameClaim(String guildId, String userId, long epochMs) {
+        if (!available()) {
+            return;
+        }
+        try {
+            ensurePlayer(guildId, userId);
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "UPDATE harem_player SET game_last_claim = ? WHERE guild_id = ? AND user_id = ?")) {
+                ps.setLong(1, epochMs);
+                ps.setString(2, guildId);
+                ps.setString(3, userId);
+                ps.executeUpdate();
+            }
+        } catch (SQLException e) {
+            log.warn("Falha ao registrar o claim de jogo de {}/{}.", guildId, userId, e);
         }
     }
 

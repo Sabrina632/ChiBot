@@ -214,4 +214,46 @@ class HaremRepositoryTest {
         assertFalse(repo.removeWish(GUILD, ANA, "rem"));
         assertEquals(List.of("zero two"), repo.listWishes(GUILD, ANA));
     }
+
+    @Test
+    void rollsDeJogoTemCotaPropria() {
+        HaremRepository repo = inMemory();
+
+        // Esgota a cota de anime; a de jogos continua intacta (e vice-versa).
+        assertEquals(0, repo.tryUseRoll(GUILD, ANA, 100, 1));
+        assertEquals(-1, repo.tryUseRoll(GUILD, ANA, 100, 1));
+
+        assertEquals(1, repo.tryUseGameRoll(GUILD, ANA, 100, 2));
+        assertEquals(0, repo.tryUseGameRoll(GUILD, ANA, 100, 2));
+        assertEquals(-1, repo.tryUseGameRoll(GUILD, ANA, 100, 2));
+
+        // Outra hora reseta a cota de jogos; outro jogador tem cota propria.
+        assertEquals(1, repo.tryUseGameRoll(GUILD, ANA, 101, 2));
+        assertEquals(1, repo.tryUseGameRoll(GUILD, BIA, 100, 2));
+    }
+
+    @Test
+    void cooldownDeClaimDeJogoEIndependente() {
+        HaremRepository repo = inMemory();
+
+        repo.setLastClaim(GUILD, ANA, 111);
+        repo.setLastGameClaim(GUILD, ANA, 222);
+
+        HaremRepository.Player p = repo.getPlayer(GUILD, ANA);
+        assertEquals(111, p.lastClaimMs());
+        assertEquals(222, p.gameLastClaimMs());
+    }
+
+    @Test
+    void claimDeIdNegativoConviveComPositivo() {
+        HaremRepository repo = inMemory();
+
+        // Personagem de jogo (id negativo) e de anime (positivo) nao colidem.
+        assertTrue(repo.tryClaim(GUILD, claim(42, "Zero Two", 500, ANA), 1000));
+        assertTrue(repo.tryClaim(GUILD, claim(-42, "Tifa Lockhart", 400, BIA), 1000));
+
+        assertEquals(ANA, repo.findOwner(GUILD, 42).ownerId());
+        assertEquals(BIA, repo.findOwner(GUILD, -42).ownerId());
+        assertEquals(1, repo.listHarem(GUILD, BIA).size());
+    }
 }
