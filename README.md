@@ -332,8 +332,8 @@ src/main/java/org/chibot/
 │   ├── PrefixCommandContext.java
 │   ├── SlashCommandContext.java
 │   ├── PingCommand.java
-│   ├── Core/                   # help (lista por categoria) e clear (faxina do canal)
-│   ├── Admin/                  # ban, kick, mute (timeout), unmute
+│   ├── Core/                   # help (lista por categoria), clear (faxina do canal), language (idioma por usuário) e ChiActivity (status "jogando" com contagem de online)
+│   ├── Admin/                  # ban, kick, mute (timeout), unmute, maintenance (pausa o bot; só o dono)
 │   │   └── ModUtils.java       # alvo/motivo/hierarquia + embed compartilhados
 │   ├── Fun/                    # hug, kiss, pat, slap (roleplay com gif de anime)
 │   │   ├── RoleplayAction.java # base: marca alguém + embed com gif
@@ -356,13 +356,16 @@ src/main/java/org/chibot/
 │   ├── PfRepository.java       # SQLite: snapshot dos PF + contagem de strats
 │   ├── HaremRepository.java    # SQLite: casamentos, kakera/cooldowns e desejos
 │   ├── MusicRepository.java    # SQLite (ChiMusic.db, WAL): fila, playlists salvas e volume
-│   └── LanguageRepository.java # SQLite (ChiLang.db): idioma por usuário + cache de traduções
+│   ├── LanguageRepository.java # SQLite (ChiLang.db): idioma por usuário + cache de traduções
+│   └── MaintenanceRepository.java # SQLite (ChiState.db): flag do modo manutenção (sobrevive a restart)
 ├── Harem/
 │   ├── HaremService.java       # singleton: pools de personagens + botões de claim/kakera + conquistas
 │   ├── HaremBadges.java        # catálogo dos badges (conquistas + loja)
 │   ├── HaremEmojis.java        # application emojis do harém (kakera, torre, badges)
 │   ├── AniListClient.java      # API GraphQL do AniList (personagens populares)
-│   └── AnimeCharacter.java
+│   ├── AnimeCharacter.java
+│   ├── GameCharacterDataset.java # dataset embarcado de personagens de jogos (dumps do giant-bomb-wiki)
+│   └── GameCharacter.java
 ├── Logging/
 │   └── KawaiiLayout.java       # layout de log pastel em truecolor
 ├── Translation/
@@ -380,8 +383,11 @@ src/main/java/org/chibot/
     └── YtSearch.java           # busca por nome via YouTube Data API (opcional)
 src/main/resources/
 ├── banner.txt                  # arte ASCII do boot
+├── emojis/                     # PNGs dos application emojis (kakera, torre)
+├── harem/game_characters.tsv.gz # dataset dos rolls de jogos (~7.100 personagens)
 └── logback.xml                 # configuração de logging
-src/test/java/                  # testes (JUnit 5): tokenizer, parser do xivpf, repositório
+src/test/java/                  # testes (JUnit 6): repositórios, tradução, help, dataset de jogos, xivpf
+tools/extract_gb_characters.py  # (re)gera o dataset de jogos a partir dos dumps do giant-bomb-wiki
 lavalink/application.yml        # config do servidor Lavalink (plugin do YouTube, fontes)
 ```
 
