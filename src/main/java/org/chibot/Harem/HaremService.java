@@ -78,19 +78,12 @@ public class HaremService extends ListenerAdapter {
 
     private final HaremRepository repo;
     private final AniListClient aniList = new AniListClient();
-    private final GiantBombClient giantBomb = new GiantBombClient();
+    private final GameCharacterDataset gameDataset = new GameCharacterDataset();
     private final Random random = new Random();
 
     private final ArrayDeque<AnimeCharacter> waifus = new ArrayDeque<>();
     private final ArrayDeque<AnimeCharacter> husbandos = new ArrayDeque<>();
     private final ArrayDeque<AnimeCharacter> outros = new ArrayDeque<>();
-
-    private final ArrayDeque<GameCharacter> gameWaifus = new ArrayDeque<>();
-    private final ArrayDeque<GameCharacter> gameHusbandos = new ArrayDeque<>();
-    private final ArrayDeque<GameCharacter> gameOutros = new ArrayDeque<>();
-
-    /** Lock proprio dos pools de jogos: um travamento do Giant Bomb nao segura os rolls de anime. */
-    private final Object gameLock = new Object();
 
     /**
      * Mensagens cujo kakera ja foi coletado (guarda contra clique duplo), com o
@@ -157,12 +150,8 @@ public class HaremService extends ListenerAdapter {
         postarRoll(ctx, ch.id(), ch.name(), ch.series(), ch.imageUrl(), ch.kakera(), false, restantes);
     }
 
-    /** Sorteia um personagem de jogo (Giant Bomb) e posta o embed de claim. */
+    /** Sorteia um personagem de jogo (dataset do giant-bomb-wiki) e posta o embed de claim. */
     public void rollGame(CommandContext ctx, Genero genero) {
-        if (!giantBomb.isAvailable()) {
-            ctx.reply("Os rolls de jogos não estão configurados aqui (falta a `GIANTBOMB_API_KEY`)~ (・_・;)");
-            return;
-        }
         ctx.deferReply();
         String guildId = ctx.getGuild().getId();
         String userId = ctx.getAuthor().getId();
@@ -176,10 +165,6 @@ public class HaremService extends ListenerAdapter {
         }
 
         GameCharacter ch = pickGameCharacter(genero);
-        if (ch == null) {
-            ctx.reply("Não consegui falar com o Giant Bomb agora... tenta de novo daqui a pouco? (；△；)");
-            return;
-        }
         postarRoll(ctx, ch.id(), ch.name(), ch.game(), ch.imageUrl(), ch.kakera(), true, restantes);
     }
 
@@ -305,55 +290,16 @@ public class HaremService extends ListenerAdapter {
         }
     }
 
+    /** Sorteio direto do dataset local — sem pools nem rede. */
     private GameCharacter pickGameCharacter(Genero genero) {
-        synchronized (gameLock) {
-            for (int tentativa = 0; tentativa < 3; tentativa++) {
-                GameCharacter ch = pollGamePool(genero);
-                if (ch != null) {
-                    return ch;
-                }
-                refillGames();
-            }
-            return pollGamePool(genero);
-        }
-    }
-
-    private GameCharacter pollGamePool(Genero genero) {
+        Random rng = java.util.concurrent.ThreadLocalRandom.current();
         switch (genero) {
             case WAIFU:
-                return gameWaifus.poll();
+                return gameDataset.randomFemale(rng);
             case HUSBANDO:
-                return gameHusbandos.poll();
+                return gameDataset.randomMale(rng);
             default:
-                int total = gameWaifus.size() + gameHusbandos.size() + gameOutros.size();
-                if (total == 0) {
-                    return null;
-                }
-                int r = random.nextInt(total);
-                if (r < gameWaifus.size()) {
-                    return gameWaifus.poll();
-                }
-                return r < gameWaifus.size() + gameHusbandos.size()
-                        ? gameHusbandos.poll() : gameOutros.poll();
-        }
-    }
-
-    /** Busca um offset aleatorio do Giant Bomb e distribui os personagens nos pools por genero. */
-    private void refillGames() {
-        int offset = random.nextInt(GiantBombClient.MAX_OFFSET / GiantBombClient.PER_PAGE + 1)
-                * GiantBombClient.PER_PAGE;
-        try {
-            List<GameCharacter> lote = new ArrayList<>(giantBomb.fetchPage(offset));
-            Collections.shuffle(lote, random);
-            for (GameCharacter ch : lote) {
-                ArrayDeque<GameCharacter> pool =
-                        ch.isFemale() ? gameWaifus : ch.isMale() ? gameHusbandos : gameOutros;
-                if (pool.size() < MAX_POOL) {
-                    pool.add(ch);
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Falha ao buscar personagens no Giant Bomb (offset {}).", offset, e);
+                return gameDataset.randomAny(rng);
         }
     }
 
