@@ -291,6 +291,9 @@ O contexto ([`CommandContext`](src/main/java/org/chibot/Commands/CommandContext.
 | `waifu`     | `w`, `wa`                | Rola uma waifu aleatória — clica no 💗 em até 45s pra casar (10 rolls/hora). |
 | `husbando`  | `h`, `ha`                | Rola um husbando aleatório.                                                 |
 | `roll`      | `m`, `mx`                | Rola qualquer personagem (waifu ou husbando).                               |
+| `gamewaifu` | `wg`, `gw`               | Rola uma waifu de **jogos** (dataset embarcado do giant-bomb-wiki) — cota própria de 10 rolls/hora e cooldown de casamento separado do lado anime. |
+| `gamehusbando` | `hg`, `gh`            | Rola um husbando de jogos.                                                  |
+| `gameroll`  | `gr`, `rg`               | Rola qualquer personagem de jogos. Claims de jogos aparecem com 🎮 no harém. |
 | `harem`     | `mm`, `meuharem`         | Mostra seu harém (ou o de outra pessoa: `harem @user`), ordenado por valor; `harem <personagem>` escolhe qual personagem aparece na imagem. |
 | `divorce`   | `divorciar`              | Se divorcia de um personagem (devolve metade do valor em kakera).           |
 | `trade`     | `trocar`                 | Propõe troca: `trade @user <seu personagem> por <o dele>` — a outra pessoa aceita/recusa por botão (expira em 2 min). |
@@ -335,7 +338,7 @@ src/main/java/org/chibot/
 │   ├── Fun/                    # hug, kiss, pat, slap (roleplay com gif de anime)
 │   │   ├── RoleplayAction.java # base: marca alguém + embed com gif
 │   │   └── FunGifService.java  # busca os gifs na API do nekos.best (sem chave)
-│   ├── Harem/                  # waifu, husbando, roll, harem, divorce, trade, daily, kakera, buyrolls, tower, badge, profile, wish, timers
+│   ├── Harem/                  # waifu, husbando, roll, gamewaifu, gamehusbando, gameroll, harem, divorce, trade, daily, kakera, buyrolls, tower, badge, profile, wish, timers
 │   ├── Music/                  # play, pause, resume, skip, stop, playlist (+ add), volume
 │   │   └── MusicCommand.java   # base: guild-only + atalhos de voz
 │   └── PartyFinderCommands/
