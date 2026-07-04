@@ -58,9 +58,10 @@ fora da stdlib), rodado manualmente na máquina de dev quando se quiser
    gender, birthday, date_created, date_updated, name, aliases, deck, slug,
    mw_formatted_description, description, is_important, background_image_id,
    death, stats_id, deleted`.
-3. **Filtro:** `deleted != 1`, descrição (HTML removido pra contagem) com
-   ≥ 1000 caracteres, e imagem resolvível na tabela `image` cuja URL não seja
-   placeholder (`gb_default`/`default`).
+3. **Filtro:** `deleted != 1`, descrição com ≥ 1000 caracteres (contados no
+   HTML cru — foi assim que os números deste spec foram medidos; o HTML só é
+   removido pra inferência de gênero), e imagem resolvível na tabela `image`
+   cuja URL não seja placeholder (`gb_default`/`default`).
 4. **Série:** nome da franquia via `wiki_assoc_character_franchise` +
    `08_franchise` (se houver mais de uma, a de menor id); sem franquia →
    `"Origem desconhecida"`.
