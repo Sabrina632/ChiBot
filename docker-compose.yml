@@ -25,8 +25,11 @@ services:
       - _JAVA_OPTIONS=-Xmx512M
     # Musica: o bot fala com o Lavalink pela rede interna do compose.
     # No .env da VPS, use LAVALINK_URI=ws://lavalink:2333.
+    # service_healthy: segura o bot ate o Lavalink RESPONDER (nao so iniciar),
+    # senao o boot enche o log de "Failed to connect to WS" ate ele subir.
     depends_on:
-      - lavalink
+      lavalink:
+        condition: service_healthy
 
   lavalink:
     image: ghcr.io/lavalink-devs/lavalink:4
@@ -58,6 +61,14 @@ services:
     # alcanca em ws://localhost:2333, mas nada fica aberto pra internet.
     ports:
       - "127.0.0.1:2333:2333"
+    # Pronto = REST /v4/info respondendo com auth (wget vem na imagem).
+    # start_period cobre o boot do Spring sem contar como falha.
+    healthcheck:
+      test: 'wget --header="Authorization: ${LAVALINK_PASSWORD:-youshallnotpass}" -qO- http://127.0.0.1:2333/v4/info || exit 1'
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     logging:
       driver: json-file
       options:
