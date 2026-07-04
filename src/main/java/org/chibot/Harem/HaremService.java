@@ -30,8 +30,8 @@ import java.util.stream.Collectors;
 
 /**
  * Sistema de waifu/husbando estilo Mudae: rolls sorteiam personagens reais de
- * anime (AniList) e quem reagir (com qualquer emoji) dentro da janela casa com
- * o personagem — um dono por personagem por servidor.
+ * anime (AniList) ou de jogos (Giant Bomb) e quem reagir (com qualquer emoji)
+ * dentro da janela casa com o personagem — um dono por personagem por servidor.
  *
  * <p>O servico mantem pools de personagens pre-buscados por genero (pra cada
  * roll nao custar uma chamada de API). Os rolls livres ficam num mapa em
@@ -45,6 +45,8 @@ public class HaremService extends ListenerAdapter {
     public enum Genero { WAIFU, HUSBANDO, QUALQUER }
 
     public static final int ROLLS_POR_HORA = 10;
+    /** Cota propria dos rolls de jogos (sem bonus de torre nem rolls comprados). */
+    public static final int ROLLS_JOGO_POR_HORA = 10;
     public static final Duration INTERVALO_CLAIM = Duration.ofHours(3);
     public static final Duration JANELA_CLAIM = Duration.ofSeconds(45);
     public static final int MAX_DESEJOS = 5;
@@ -76,11 +78,16 @@ public class HaremService extends ListenerAdapter {
 
     private final HaremRepository repo;
     private final AniListClient aniList = new AniListClient();
+    private final GiantBombClient giantBomb = new GiantBombClient();
     private final Random random = new Random();
 
     private final ArrayDeque<AnimeCharacter> waifus = new ArrayDeque<>();
     private final ArrayDeque<AnimeCharacter> husbandos = new ArrayDeque<>();
     private final ArrayDeque<AnimeCharacter> outros = new ArrayDeque<>();
+
+    private final ArrayDeque<GameCharacter> gameWaifus = new ArrayDeque<>();
+    private final ArrayDeque<GameCharacter> gameHusbandos = new ArrayDeque<>();
+    private final ArrayDeque<GameCharacter> gameOutros = new ArrayDeque<>();
 
     /**
      * Mensagens cujo kakera ja foi coletado (guarda contra clique duplo), com o
@@ -91,7 +98,7 @@ public class HaremService extends ListenerAdapter {
 
     /** Dados de um personagem livre rolado, esperando alguem reagir pra casar. */
     private record Roll(long charId, String name, String series, String image, int kakera,
-                        long expiraMs, String guildId) {
+                        long expiraMs, String guildId, boolean game) {
     }
 
     /** Rolls livres por id da mensagem — a primeira reacao valida casa o personagem. */
@@ -128,8 +135,7 @@ public class HaremService extends ListenerAdapter {
         ctx.deferReply();
         String guildId = ctx.getGuild().getId();
         String userId = ctx.getAuthor().getId();
-        long agora = System.currentTimeMillis();
-        long hora = agora / 3_600_000L;
+        long hora = System.currentTimeMillis() / 3_600_000L;
 
         // A torre de kakera da +1 roll por hora a cada nivel.
         int maxRolls = ROLLS_POR_HORA + repo.getPlayer(guildId, userId).towerLevel();
@@ -145,21 +151,54 @@ public class HaremService extends ListenerAdapter {
             ctx.reply("Não consegui falar com o AniList agora... tenta de novo daqui a pouco? (；△；)");
             return;
         }
+        postarRoll(ctx, ch.id(), ch.name(), ch.series(), ch.imageUrl(), ch.kakera(), false, restantes);
+    }
 
-        HaremRepository.Claim dona = repo.findOwner(guildId, ch.id());
+    /** Sorteia um personagem de jogo (Giant Bomb) e posta o embed de claim. */
+    public void rollGame(CommandContext ctx, Genero genero) {
+        if (!giantBomb.isAvailable()) {
+            ctx.reply("Os rolls de jogos não estão configurados aqui (falta a `GIANTBOMB_API_KEY`)~ (・_・;)");
+            return;
+        }
+        ctx.deferReply();
+        String guildId = ctx.getGuild().getId();
+        String userId = ctx.getAuthor().getId();
+        long hora = System.currentTimeMillis() / 3_600_000L;
+
+        int restantes = repo.tryUseGameRoll(guildId, userId, hora, ROLLS_JOGO_POR_HORA);
+        if (restantes < 0) {
+            ctx.reply("Seus rolls de jogos acabaram~ pode rolar de novo "
+                    + relativo((hora + 1) * 3_600_000L) + "! (｡•́︿•̀｡)");
+            return;
+        }
+
+        GameCharacter ch = pickGameCharacter(genero);
+        if (ch == null) {
+            ctx.reply("Não consegui falar com o Giant Bomb agora... tenta de novo daqui a pouco? (；△；)");
+            return;
+        }
+        postarRoll(ctx, ch.id(), ch.name(), ch.game(), ch.imageUrl(), ch.kakera(), true, restantes);
+    }
+
+    /** Monta e posta o embed do personagem sorteado (livre = casavel por reacao; casado = botao de kakera). */
+    private void postarRoll(CommandContext ctx, long charId, String name, String origem,
+                            String imageUrl, int kakera, boolean game, int restantes) {
+        String guildId = ctx.getGuild().getId();
+        long agora = System.currentTimeMillis();
+        HaremRepository.Claim dona = repo.findOwner(guildId, charId);
         long expira = (agora + JANELA_CLAIM.toMillis()) / 1000L;
 
         EmbedBuilder eb = new EmbedBuilder()
-                .setTitle(ch.name())
-                .setDescription(ch.series() + "\n\n" + HaremEmojis.kakera(ch.kakera())
-                        + " **" + ch.kakera() + "** kakera")
-                .setImage(ch.imageUrl());
+                .setTitle(name)
+                .setDescription((game ? "🎮 " : "") + origem + "\n\n" + HaremEmojis.kakera(kakera)
+                        + " **" + kakera + "** kakera")
+                .setImage(imageUrl);
 
         if (dona == null) {
             eb.setColor(COR_LIVRE)
                     .setFooter("💗 Reage com qualquer emoji pra casar! · " + restantes + " roll(s) restantes");
             String conteudo = null;
-            List<String> desejantes = repo.findWishers(guildId, ch.name().toLowerCase(Locale.ROOT));
+            List<String> desejantes = repo.findWishers(guildId, name.toLowerCase(Locale.ROOT));
             if (!desejantes.isEmpty()) {
                 conteudo = "✨ " + desejantes.stream()
                         .map(id -> "<@" + id + ">")
@@ -167,15 +206,15 @@ public class HaremService extends ListenerAdapter {
                         + " — apareceu alguém da sua lista de desejos!";
             }
             // Sem botao: quem reagir primeiro (qualquer emoji) casa — ver onMessageReactionAdd.
-            Roll roll = new Roll(ch.id(), ch.name(), ch.series(), ch.imageUrl(), ch.kakera(),
-                    agora + JANELA_CLAIM.toMillis(), guildId);
+            Roll roll = new Roll(charId, name, origem, imageUrl, kakera,
+                    agora + JANELA_CLAIM.toMillis(), guildId, game);
             ctx.replyEmbedAndThen(conteudo, eb.build(), msg -> registrarRoll(msg.getIdLong(), roll));
         } else {
-            int saque = saqueDe(ch.kakera());
+            int saque = saqueDe(kakera);
             eb.setColor(COR_CASADA)
                     .setFooter("💍 Pertence a " + dona.ownerName());
             Button botao = Button.of(ButtonStyle.SECONDARY, "hkak:" + saque + ":" + expira,
-                    String.valueOf(saque), HaremEmojis.kakeraEmoji(ch.kakera()));
+                    String.valueOf(saque), HaremEmojis.kakeraEmoji(kakera));
             ctx.replyEmbedWithButtons(null, eb.build(), List.of(botao));
         }
     }
@@ -200,6 +239,19 @@ public class HaremService extends ListenerAdapter {
     /** Instante (epoch ms) em que o jogador pode casar de novo. */
     public long proximoClaimMs(String guildId, String userId) {
         return repo.getPlayer(guildId, userId).lastClaimMs() + INTERVALO_CLAIM.toMillis();
+    }
+
+    /** Rolls de jogos que ainda sobram pro jogador na hora atual, sem consumir nenhum. */
+    public int gameRollsRestantes(String guildId, String userId) {
+        HaremRepository.Player p = repo.getPlayer(guildId, userId);
+        long hora = System.currentTimeMillis() / 3_600_000L;
+        int usados = p.gameRollsHour() == hora ? p.gameRollsUsed() : 0;
+        return Math.max(0, ROLLS_JOGO_POR_HORA - usados);
+    }
+
+    /** Instante (epoch ms) em que o jogador pode casar um personagem de jogo de novo. */
+    public long proximoGameClaimMs(String guildId, String userId) {
+        return repo.getPlayer(guildId, userId).gameLastClaimMs() + INTERVALO_CLAIM.toMillis();
     }
 
     private synchronized AnimeCharacter pickCharacter(Genero genero) {
@@ -247,6 +299,56 @@ public class HaremService extends ListenerAdapter {
             }
         } catch (Exception e) {
             log.warn("Falha ao buscar personagens no AniList (pagina {}).", pagina, e);
+        }
+    }
+
+    private synchronized GameCharacter pickGameCharacter(Genero genero) {
+        for (int tentativa = 0; tentativa < 3; tentativa++) {
+            GameCharacter ch = pollGamePool(genero);
+            if (ch != null) {
+                return ch;
+            }
+            refillGames();
+        }
+        return pollGamePool(genero);
+    }
+
+    private GameCharacter pollGamePool(Genero genero) {
+        switch (genero) {
+            case WAIFU:
+                return gameWaifus.poll();
+            case HUSBANDO:
+                return gameHusbandos.poll();
+            default:
+                int total = gameWaifus.size() + gameHusbandos.size() + gameOutros.size();
+                if (total == 0) {
+                    return null;
+                }
+                int r = random.nextInt(total);
+                if (r < gameWaifus.size()) {
+                    return gameWaifus.poll();
+                }
+                return r < gameWaifus.size() + gameHusbandos.size()
+                        ? gameHusbandos.poll() : gameOutros.poll();
+        }
+    }
+
+    /** Busca um offset aleatorio do Giant Bomb e distribui os personagens nos pools por genero. */
+    private void refillGames() {
+        int offset = random.nextInt(GiantBombClient.MAX_OFFSET / GiantBombClient.PER_PAGE + 1)
+                * GiantBombClient.PER_PAGE;
+        try {
+            List<GameCharacter> lote = new ArrayList<>(giantBomb.fetchPage(offset));
+            Collections.shuffle(lote, random);
+            for (GameCharacter ch : lote) {
+                ArrayDeque<GameCharacter> pool =
+                        ch.isFemale() ? gameWaifus : ch.isMale() ? gameHusbandos : gameOutros;
+                if (pool.size() < MAX_POOL) {
+                    pool.add(ch);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Falha ao buscar personagens no Giant Bomb (offset {}).", offset, e);
         }
     }
 
@@ -326,7 +428,10 @@ public class HaremService extends ListenerAdapter {
         String guildId = event.getGuild().getId();
         String userId = event.getUserId();
 
-        long proximoClaim = repo.getPlayer(guildId, userId).lastClaimMs() + INTERVALO_CLAIM.toMillis();
+        // Claims de anime e de jogos tem cooldowns independentes.
+        HaremRepository.Player p = repo.getPlayer(guildId, userId);
+        long ultimoClaim = roll.game() ? p.gameLastClaimMs() : p.lastClaimMs();
+        long proximoClaim = ultimoClaim + INTERVALO_CLAIM.toMillis();
         if (agora < proximoClaim) {
             // Em cooldown: o roll continua livre pra outra pessoa. Avisa a pessoa
             // (no maximo uma vez por roll, pra nao spammar o canal).
@@ -366,7 +471,11 @@ public class HaremService extends ListenerAdapter {
             return;
         }
 
-        repo.setLastClaim(guildId, userId, agora);
+        if (roll.game()) {
+            repo.setLastGameClaim(guildId, userId, agora);
+        } else {
+            repo.setLastClaim(guildId, userId, agora);
+        }
         editarRoll(event, roll, COR_RECEM_CASADA, "💍 Pertence a " + nome);
         event.getChannel().sendMessage("💖 **" + nome + "** e **" + roll.name()
                 + "** agora são casados! Que sejam felizes~ (´｡• ᵕ •｡`) ♡").queue();
@@ -381,8 +490,8 @@ public class HaremService extends ListenerAdapter {
     private void editarRoll(MessageReactionAddEvent event, Roll roll, Color cor, String rodape) {
         MessageEmbed casado = new EmbedBuilder()
                 .setTitle(roll.name())
-                .setDescription(roll.series() + "\n\n" + HaremEmojis.kakera(roll.kakera())
-                        + " **" + roll.kakera() + "** kakera")
+                .setDescription((roll.game() ? "🎮 " : "") + roll.series() + "\n\n"
+                        + HaremEmojis.kakera(roll.kakera()) + " **" + roll.kakera() + "** kakera")
                 .setImage(roll.image())
                 .setColor(cor)
                 .setFooter(rodape)
