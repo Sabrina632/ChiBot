@@ -62,12 +62,18 @@ public class TimersCommand implements ICommand {
         long proximoDaily = player.lastDailyMs() + HaremService.INTERVALO_DAILY.toMillis();
         List<String> desejos = service.getRepo().listWishes(guildId, userId);
 
+        int gameRolls = service.gameRollsRestantes(guildId, userId);
+        long proximoGameClaim = service.proximoGameClaimMs(guildId, userId);
+
         String claimTexto = agora >= proximoClaim
                 ? "Disponível agora! Vai lá rolar~ 💗"
                 : "De novo " + HaremService.relativo(proximoClaim);
         String dailyTexto = agora >= proximoDaily
                 ? "Disponível! Usa `daily`~ 🌅"
                 : "De novo " + HaremService.relativo(proximoDaily);
+        String gameClaimTexto = agora >= proximoGameClaim
+                ? "Disponível agora! Vai lá rolar~ 🕹️"
+                : "De novo " + HaremService.relativo(proximoGameClaim);
 
         ctx.replyEmbeds(new EmbedBuilder()
                 .setColor(MusicUi.KAWAII_PINK)
@@ -77,6 +83,9 @@ public class TimersCommand implements ICommand {
                         + (player.bonusRolls() > 0 ? " (" + player.bonusRolls() + " de bônus)" : "")
                         + " · reseta " + HaremService.relativo(resetRolls), true)
                 .addField("💍 Casamento", claimTexto, true)
+                .addField("🎮 Rolls (jogos)", gameRolls + "/" + HaremService.ROLLS_JOGO_POR_HORA
+                        + " · reseta " + HaremService.relativo(resetRolls), true)
+                .addField("🕹️ Casamento (jogos)", gameClaimTexto, true)
                 .addField("🌅 Daily", dailyTexto, true)
                 .addField(HaremEmojis.kakera() + " Kakera", String.valueOf(player.kakera()), true)
                 .addField("🏰 Torre", HaremEmojis.torre(player.towerLevel())

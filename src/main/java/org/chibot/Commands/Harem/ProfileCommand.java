@@ -178,7 +178,7 @@ public class ProfileCommand implements ICommand {
         }
 
         // Personagem favorito vira a imagem grande do perfil (se ainda for do jogador).
-        HaremRepository.Claim fav = profile.favCharId() > 0
+        HaremRepository.Claim fav = profile.favCharId() != 0
                 ? repo.findOwner(guildId, profile.favCharId()) : null;
         if (fav != null && fav.ownerId().equals(donoId)) {
             eb.addField(HaremEmojis.custom("prof_fav", "💖") + " Favorito",

@@ -136,7 +136,7 @@ public class HaremCommand implements ICommand {
         // Imagem: a personagem escolhida (se ainda for do dono), senão a mais valiosa.
         String thumb = harem.get(0).imageUrl();
         long escolhida = repo.getProfile(guildId, donoId).haremCharId();
-        if (escolhida > 0) {
+        if (escolhida != 0) {
             for (HaremRepository.Claim c : harem) {
                 if (c.charId() == escolhida) {
                     thumb = c.imageUrl();
@@ -154,8 +154,8 @@ public class HaremCommand implements ICommand {
                 break;
             }
             sb.append(HaremEmojis.kakera(claim.kakera())).append("`").append(claim.kakera())
-                    .append("` **").append(claim.name())
-                    .append("** · ").append(claim.series()).append('\n');
+                    .append("` ").append(claim.charId() < 0 ? "🎮 " : "").append("**")
+                    .append(claim.name()).append("** · ").append(claim.series()).append('\n');
             exibidos++;
             if (exibidos % POR_PAGINA == 0 || exibidos == harem.size()) {
                 paginas.add(pagina(donoNome, sb.toString(), paginas.isEmpty(),
