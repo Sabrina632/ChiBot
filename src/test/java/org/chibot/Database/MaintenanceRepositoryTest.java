@@ -1,18 +1,14 @@
 package org.chibot.Database;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-
-import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MaintenanceRepositoryTest {
 
-    /** Banco em memória — a mesma conexão vive enquanto o repo viver. */
     private static MaintenanceRepository inMemory() {
-        return new MaintenanceRepository("jdbc:sqlite::memory:");
+        return new MaintenanceRepository(PgTestDb.database("maint_basico"));
     }
 
     @Test
@@ -23,7 +19,7 @@ class MaintenanceRepositoryTest {
 
     @Test
     void ligarEDesligarPersisteNaMesmaSessao() {
-        MaintenanceRepository repo = inMemory();
+        MaintenanceRepository repo = new MaintenanceRepository(PgTestDb.database("maint_liga_desliga"));
 
         repo.setMaintenanceActive(true);
         assertTrue(repo.isMaintenanceActive());
@@ -33,24 +29,22 @@ class MaintenanceRepositoryTest {
     }
 
     @Test
-    void estadoSobreviveAoRestart(@TempDir Path dir) {
-        String url = "jdbc:sqlite:" + dir.resolve("ChiState.db");
-
-        // Liga e "desliga o bot" (fecha a conexão).
-        MaintenanceRepository antes = new MaintenanceRepository(url);
+    void estadoSobreviveAoRestart() {
+        // Liga e "desliga o bot" (fecha o repo).
+        MaintenanceRepository antes = new MaintenanceRepository(PgTestDb.database("maint_persist"));
         antes.setMaintenanceActive(true);
         antes.close();
 
-        // "Sobe de novo" abrindo o mesmo arquivo: o flag continua ligado.
-        MaintenanceRepository depois = new MaintenanceRepository(url);
+        // "Sobe de novo" abrindo o mesmo banco: o flag continua ligado.
+        MaintenanceRepository depois = new MaintenanceRepository(PgTestDb.database("maint_persist"));
         assertTrue(depois.isMaintenanceActive());
         depois.close();
     }
 
     @Test
     void semBancoDegradaSemQuebrar() {
-        // URL inválida: a conexão não abre e tudo vira no-op seguro (manutenção off).
-        MaintenanceRepository repo = new MaintenanceRepository("jdbc:sqlite:/caminho/invalido/??/x.db");
+        // DataSource quebrado: a conexão não abre e tudo vira no-op seguro (manutenção off).
+        MaintenanceRepository repo = new MaintenanceRepository(new BrokenDataSource());
 
         repo.setMaintenanceActive(true);
         assertFalse(repo.isMaintenanceActive());
