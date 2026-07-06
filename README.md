@@ -9,7 +9,7 @@
 Música via Lavalink · Harém estilo Mudae · Party Finder de FFXIV · console fofo~ (｡•ᴗ•｡)♡
 
 [![Java 17](assets/badges/java.svg)](https://adoptium.net/)
-[![JDA 6.4.2](assets/badges/jda.svg)](https://github.com/discord-jda/JDA)
+[![JDA 6.5.0](assets/badges/jda.svg)](https://github.com/discord-jda/JDA)
 [![Lavalink v4](assets/badges/lavalink.svg)](https://github.com/lavalink-devs/Lavalink)
 [![SQLite 3](assets/badges/sqlite.svg)](https://www.sqlite.org/)
 [![Docker](assets/badges/docker.svg)](https://www.docker.com/)
@@ -399,7 +399,7 @@ O **`.env`** guarda credenciais em texto puro (token do bot, chave da API do You
 
 ## 🧰 Stack
 
-- [JDA 6.4.2](https://github.com/discord-jda/JDA) — Java Discord API
+- [JDA 6.5.0](https://github.com/discord-jda/JDA) — Java Discord API
 - [lavalink-client 3.4.0](https://github.com/lavalink-devs/lavalink-client) — cliente do servidor [Lavalink v4](https://github.com/lavalink-devs/Lavalink) (+ [youtube-plugin](https://github.com/lavalink-devs/youtube-source))
 - [DeepL API](https://www.deepl.com/pro-api) (REST v2) — tradução das respostas por usuário
 - [jsoup 1.18.3](https://jsoup.org/) — scraping do xivpf.com
