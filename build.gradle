@@ -27,7 +27,7 @@ repositories {
 
 dependencies {
     // JDA - Java Discord API
-    implementation 'net.dv8tion:JDA:6.4.2'
+    implementation 'net.dv8tion:JDA:6.5.0'
 
     // Cliente Lavalink v4 (player de musica roda no servidor Lavalink, nao no bot)
     implementation 'dev.arbjerg:lavalink-client:3.4.0'
