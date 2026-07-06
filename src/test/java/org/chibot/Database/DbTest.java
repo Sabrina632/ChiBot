@@ -20,6 +20,9 @@ class DbTest {
              ResultSet rs = st.executeQuery("SELECT 1")) {
             rs.next();
             assertEquals(1, rs.getInt(1));
+            // O SQL do projeto tem que rodar em PostgreSQL 16: o embarcado dos
+            // testes é pinado nessa major pelo BOM de binários no build.gradle.
+            assertEquals(16, c.getMetaData().getDatabaseMajorVersion());
         }
     }
 
