@@ -29,12 +29,16 @@ public class ChiConfig {
     private final String youtubeRefreshToken;
     private final String ownerId;
     private final String deeplApiKey;
+    private final String databaseUrl;
+    private final String databaseUser;
+    private final String databasePassword;
 
     private ChiConfig(String token, String prefix, String guildId,
                       String lavalinkUri, String lavalinkPassword,
                       String youtubeApiKey, String youtubeRefreshToken,
                       String ownerId,
-                      String deeplApiKey) {
+                      String deeplApiKey,
+                      String databaseUrl, String databaseUser, String databasePassword) {
 
         this.token = token;
         this.prefix = prefix;
@@ -45,6 +49,9 @@ public class ChiConfig {
         this.youtubeRefreshToken = youtubeRefreshToken;
         this.ownerId = ownerId;
         this.deeplApiKey = deeplApiKey;
+        this.databaseUrl = databaseUrl;
+        this.databaseUser = databaseUser;
+        this.databasePassword = databasePassword;
     }
 
     public static ChiConfig load() throws IOException {
@@ -65,10 +72,14 @@ public class ChiConfig {
         String youtubeRefreshToken = value(env, "YOUTUBE_REFRESH_TOKEN", "");
         String ownerId = value(env, "OWNER_ID", "");
         String deeplApiKey = value(env, "DEEPL_API_KEY", "");
+        String databaseUrl = value(env, "DATABASE_URL", "");
+        String databaseUser = value(env, "DATABASE_USER", "");
+        String databasePassword = value(env, "DATABASE_PASSWORD", "");
 
         ChiConfig config = new ChiConfig(token, prefix, guildId, lavalinkUri, lavalinkPassword,
                 youtubeApiKey, youtubeRefreshToken, ownerId,
-                deeplApiKey);
+                deeplApiKey,
+                databaseUrl, databaseUser, databasePassword);
         loaded = config;
         return config;
     }
@@ -188,6 +199,13 @@ public class ChiConfig {
                 "# depois salva o refresh token aqui sozinho (veja YtOauth).",
                 "YOUTUBE_REFRESH_TOKEN=",
                 "",
+                "# ─── Banco de dados (PostgreSQL) ──────────────────────────",
+                "# No Docker o compose preenche isto sozinho a partir de POSTGRES_*.",
+                "# Local: jdbc:postgresql://localhost:5432/chibot (vazio = sem persistência).",
+                "DATABASE_URL=",
+                "DATABASE_USER=",
+                "DATABASE_PASSWORD=",
+                "",
                 "# ─── Traducao (DeepL) ─────────────────────────────────────",
                 "# Chave da API DeepL (Free ou Pro). Vazio = traducao desligada.",
                 "# A chave da conta Free termina em ':fx'.",
@@ -236,5 +254,18 @@ public class ChiConfig {
     /** Chave da API DeepL (traducao por usuario). Vazia = traducao desligada. */
     public String getDeeplApiKey() {
         return deeplApiKey;
+    }
+
+    /** URL JDBC do PostgreSQL (ex.: jdbc:postgresql://postgres:5432/chibot). Vazia = sem persistência. */
+    public String getDatabaseUrl() {
+        return databaseUrl;
+    }
+
+    public String getDatabaseUser() {
+        return databaseUser;
+    }
+
+    public String getDatabasePassword() {
+        return databasePassword;
     }
 }
