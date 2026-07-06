@@ -16,7 +16,7 @@ o fluxo de deploy da VPS (`git pull` + `docker compose up -d --build`).
 |---|---|---|
 | Banco | PostgreSQL 16 (`postgres:16-alpine`) | Padrão da indústria; abre caminho para dashboard/múltiplos processos |
 | Dados existentes | Migração automática no boot | Ninguém perde harém/kakera/playlist; deploy continua igual |
-| Testes | H2 em modo PostgreSQL | A máquina de desenvolvimento (Windows) não tem Docker |
+| Testes | PostgreSQL embarcado (`io.zonky.test:embedded-postgres`) | A máquina de desenvolvimento (Windows) não tem Docker; o H2 foi descartado porque o modo PostgreSQL dele não suporta `ON CONFLICT ... DO UPDATE SET x = excluded.x`, usado em ~8 queries dos repositórios |
 | Consolidação | Os 4 bancos viram 1 banco, todas as tabelas juntas | A separação em arquivos era por lock do SQLite; PostgreSQL resolve concorrência nativamente |
 
 ## Contexto: por que os 4 SQLite existiam
@@ -113,13 +113,20 @@ tenta de novo.
 
 ### 4. Testes
 
-- Os 5 testes de repositório trocam `jdbc:sqlite::memory:` por H2 em memória
-  com `MODE=PostgreSQL` (ex.: `jdbc:h2:mem:<nome>;MODE=PostgreSQL;DB_CLOSE_DELAY=-1`).
-- Limitação aceita: H2 imita o dialeto mas não é o binário do PostgreSQL;
-  diferenças sutis só aparecem na VPS. Mitigação: SQL escrito no subconjunto
-  comum (o `ON CONFLICT` é suportado pelo H2 em modo PostgreSQL).
-- `SqliteToPostgresMigration` ganha teste próprio: origem SQLite em memória →
-  destino H2, verifica cópia e idempotência do marcador.
+- Os testes de repositório trocam `jdbc:sqlite::memory:` por um **PostgreSQL
+  real embarcado** (`io.zonky.test:embedded-postgres`): a biblioteca baixa os
+  binários do PostgreSQL como dependência Maven e sobe uma instância local nos
+  testes — sem Docker, funciona no Windows. Um helper de teste (`PgTestDb`)
+  sobe a instância uma vez por JVM e dá um banco novo por teste.
+- H2 em modo PostgreSQL foi descartado: não suporta
+  `ON CONFLICT ... DO UPDATE SET x = excluded.x`, que os repositórios já usam
+  em ~8 queries — testar com H2 forçaria reescrever SQL de produção para
+  satisfazer o banco de teste.
+- Testes de degradação (banco indisponível) usam um `DataSource` que lança
+  `SQLException`, no lugar das URLs SQLite inválidas de hoje.
+- `SqliteToPostgresMigration` ganha teste próprio: origem em arquivo SQLite
+  temporário → destino no PostgreSQL embarcado, verificando cópia e
+  idempotência do marcador.
 
 ### 5. Documentação e config
 
