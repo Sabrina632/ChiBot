@@ -182,18 +182,21 @@ public final class YtOauth {
     }
 
     /**
-     * Salva o token no .env pra sobreviver a restarts. Se nao der (ex.: bind
-     * mount sem permissao de escrita pro usuario do container), imprime o token
-     * pro usuario salvar manualmente.
+     * Salva o token no .env pra sobreviver a restarts. Se não der (ex.: bind
+     * mount sem permissão de escrita pro usuário do container), avisa sem
+     * expor o token — log é menos protegido que o .env (docker logs persiste
+     * em arquivo e qualquer um com acesso a ele leria a credencial).
      */
     private void persistRefreshToken(String token) {
         try {
             ChiConfig.saveYoutubeRefreshToken(token);
-            log.info("Refresh token salvo no .env — nao vai pedir login de novo.");
+            log.info("Refresh token salvo no .env — não vai pedir login de novo.");
         } catch (Exception e) {
-            log.warn("Nao consegui salvar o refresh token no .env ({}). "
-                    + "Salve manualmente pra nao logar a cada restart:", e.toString());
-            log.warn("YOUTUBE_REFRESH_TOKEN={}", token);
+            log.warn("Não consegui salvar o refresh token no .env ({}). "
+                    + "O login vale até o próximo restart; dê permissão de escrita "
+                    + "no .env e o próximo device flow salva sozinho. "
+                    + "(token recebido: {}..., não logado por segurança)",
+                    e.toString(), token.substring(0, Math.min(6, token.length())));
         }
     }
 

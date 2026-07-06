@@ -52,6 +52,10 @@ services:
       - PLUGINS_YOUTUBE_OAUTH_ENABLED=${YOUTUBE_OAUTH_ENABLED:-false}
       - PLUGINS_YOUTUBE_OAUTH_REFRESHTOKEN=${YOUTUBE_REFRESH_TOKEN:-}
       - PLUGINS_YOUTUBE_OAUTH_SKIPINITIALIZATION=true
+      # Senha do node vinda do MESMO .env que o bot lê (LAVALINK_PASSWORD):
+      # troque lá e pronto — sobrescreve o "youshallnotpass" do application.yml
+      # versionado, sem editar arquivo e sem conflito no git pull.
+      - LAVALINK_SERVER_PASSWORD=${LAVALINK_PASSWORD:-youshallnotpass}
     volumes:
       - ./lavalink/application.yml:/opt/Lavalink/application.yml
       # Sem volume pros plugins: volume nomeado nasce como root e o Lavalink

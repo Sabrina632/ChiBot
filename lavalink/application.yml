@@ -10,6 +10,9 @@ lavalink:
     - dependency: "dev.lavalink.youtube:youtube-plugin:1.18.1"
       repository: "https://maven.lavalink.dev/releases"
   server:
+    # Senha padrão SÓ pra dev local. No compose, a LAVALINK_SERVER_PASSWORD
+    # (que vem do LAVALINK_PASSWORD do .env) sobrescreve este valor — defina
+    # uma senha forte no .env da VPS em vez de editar aqui.
     password: "youshallnotpass"
     # Anti-travada em VPS pequena: buffers maiores absorvem picos de CPU/rede
     # (custo: ~10s de audio pre-decodificado na memoria, alguns MB so).
