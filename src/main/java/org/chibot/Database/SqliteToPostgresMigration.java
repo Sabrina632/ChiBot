@@ -21,9 +21,11 @@ import java.util.Map;
 /**
  * Migração única dos bancos SQLite legados (ChiData/ChiMusic/ChiState/ChiLang)
  * pro PostgreSQL. Roda no boot: se o marcador {@code sqlite-import} já existe
- * no destino, não faz nada (custo de um SELECT). Senão, copia cada tabela com
- * {@code INSERT ... ON CONFLICT DO NOTHING} — reexecutar após falha parcial é
- * seguro. Os arquivos .db NÃO são apagados (ficam de backup no volume).
+ * no destino, não faz nada (custo de um SELECT). Senão, copia as tabelas com
+ * {@code INSERT ... ON CONFLICT DO NOTHING} dentro de uma transação única para
+ * a importação inteira, marcador incluso — ou tudo (todos os arquivos, todas
+ * as tabelas e o marcador) é gravado, ou nada é, então reexecutar após falha
+ * é sempre seguro. Os arquivos .db NÃO são apagados (ficam de backup no volume).
  */
 public final class SqliteToPostgresMigration {
 
@@ -67,6 +69,15 @@ public final class SqliteToPostgresMigration {
         if (target == null) {
             return;
         }
+        run(target, legacyFiles());
+    }
+
+    /**
+     * Mesma lógica de {@link #run(DataSource)}, mas recebendo os arquivos
+     * legados já resolvidos — visível pra teste exercitar o gate do marcador
+     * sem depender de variáveis de ambiente por teste na mesma JVM.
+     */
+    static void run(DataSource target, Map<Path, List<String>> files) {
         // Constrói os repositórios só pelo efeito colateral: cada um cria as
         // próprias tabelas no destino (idempotente).
         new MaintenanceRepository(target);
@@ -80,29 +91,43 @@ public final class SqliteToPostgresMigration {
             if (markerPresent(pg)) {
                 return;
             }
-            long total = 0;
-            for (Map.Entry<Path, List<String>> e : legacyFiles().entrySet()) {
-                if (!Files.exists(e.getKey())) {
-                    log.info("Migração: {} não existe; nada a importar dele.", e.getKey());
-                    continue;
+            boolean oldAutoCommit = pg.getAutoCommit();
+            pg.setAutoCommit(false);
+            try {
+                long total = 0;
+                for (Map.Entry<Path, List<String>> e : files.entrySet()) {
+                    if (!Files.exists(e.getKey())) {
+                        log.info("Migração: {} não existe; nada a importar dele.", e.getKey());
+                        continue;
+                    }
+                    try (Connection sqlite = DriverManager.getConnection("jdbc:sqlite:" + e.getKey())) {
+                        total += copyDatabase(sqlite, pg, e.getValue());
+                    }
                 }
-                try (Connection sqlite = DriverManager.getConnection("jdbc:sqlite:" + e.getKey())) {
-                    total += copyDatabase(sqlite, pg, e.getValue());
-                }
+                // Marcador dentro da MESMA transação: ou os dados e o marcador
+                // são gravados juntos, ou o rollback desfaz os dois.
+                writeMarker(pg);
+                pg.commit();
+                log.info("Migração SQLite → PostgreSQL concluída: {} linha(s) importada(s). "
+                        + "Os arquivos .db antigos ficaram no volume como backup.", total);
+            } catch (SQLException e) {
+                pg.rollback();
+                log.warn("Migração de dados do SQLite falhou; tento de novo no próximo boot.", e);
+            } finally {
+                pg.setAutoCommit(oldAutoCommit);
             }
-            writeMarker(pg);
-            log.info("Migração SQLite → PostgreSQL concluída: {} linha(s) importada(s). "
-                    + "Os arquivos .db antigos ficaram no volume como backup.", total);
         } catch (SQLException e) {
             log.warn("Migração de dados do SQLite falhou; tento de novo no próximo boot.", e);
         }
     }
 
     /**
-     * Copia as tabelas listadas de um SQLite aberto pro PostgreSQL, uma
-     * transação por tabela, com ON CONFLICT DO NOTHING (reexecução segura).
-     * Tabela ausente na origem é pulada (bancos velhos podem não ter todas).
-     * Retorna o total de linhas inseridas. Visível pra teste.
+     * Copia as tabelas listadas de um SQLite aberto pro PostgreSQL, com
+     * ON CONFLICT DO NOTHING (reexecução segura). Não mexe em autocommit nem
+     * transação — quem chama ({@link #run(DataSource, Map)} em produção, ou o
+     * teste diretamente) é dono disso. Tabela ausente na origem é pulada
+     * (bancos velhos podem não ter todas). Retorna o total de linhas
+     * inseridas. Visível pra teste.
      */
     static long copyDatabase(Connection sqlite, Connection pg, List<String> tables) throws SQLException {
         long total = 0;
@@ -143,8 +168,6 @@ public final class SqliteToPostgresMigration {
             }
             String sql = "INSERT INTO " + table + " (" + names + ") VALUES (" + marks
                     + ") ON CONFLICT DO NOTHING";
-            boolean oldAutoCommit = pg.getAutoCommit();
-            pg.setAutoCommit(false);
             try (PreparedStatement ins = pg.prepareStatement(sql)) {
                 while (rs.next()) {
                     for (int i = 1; i <= cols; i++) {
@@ -152,12 +175,6 @@ public final class SqliteToPostgresMigration {
                     }
                     count += ins.executeUpdate();
                 }
-                pg.commit();
-            } catch (SQLException e) {
-                pg.rollback();
-                throw e;
-            } finally {
-                pg.setAutoCommit(oldAutoCommit);
             }
         }
         log.info("Migração: {} — {} linha(s).", table, count);

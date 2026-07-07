@@ -10,6 +10,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -93,6 +94,58 @@ class SqliteToPostgresMigrationTest {
         try (Connection c = pg.getConnection();
              Statement st = c.createStatement();
              ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM bot_state")) {
+            rs.next();
+            assertEquals(0, rs.getInt(1));
+        }
+    }
+
+    @Test
+    void runGravaOMarcadorEBloqueiaReimportacao() throws Exception {
+        // Origem: um SQLite legado com uma linha em bot_state.
+        Path sqliteFile = dir.resolve("ChiState.db");
+        try (Connection sq = DriverManager.getConnection("jdbc:sqlite:" + sqliteFile);
+             Statement st = sq.createStatement()) {
+            st.executeUpdate("CREATE TABLE bot_state (key TEXT NOT NULL PRIMARY KEY, value TEXT)");
+            st.executeUpdate("INSERT INTO bot_state VALUES ('maintenance_active', 'true')");
+        }
+
+        DataSource pg = PgTestDb.database("migra_run");
+        // Schema já criado pelo repositório real, como no boot de verdade.
+        new MaintenanceRepository(pg);
+
+        Map<Path, List<String>> files = Map.of(sqliteFile, List.of("bot_state"));
+
+        SqliteToPostgresMigration.run(pg, files);
+
+        try (Connection c = pg.getConnection();
+             Statement st = c.createStatement();
+             ResultSet rs = st.executeQuery(
+                     "SELECT value FROM bot_state WHERE key = 'maintenance_active'")) {
+            assertTrue(rs.next());
+            assertEquals("true", rs.getString(1));
+        }
+
+        try (Connection c = pg.getConnection();
+             Statement st = c.createStatement();
+             ResultSet rs = st.executeQuery(
+                     "SELECT COUNT(*) FROM data_migration WHERE name = 'sqlite-import'")) {
+            rs.next();
+            assertEquals(1, rs.getInt(1));
+        }
+
+        // Simula um usuário mexendo na linha depois da importação.
+        try (Connection c = pg.getConnection();
+             Statement st = c.createStatement()) {
+            st.executeUpdate("DELETE FROM bot_state WHERE key = 'maintenance_active'");
+        }
+
+        // Reexecuta: o marcador já existe, então a linha apagada NÃO volta.
+        SqliteToPostgresMigration.run(pg, files);
+
+        try (Connection c = pg.getConnection();
+             Statement st = c.createStatement();
+             ResultSet rs = st.executeQuery(
+                     "SELECT COUNT(*) FROM bot_state WHERE key = 'maintenance_active'")) {
             rs.next();
             assertEquals(0, rs.getInt(1));
         }
