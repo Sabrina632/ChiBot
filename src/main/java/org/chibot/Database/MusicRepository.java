@@ -32,6 +32,9 @@ import java.util.Locale;
  * link. Segue o mesmo espirito do {@link PfRepository}: degrada com log e vira
  * no-op se o banco falhar. Todos os metodos sao sincronizados e pegam conexões
  * do pool compartilhado (Db).
+ *
+ * <p>Nota histórica: no SQLite a música ficava em arquivo separado por causa de
+ * lock; no PostgreSQL isso não é mais necessário.
  */
 public class MusicRepository {
 
