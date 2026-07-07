@@ -5,8 +5,8 @@ import org.chibot.Commands.PartyFinderCommands.StratsTokenizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.sql.DataSource;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -16,84 +16,53 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Persistencia local (SQLite) das listagens de Party Finder raspadas do
- * xivpf.com. Guarda sempre o ultimo snapshot completo, que serve pra dois fins:
+ * Persistência (PostgreSQL) das listagens de Party Finder raspadas do
+ * xivpf.com. Guarda sempre o último snapshot completo, que serve pra dois fins:
  *
  * <ul>
- *   <li><b>Sobreviver a restart</b> — o cache em memoria do
+ *   <li><b>Sobreviver a restart</b> — o cache em memória do
  *       {@link org.chibot.Commands.PartyFinderCommands.PartyFinderService} se
- *       perde quando o bot reinicia; o banco nao.</li>
+ *       perde quando o bot reinicia; o banco não.</li>
  *   <li><b>Fallback</b> — quando o xivpf.com cai ou trava, o {@code /pf} mostra
- *       o ultimo snapshot conhecido em vez de dar erro.</li>
+ *       o último snapshot conhecido em vez de dar erro.</li>
  * </ul>
  *
- * <p>A classe e resiliente: se o banco nao abrir (driver ausente, disco cheio,
- * etc.) ela apenas loga e vira no-op, deixando o {@code /pf} funcionar so com o
- * scraping. Todos os metodos sao sincronizados — uma unica conexao SQLite.
+ * <p>A classe é resiliente: se o banco não abrir ela apenas loga e vira
+ * no-op, deixando o {@code /pf} funcionar só com o scraping. Todos os métodos
+ * são sincronizados e pegam conexões do pool compartilhado (Db).
  */
 public class PfRepository {
 
     private static final Logger log = LoggerFactory.getLogger(PfRepository.class);
-    private static final String DEFAULT_DB_PATH = "ChiData.db";
 
-    private Connection conn;
+    private DataSource ds;
 
     public PfRepository() {
-        this(defaultDbUrl());
+        this(Db.dataSource());
     }
 
-    /** Construtor com URL explicita (ex.: {@code jdbc:sqlite::memory:} nos testes). */
-    public PfRepository(String dbUrl) {
-        try {
-            ensureParentDir(dbUrl);
-            conn = DriverManager.getConnection(dbUrl);
-            createSchema();
-            log.info("Banco do Party Finder pronto ({}).", dbUrl);
-        } catch (SQLException e) {
-            conn = null;
-            log.warn("Nao foi possivel abrir o banco do Party Finder; seguindo sem persistencia.", e);
-        }
-    }
-
-    /**
-     * Caminho do banco: env {@code CHIBOT_DB_PATH} (usado na VPS/Docker pra
-     * apontar pra um diretorio com volume) ou {@code ChiData.db} no diretorio
-     * atual (dev local).
-     */
-    private static String defaultDbUrl() {
-        String path = System.getenv("CHIBOT_DB_PATH");
-        if (path == null || path.isBlank()) {
-            path = DEFAULT_DB_PATH;
-        }
-        return "jdbc:sqlite:" + path;
-    }
-
-    /** Cria o diretorio do arquivo do banco se ainda nao existir (ignora {@code :memory:}). */
-    private static void ensureParentDir(String dbUrl) {
-        String prefix = "jdbc:sqlite:";
-        if (!dbUrl.startsWith(prefix)) {
+    /** Construtor com DataSource explícito (testes). Null = degrada pra no-op. */
+    public PfRepository(DataSource ds) {
+        this.ds = ds;
+        if (ds == null) {
+            log.warn("Banco do Party Finder não configurado; seguindo sem persistência.");
             return;
         }
-        String path = dbUrl.substring(prefix.length());
-        if (path.isBlank() || path.startsWith(":")) {
-            return; // :memory:, etc.
-        }
         try {
-            java.nio.file.Path parent = java.nio.file.Paths.get(path).getParent();
-            if (parent != null) {
-                java.nio.file.Files.createDirectories(parent);
-            }
-        } catch (Exception e) {
-            log.warn("Nao foi possivel criar o diretorio do banco para '{}'.", path, e);
+            createSchema();
+            log.info("Banco do Party Finder pronto.");
+        } catch (SQLException e) {
+            this.ds = null;
+            log.warn("Não foi possível preparar o banco do Party Finder; seguindo sem persistência.", e);
         }
     }
 
     private boolean available() {
-        return conn != null;
+        return ds != null;
     }
 
     private void createSchema() throws SQLException {
-        try (Statement st = conn.createStatement()) {
+        try (Connection c = ds.getConnection(); Statement st = c.createStatement()) {
             st.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS pf_listing (
                         id          TEXT PRIMARY KEY,
@@ -102,8 +71,8 @@ public class PfRepository {
                         duty        TEXT,
                         description TEXT,
                         slots       TEXT,
-                        filled      INTEGER,
-                        total       INTEGER,
+                        filled      BIGINT,
+                        total       BIGINT,
                         min_il      TEXT,
                         creator     TEXT,
                         world       TEXT,
@@ -130,7 +99,7 @@ public class PfRepository {
                     CREATE TABLE IF NOT EXISTS pf_duty_token (
                         duty       TEXT NOT NULL,
                         token      TEXT NOT NULL,
-                        count      INTEGER NOT NULL DEFAULT 0,
+                        count      BIGINT NOT NULL DEFAULT 0,
                         first_seen TEXT,
                         last_seen  TEXT,
                         PRIMARY KEY (duty, token)
@@ -155,15 +124,15 @@ public class PfRepository {
             return;
         }
         String ts = when.toString();
-        try {
-            conn.setAutoCommit(false);
-            try (PreparedStatement gate = conn.prepareStatement(
-                         "INSERT OR IGNORE INTO pf_indexed_listing (id) VALUES (?)");
-                 PreparedStatement upsert = conn.prepareStatement("""
+        try (Connection c = ds.getConnection()) {
+            c.setAutoCommit(false);
+            try (PreparedStatement gate = c.prepareStatement(
+                         "INSERT INTO pf_indexed_listing (id) VALUES (?) ON CONFLICT DO NOTHING");
+                 PreparedStatement upsert = c.prepareStatement("""
                          INSERT INTO pf_duty_token (duty, token, count, first_seen, last_seen)
                          VALUES (?, ?, 1, ?, ?)
                          ON CONFLICT(duty, token)
-                         DO UPDATE SET count = count + 1, last_seen = excluded.last_seen
+                         DO UPDATE SET count = pf_duty_token.count + 1, last_seen = excluded.last_seen
                          """)) {
                 for (PfListing l : listings) {
                     if (l.id() == null || l.duty() == null
@@ -182,13 +151,13 @@ public class PfRepository {
                         upsert.executeUpdate();
                     }
                 }
+                c.commit();
+            } catch (SQLException e) {
+                c.rollback();
+                throw e;
             }
-            conn.commit();
         } catch (SQLException e) {
             log.warn("Falha ao indexar tokens de strat do Party Finder.", e);
-            rollbackQuietly();
-        } finally {
-            restoreAutoCommit();
         }
     }
 
@@ -202,7 +171,8 @@ public class PfRepository {
         if (!available()) {
             return out;
         }
-        try (PreparedStatement ps = conn.prepareStatement("""
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement("""
                 SELECT token, SUM(count) AS c FROM pf_duty_token
                 WHERE LOWER(duty) LIKE ?
                 GROUP BY token
@@ -230,43 +200,45 @@ public class PfRepository {
         if (!available()) {
             return;
         }
-        try {
-            conn.setAutoCommit(false);
-            try (Statement st = conn.createStatement()) {
-                st.executeUpdate("DELETE FROM pf_listing");
-            }
-            try (PreparedStatement ps = conn.prepareStatement("""
-                    INSERT INTO pf_listing
-                        (id, data_centre, category, duty, description, slots,
-                         filled, total, min_il, creator, world, expires, updated, comp)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-                    """)) {
-                for (PfListing l : listings) {
-                    ps.setString(1, l.id());
-                    ps.setString(2, l.dataCentre());
-                    ps.setString(3, l.category());
-                    ps.setString(4, l.duty());
-                    ps.setString(5, l.description());
-                    ps.setString(6, l.slots());
-                    ps.setInt(7, l.filled());
-                    ps.setInt(8, l.total());
-                    ps.setString(9, l.minIL());
-                    ps.setString(10, l.creator());
-                    ps.setString(11, l.world());
-                    ps.setString(12, l.expires());
-                    ps.setString(13, l.updated());
-                    ps.setString(14, l.comp());
-                    ps.addBatch();
+        try (Connection c = ds.getConnection()) {
+            c.setAutoCommit(false);
+            try {
+                try (Statement st = c.createStatement()) {
+                    st.executeUpdate("DELETE FROM pf_listing");
                 }
-                ps.executeBatch();
+                try (PreparedStatement ps = c.prepareStatement("""
+                        INSERT INTO pf_listing
+                            (id, data_centre, category, duty, description, slots,
+                             filled, total, min_il, creator, world, expires, updated, comp)
+                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                        """)) {
+                    for (PfListing l : listings) {
+                        ps.setString(1, l.id());
+                        ps.setString(2, l.dataCentre());
+                        ps.setString(3, l.category());
+                        ps.setString(4, l.duty());
+                        ps.setString(5, l.description());
+                        ps.setString(6, l.slots());
+                        ps.setInt(7, l.filled());
+                        ps.setInt(8, l.total());
+                        ps.setString(9, l.minIL());
+                        ps.setString(10, l.creator());
+                        ps.setString(11, l.world());
+                        ps.setString(12, l.expires());
+                        ps.setString(13, l.updated());
+                        ps.setString(14, l.comp());
+                        ps.addBatch();
+                    }
+                    ps.executeBatch();
+                }
+                putMeta(c, "fetched_at", Long.toString(fetchedAt.toEpochMilli()));
+                c.commit();
+            } catch (SQLException e) {
+                c.rollback();
+                throw e;
             }
-            putMeta("fetched_at", Long.toString(fetchedAt.toEpochMilli()));
-            conn.commit();
         } catch (SQLException e) {
             log.warn("Falha ao salvar o snapshot do Party Finder.", e);
-            rollbackQuietly();
-        } finally {
-            restoreAutoCommit();
         }
     }
 
@@ -276,7 +248,8 @@ public class PfRepository {
         if (!available()) {
             return out;
         }
-        try (Statement st = conn.createStatement();
+        try (Connection c = ds.getConnection();
+             Statement st = c.createStatement();
              ResultSet rs = st.executeQuery("""
                      SELECT id, data_centre, category, duty, description, slots,
                             filled, total, min_il, creator, world, expires, updated, comp
@@ -322,8 +295,8 @@ public class PfRepository {
         }
     }
 
-    private void putMeta(String key, String value) throws SQLException {
-        try (PreparedStatement ps = conn.prepareStatement("""
+    private void putMeta(Connection c, String key, String value) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement("""
                 INSERT INTO pf_meta (key, value) VALUES (?, ?)
                 ON CONFLICT(key) DO UPDATE SET value = excluded.value
                 """)) {
@@ -334,7 +307,8 @@ public class PfRepository {
     }
 
     private String getMeta(String key) {
-        try (PreparedStatement ps = conn.prepareStatement("SELECT value FROM pf_meta WHERE key = ?")) {
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement("SELECT value FROM pf_meta WHERE key = ?")) {
             ps.setString(1, key);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? rs.getString(1) : null;
@@ -342,22 +316,6 @@ public class PfRepository {
         } catch (SQLException e) {
             log.warn("Falha ao ler meta '{}' do Party Finder.", key, e);
             return null;
-        }
-    }
-
-    private void rollbackQuietly() {
-        try {
-            conn.rollback();
-        } catch (SQLException ignored) {
-            // ja estamos tratando uma falha; nada a fazer
-        }
-    }
-
-    private void restoreAutoCommit() {
-        try {
-            conn.setAutoCommit(true);
-        } catch (SQLException ignored) {
-            // idem
         }
     }
 }
