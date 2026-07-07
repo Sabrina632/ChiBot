@@ -11,7 +11,7 @@ Música via Lavalink · Harém estilo Mudae · Party Finder de FFXIV · console 
 [![Java 17](assets/badges/java.svg)](https://adoptium.net/)
 [![JDA 6.5.0](assets/badges/jda.svg)](https://github.com/discord-jda/JDA)
 [![Lavalink v4](assets/badges/lavalink.svg)](https://github.com/lavalink-devs/Lavalink)
-[![SQLite 3](assets/badges/sqlite.svg)](https://www.sqlite.org/)
+[![PostgreSQL 16](assets/badges/postgresql.svg)](https://www.postgresql.org/)
 [![Docker](assets/badges/docker.svg)](https://www.docker.com/)
 [![Gradle](assets/badges/gradle.svg)](https://gradle.org/)
 [![MIT License](assets/badges/license.svg)](LICENSE)
@@ -40,12 +40,12 @@ Música via Lavalink · Harém estilo Mudae · Party Finder de FFXIV · console 
 
 ## ✨ Features
 
-- **Música** — toca do YouTube (link ou busca), SoundCloud, Bandcamp, Twitch e streams HTTP. O áudio roda num servidor [Lavalink](https://github.com/lavalink-devs/Lavalink), que resolve e toca tudo; a busca por nome pode usar a **YouTube Data API** (chave opcional no config). Controle de **volume** (0–200) e **fila, playlists salvas e volume persistidos** num banco próprio (`ChiMusic.db`, separado pra não disputar lock com o resto e engasgar o áudio).
+- **Música** — toca do YouTube (link ou busca), SoundCloud, Bandcamp, Twitch e streams HTTP. O áudio roda num servidor [Lavalink](https://github.com/lavalink-devs/Lavalink), que resolve e toca tudo; a busca por nome pode usar a **YouTube Data API** (chave opcional no config). Controle de **volume** (0–200) e **fila, playlists salvas e volume persistidos** no PostgreSQL do compose.
 - **Diversão** — comandos de roleplay fofos (`hug`, `kiss`, `pat`, `slap`) que respondem com um gif de anime aleatório (via [nekos.best](https://nekos.best), sem chave) num embed fofo.
-- **Harém (estilo Mudae)** — rola waifus/husbandos reais de anime (via [AniList](https://anilist.co)), casa clicando no 💗 dentro de 45s (um dono por personagem por servidor), kakera por popularidade, harém, divórcio, trocas com confirmação por botão, daily, torre de kakera com perks, badges colecionáveis (conquistas, loja e personagens de anime com a arte do AniList), rolls extras comprados com kakera, lista de desejos com ping e timers — tudo persistido em SQLite. `gamewaifu`/`gamehusbando`/`gameroll` fazem o mesmo com personagens de **jogos**, usando um dataset embarcado extraído do [giant-bomb-wiki](https://github.com/Giant-Bomb-Dot-Com/giant-bomb-wiki) (re-gerável com `tools/extract_gb_characters.py`), sem precisar de chave de API.
-- **Party Finder de FFXIV** — `/pf` lista os PF de Ultimates e Savage do data center Aether (via [xivpf.com](https://xivpf.com)), com emojis de job e composição; `/strats` mostra as strats mais citadas nas descrições dos PF de cada duty (acumuladas em SQLite ao longo do tempo).
+- **Harém (estilo Mudae)** — rola waifus/husbandos reais de anime (via [AniList](https://anilist.co)), casa clicando no 💗 dentro de 45s (um dono por personagem por servidor), kakera por popularidade, harém, divórcio, trocas com confirmação por botão, daily, torre de kakera com perks, badges colecionáveis (conquistas, loja e personagens de anime com a arte do AniList), rolls extras comprados com kakera, lista de desejos com ping e timers — tudo persistido no PostgreSQL. `gamewaifu`/`gamehusbando`/`gameroll` fazem o mesmo com personagens de **jogos**, usando um dataset embarcado extraído do [giant-bomb-wiki](https://github.com/Giant-Bomb-Dot-Com/giant-bomb-wiki) (re-gerável com `tools/extract_gb_characters.py`), sem precisar de chave de API.
+- **Party Finder de FFXIV** — `/pf` lista os PF de Ultimates e Savage do data center Aether (via [xivpf.com](https://xivpf.com)), com emojis de job e composição; `/strats` mostra as strats mais citadas nas descrições dos PF de cada duty (acumuladas no PostgreSQL ao longo do tempo).
 - **Moderação** — `ban`, `kick`, `mute` (timeout do Discord: bloqueia voz **e** chat, com duração e expiração automática), `unmute` e `clear`, tudo em embed, com checagem de hierarquia de cargos e motivo no audit log.
-- **Tradução por usuário (DeepL)** — cada pessoa escolhe com `/language` o idioma em que a Chi responde **só pra ela** (pt, en, es, ja, fr, de, it, ru, ko, zh); as respostas (texto **e** embeds) são traduzidas na hora pela [DeepL](https://www.deepl.com/). Comandos, kaomoji e termos do glossário (ex.: *kakera*) são mascarados pra não serem traduzidos, e cada tradução fica em cache (memória → `ChiLang.db` → API) pra não repetir chamada. É totalmente opcional: sem a chave, tudo fica em português. Veja [Tradução](#-tradução-por-usuário-deepl).
+- **Tradução por usuário (DeepL)** — cada pessoa escolhe com `/language` o idioma em que a Chi responde **só pra ela** (pt, en, es, ja, fr, de, it, ru, ko, zh); as respostas (texto **e** embeds) são traduzidas na hora pela [DeepL](https://www.deepl.com/). Comandos, kaomoji e termos do glossário (ex.: *kakera*) são mascarados pra não serem traduzidos, e cada tradução fica em cache (memória → PostgreSQL → API) pra não repetir chamada. É totalmente opcional: sem a chave, tudo fica em português. Veja [Tradução](#-tradução-por-usuário-deepl).
 - **Ajuda embutida** — `/help` lista os comandos por categoria num embed fofo; `/help <comando>` mostra uso e atalhos.
 - **Comandos por prefixo e por slash (`/`)** — o mesmo comando funciona dos dois jeitos.
 - **Auto-load de comandos** — basta criar uma classe que implementa `ICommand` no pacote `org.chibot.Commands`; ela é descoberta e registrada sozinha por reflection, sem precisar editar nada.
@@ -88,16 +88,23 @@ As mesmas chaves também podem vir de variáveis de ambiente do processo, que **
 | `YOUTUBE_API_KEY`       | (Opcional) Chave da YouTube Data API v3 — melhora a busca por nome. Vazio = busca pelo `ytsearch` do Lavalink. |
 | `YOUTUBE_REFRESH_TOKEN` | (Opcional) Login do YouTube via OAuth — necessário em IP de datacenter (veja [Login do YouTube](#-login-do-youtube-oauth)). |
 | `DEEPL_API_KEY`         | (Opcional) Chave da [API DeepL](https://www.deepl.com/pro-api) (Free ou Pro) para o `/language`. Vazio = tradução desligada (tudo em pt). A chave da conta **Free** termina em `:fx`. |
+| `POSTGRES_PASSWORD`     | **Obrigatória no Docker** — senha do banco criado pelo compose (o bot recebe a conexão sozinho, via `DATABASE_URL/USER/PASSWORD` injetados no `chibot`). Sem valor padrão de propósito. |
+| `DATABASE_URL`          | (Fora do Docker) URL JDBC do PostgreSQL, ex.: `jdbc:postgresql://localhost:5432/chibot`. Vazio = persistência desligada. |
+| `DATABASE_USER`         | (Fora do Docker) Usuário do PostgreSQL. |
+| `DATABASE_PASSWORD`     | (Fora do Docker) Senha do PostgreSQL. |
 
 > ⚠️ **Nunca compartilhe nem commite seu token.** Ele dá controle total sobre o bot. Veja [Segurança](#-segurança).
 
-### Variáveis de ambiente (opcionais)
+### Variáveis de ambiente (opcionais, só da migração)
+
+O bot usa **um banco PostgreSQL só** pra tudo (harém, música, Party Finder, idiomas, estado). As variáveis abaixo só importam pra quem está **atualizando** de uma versão pré-PostgreSQL: na primeira subida, o bot detecta os `.db` do SQLite legado nesses caminhos e importa os dados sozinho pro PostgreSQL (os arquivos ficam no volume como backup; reinícios seguintes não reimportam).
 
 | Variável                | Para quê serve                                                                       | Padrão                |
 |--------------------------|---------------------------------------------------------------------------------------|-----------------------|
-| `CHIBOT_DB_PATH`         | Caminho do banco SQLite principal (Party Finder + harém).                             | `ChiData.db`          |
-| `CHIBOT_MUSIC_DB_PATH`   | Caminho do banco da música (fila, playlists salvas e volume). Vazio = ao lado do principal. | `ChiMusic.db`   |
-| `CHIBOT_LANG_DB_PATH`    | Caminho do banco de idiomas (preferência por usuário + cache de traduções). Vazio = ao lado do principal. | `ChiLang.db`    |
+| `CHIBOT_DB_PATH`         | Caminho do banco SQLite legado principal (Party Finder + harém).                      | `ChiData.db`          |
+| `CHIBOT_MUSIC_DB_PATH`   | Caminho do banco SQLite legado da música (fila, playlists salvas e volume). Vazio = ao lado do principal. | `ChiMusic.db`   |
+| `CHIBOT_LANG_DB_PATH`    | Caminho do banco SQLite legado de idiomas (preferência por usuário + cache de traduções). Vazio = ao lado do principal. | `ChiLang.db`    |
+| `CHIBOT_STATE_DB_PATH`   | Caminho do banco SQLite legado do estado (flag de manutenção). Vazio = ao lado do principal. | `ChiState.db`   |
 
 Qualquer chave do `.env` (`DISCORD_TOKEN`, `LAVALINK_URI`, `YOUTUBE_REFRESH_TOKEN`...) também pode ser passada como variável de ambiente do processo, que tem prioridade sobre o arquivo.
 
@@ -130,13 +137,14 @@ Rodar os testes:
 
 ## 🐳 Rodando com Docker
 
-O `docker-compose.yml` sobe **três serviços** na rede interna (nenhuma porta exposta pra fora):
+O `docker-compose.yml` sobe **quatro serviços** na rede interna (nenhuma porta exposta pra fora):
 
 | Serviço           | O que faz                                                                                     |
 |-------------------|-----------------------------------------------------------------------------------------------|
 | `chibot`          | O bot em si (build multi-stage: compila com JDK, roda só com JRE, usuário sem privilégios). |
 | `lavalink`        | Servidor de áudio (Lavalink v4 + plugin do YouTube). É quem de fato toca a música.            |
 | `yt-cipher`       | Resolve os desafios de assinatura do player do YouTube pro plugin — sem ele o playback quebra quando o YouTube troca o `base.js`. |
+| `postgres`        | Banco de dados do bot (harém, música, Party Finder, idiomas, estado) — PostgreSQL 16, sem porta exposta pro host. |
 
 ```bash
 # Edite o .env com seu token antes de subir
@@ -152,7 +160,7 @@ O que é montado do host (sobrevive a restart, rebuild e `down -v`):
 - **`.env`** → `/app/.env` — trocar token/prefixo/servidor é só editar e `docker compose restart chibot`, sem rebuildar. O mesmo `.env` alimenta o `chibot` (montado como volume) e o `lavalink` (substituição de variáveis do compose).
 - **`lavalink/application.yml`** → config do Lavalink.
 
-E o volume nomeado `chibot-data` (`/app/data`) guarda os bancos SQLite — `ChiData.db` (Party Finder + harém), `ChiMusic.db` (fila, playlists e volume da música) e `ChiLang.db` (idioma por usuário + cache de traduções) — entre recriações do container.
+Os dados de verdade (harém, música, Party Finder, idiomas, estado) moram no volume nomeado `chibot-pgdata`, do serviço `postgres`. Se você está atualizando de uma versão pré-PostgreSQL, o volume `chibot-data` (`/app/data`) continua montado — é de lá que o bot lê os `.db` do SQLite legado (`ChiData.db`, `ChiMusic.db`, `ChiLang.db`, `ChiState.db`) na primeira subida após o upgrade, importando tudo sozinho pro PostgreSQL; os arquivos ficam nesse volume como backup e não são apagados.
 
 Quem resolve o YouTube é o plugin do Lavalink. Em IP de datacenter o YouTube pode exigir login ("This video requires login") — veja a seção abaixo.
 
@@ -187,9 +195,9 @@ A Chi é nativamente em **português**, mas cada pessoa pode escolher o idioma e
 !language pt      # volto ao padrão (português)
 ```
 
-Suportados: `pt`, `en`, `es`, `ja`, `fr`, `de`, `it`, `ru`, `ko`, `zh`. A preferência fica salva por usuário no `ChiLang.db`.
+Suportados: `pt`, `en`, `es`, `ja`, `fr`, `de`, `it`, `ru`, `ko`, `zh`. A preferência fica salva por usuário no PostgreSQL.
 
-**Como funciona.** O [`TranslationService`](src/main/java/org/chibot/Translation/TranslationService.java) (singleton, estilo `HaremService`) traduz tanto texto quanto embeds. Antes de mandar pra API, o [`TranslationMasker`](src/main/java/org/chibot/Translation/TranslationMasker.java) **mascara** o que não pode ser traduzido — referências de comando (`!help`), kaomoji/emotes e termos do glossário (ex.: *kakera*) — e restaura depois. Cada tradução passa por um cache em três camadas (memória → `ChiLang.db` → DeepL), então cada frase só bate na API uma vez por idioma.
+**Como funciona.** O [`TranslationService`](src/main/java/org/chibot/Translation/TranslationService.java) (singleton, estilo `HaremService`) traduz tanto texto quanto embeds. Antes de mandar pra API, o [`TranslationMasker`](src/main/java/org/chibot/Translation/TranslationMasker.java) **mascara** o que não pode ser traduzido — referências de comando (`!help`), kaomoji/emotes e termos do glossário (ex.: *kakera*) — e restaura depois. Cada tradução passa por um cache em três camadas (memória → PostgreSQL → DeepL), então cada frase só bate na API uma vez por idioma.
 
 **DeepL.** O [`DeepLTranslator`](src/main/java/org/chibot/Translation/DeepLTranslator.java) usa o endpoint REST v2. A chave da conta **Free** termina em `:fx` e cai no `api-free.deepl.com`; as **Pro** vão pro `api.deepl.com` — o bot detecta sozinho pelo sufixo. Como a tradução roda na thread do gateway do JDA, ela é *fail-fast* (timeout de 3s, sem retries) e vem embrulhada pelo [`ResilientTranslator`](src/main/java/org/chibot/Translation/ResilientTranslator.java): na primeira falha de rede ele abre um disjuntor por 60s e devolve o texto original na hora, degradando pro português **em silêncio** em vez de travar o bot ou spammar o log.
 
@@ -355,11 +363,13 @@ src/main/java/org/chibot/
 ├── Config/
 │   └── ChiConfig.java          # leitura/criação do .env
 ├── Database/
-│   ├── PfRepository.java       # SQLite: snapshot dos PF + contagem de strats
-│   ├── HaremRepository.java    # SQLite: casamentos, kakera/cooldowns e desejos
-│   ├── MusicRepository.java    # SQLite (ChiMusic.db, WAL): fila, playlists salvas e volume
-│   ├── LanguageRepository.java # SQLite (ChiLang.db): idioma por usuário + cache de traduções
-│   └── MaintenanceRepository.java # SQLite (ChiState.db): flag do modo manutenção (sobrevive a restart)
+│   ├── Db.java                  # pool de conexões (HikariCP) com o PostgreSQL
+│   ├── SqliteToPostgresMigration.java # migração única dos .db legados pro PostgreSQL, no boot
+│   ├── PfRepository.java       # PostgreSQL: snapshot dos PF + contagem de strats
+│   ├── HaremRepository.java    # PostgreSQL: casamentos, kakera/cooldowns e desejos
+│   ├── MusicRepository.java    # PostgreSQL: fila, playlists salvas e volume
+│   ├── LanguageRepository.java # PostgreSQL: idioma por usuário + cache de traduções
+│   └── MaintenanceRepository.java # PostgreSQL: flag do modo manutenção (sobrevive a restart)
 ├── Harem/
 │   ├── HaremService.java       # singleton: pools de personagens + botões de claim/kakera + conquistas
 │   ├── HaremBadges.java        # catálogo dos badges (conquistas + loja)
@@ -403,10 +413,12 @@ O **`.env`** guarda credenciais em texto puro (token do bot, chave da API do You
 - [lavalink-client 3.4.0](https://github.com/lavalink-devs/lavalink-client) — cliente do servidor [Lavalink v4](https://github.com/lavalink-devs/Lavalink) (+ [youtube-plugin](https://github.com/lavalink-devs/youtube-source))
 - [DeepL API](https://www.deepl.com/pro-api) (REST v2) — tradução das respostas por usuário
 - [jsoup 1.18.3](https://jsoup.org/) — scraping do xivpf.com
-- [sqlite-jdbc 3.46](https://github.com/xerial/sqlite-jdbc) — persistência do Party Finder
+- [PostgreSQL 16](https://www.postgresql.org/) + [HikariCP 6.2.1](https://github.com/brettwooldridge/HikariCP) — banco principal (harém, música, Party Finder, idiomas, estado) e pool de conexões
+- [sqlite-jdbc 3.46](https://github.com/xerial/sqlite-jdbc) — só como leitor legado, usado pela migração automática dos `.db` antigos pro PostgreSQL
 - [logback-classic 1.5.18](https://logback.qos.ch/) — logging
 - [org.json](https://github.com/stleary/JSON-java) — parsing das respostas JSON das APIs (OAuth do YouTube, AniList, xivpf, DeepL)
 - JUnit 5 — testes
+- [embedded-postgres (zonky) 2.1.0](https://github.com/zonkyio/embedded-postgres) — PostgreSQL 16 real embarcado nos testes, sem precisar de Docker
 - Gradle (wrapper incluído) + plugin `application`
 
 ## 📜 Licença
