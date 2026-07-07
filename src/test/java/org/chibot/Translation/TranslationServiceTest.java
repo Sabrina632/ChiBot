@@ -3,10 +3,8 @@ package org.chibot.Translation;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import org.chibot.Database.LanguageRepository;
+import org.chibot.Database.PgTestDb;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-
-import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -26,14 +24,14 @@ class TranslationServiceTest {
         }
     }
 
-    private static LanguageRepository inMemory() {
-        return new LanguageRepository("jdbc:sqlite::memory:");
+    private static LanguageRepository inMemory(String nome) {
+        return new LanguageRepository(PgTestDb.database(nome));
     }
 
     @Test
     void portuguesEhNoOp() {
         FakeTranslator fake = new FakeTranslator();
-        TranslationService svc = new TranslationService(inMemory(), fake);
+        TranslationService svc = new TranslationService(inMemory("transl_basico"), fake);
         svc.setLanguage("u1", "pt");
         assertEquals("Olá", svc.translateForUser("u1", "Olá"));
         assertEquals(0, fake.calls);
@@ -42,7 +40,7 @@ class TranslationServiceTest {
     @Test
     void traduzParaOutroIdioma() {
         FakeTranslator fake = new FakeTranslator();
-        TranslationService svc = new TranslationService(inMemory(), fake);
+        TranslationService svc = new TranslationService(inMemory("transl_traduz"), fake);
         svc.setLanguage("u1", "en");
         assertEquals("<en>Olá", svc.translateForUser("u1", "Olá"));
         assertEquals(1, fake.calls);
@@ -51,7 +49,7 @@ class TranslationServiceTest {
     @Test
     void cacheEmMemoriaEvitaSegundaChamada() {
         FakeTranslator fake = new FakeTranslator();
-        TranslationService svc = new TranslationService(inMemory(), fake);
+        TranslationService svc = new TranslationService(inMemory("transl_cache_memoria"), fake);
         svc.setLanguage("u1", "en");
         svc.translateForUser("u1", "Olá");
         svc.translateForUser("u1", "Olá");
@@ -59,20 +57,18 @@ class TranslationServiceTest {
     }
 
     @Test
-    void cacheDoBancoSobreviveAoRestart(@TempDir Path dir) {
-        String url = "jdbc:sqlite:" + dir.resolve("ChiLang.db");
-
+    void cacheDoBancoSobreviveAoRestart() {
         FakeTranslator fakeA = new FakeTranslator();
-        LanguageRepository repoA = new LanguageRepository(url);
+        LanguageRepository repoA = new LanguageRepository(PgTestDb.database("transl_persist"));
         TranslationService svcA = new TranslationService(repoA, fakeA);
         svcA.setLanguage("u1", "en");
         svcA.translateForUser("u1", "Olá");
         assertEquals(1, fakeA.calls);
         repoA.close();
 
-        // "Reinício": novo serviço/tradutor sobre o mesmo arquivo. Não bate na API.
+        // "Reinício": novo serviço/tradutor sobre o mesmo banco. Não bate na API.
         FakeTranslator fakeB = new FakeTranslator();
-        LanguageRepository repoB = new LanguageRepository(url);
+        LanguageRepository repoB = new LanguageRepository(PgTestDb.database("transl_persist"));
         TranslationService svcB = new TranslationService(repoB, fakeB);
         assertEquals("<en>Olá", svcB.translateForUser("u1", "Olá"));
         assertEquals(0, fakeB.calls);
@@ -82,7 +78,7 @@ class TranslationServiceTest {
     @Test
     void mascaraComandoAntesDeTraduzir() {
         FakeTranslator fake = new FakeTranslator();
-        TranslationService svc = new TranslationService(inMemory(), fake);
+        TranslationService svc = new TranslationService(inMemory("transl_mascara"), fake);
         svc.setLanguage("u1", "en");
         String out = svc.translateForUser("u1", "Use `daily` agora");
         // O tradutor não viu "daily" (estava mascarado)...
@@ -93,7 +89,7 @@ class TranslationServiceTest {
 
     @Test
     void setLanguageValidaCodigo() {
-        TranslationService svc = new TranslationService(inMemory(), new FakeTranslator());
+        TranslationService svc = new TranslationService(inMemory("transl_valida"), new FakeTranslator());
         assertTrue(svc.setLanguage("u1", "en"));
         assertFalse(svc.setLanguage("u1", "xx"));
         assertTrue(svc.supportedLanguages().contains("ja"));
@@ -102,7 +98,7 @@ class TranslationServiceTest {
     @Test
     void traduzRodapeDoEmbed() {
         FakeTranslator fake = new FakeTranslator();
-        TranslationService svc = new TranslationService(inMemory(), fake);
+        TranslationService svc = new TranslationService(inMemory("transl_rodape"), fake);
         svc.setLanguage("u1", "en");
         MessageEmbed embed = new EmbedBuilder()
                 .setDescription("Olá")
@@ -114,7 +110,7 @@ class TranslationServiceTest {
 
     @Test
     void semTradutorDegrada() {
-        TranslationService svc = new TranslationService(inMemory(), null);
+        TranslationService svc = new TranslationService(inMemory("transl_sem_tradutor"), null);
         svc.setLanguage("u1", "en");
         assertEquals("Olá", svc.translateForUser("u1", "Olá"));
     }

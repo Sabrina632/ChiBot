@@ -3,16 +3,15 @@ package org.chibot.Database;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.sql.DataSource;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
 /**
- * Persistência local (SQLite) do sistema de tradução, num arquivo SEPARADO
- * ({@code ChiLang.db}) dos demais bancos. Guarda duas coisas:
+ * Persistência (PostgreSQL) do sistema de tradução. Guarda duas coisas:
  *
  * <ul>
  *   <li><b>Preferência de idioma por usuário</b> ({@code user_language}) — o idioma
@@ -22,79 +21,42 @@ import java.sql.Statement;
  * </ul>
  *
  * <p>Segue o mesmo espírito dos outros repositórios: degrada com log e vira no-op
- * se o banco não abrir. Métodos sincronizados (uma única conexão SQLite).
+ * se o banco não abrir. Todos os métodos são sincronizados e pegam conexões do
+ * pool compartilhado (Db).
  */
 public class LanguageRepository {
 
     private static final Logger log = LoggerFactory.getLogger(LanguageRepository.class);
-    private static final String DEFAULT_DB_FILE = "ChiLang.db";
     private static final String IDIOMA_PADRAO = "pt";
 
-    private Connection conn;
+    private DataSource ds;
 
     public LanguageRepository() {
-        this(defaultDbUrl());
+        this(Db.dataSource());
     }
 
-    /** Construtor com URL explícita (ex.: {@code jdbc:sqlite::memory:} nos testes). */
-    public LanguageRepository(String dbUrl) {
-        try {
-            ensureParentDir(dbUrl);
-            conn = DriverManager.getConnection(dbUrl);
-            createSchema();
-            log.info("Banco de idiomas pronto ({}).", dbUrl);
-        } catch (SQLException e) {
-            conn = null;
-            log.warn("Não foi possível abrir o banco de idiomas; tradução vira só em memória.", e);
-        }
-    }
-
-    /**
-     * Fica num arquivo separado dos outros bancos. Por padrão ao lado do banco
-     * principal (mesmo diretório/volume no Docker); {@code CHIBOT_LANG_DB_PATH}
-     * sobrescreve.
-     */
-    private static String defaultDbUrl() {
-        String explicit = System.getenv("CHIBOT_LANG_DB_PATH");
-        if (explicit != null && !explicit.isBlank()) {
-            return "jdbc:sqlite:" + explicit;
-        }
-        String mainDb = System.getenv("CHIBOT_DB_PATH");
-        if (mainDb != null && !mainDb.isBlank()) {
-            java.nio.file.Path parent = java.nio.file.Paths.get(mainDb).getParent();
-            java.nio.file.Path langPath = parent != null
-                    ? parent.resolve(DEFAULT_DB_FILE)
-                    : java.nio.file.Paths.get(DEFAULT_DB_FILE);
-            return "jdbc:sqlite:" + langPath;
-        }
-        return "jdbc:sqlite:" + DEFAULT_DB_FILE;
-    }
-
-    private static void ensureParentDir(String dbUrl) {
-        String prefix = "jdbc:sqlite:";
-        if (!dbUrl.startsWith(prefix)) {
+    /** Construtor com DataSource explícito (testes). Null = degrada pra no-op. */
+    public LanguageRepository(DataSource ds) {
+        this.ds = ds;
+        if (ds == null) {
+            log.warn("Banco de idiomas não configurado; tradução vira só em memória.");
             return;
         }
-        String path = dbUrl.substring(prefix.length());
-        if (path.isBlank() || path.startsWith(":")) {
-            return; // :memory:, etc.
-        }
         try {
-            java.nio.file.Path parent = java.nio.file.Paths.get(path).getParent();
-            if (parent != null) {
-                java.nio.file.Files.createDirectories(parent);
-            }
-        } catch (Exception e) {
-            log.warn("Não foi possível criar o diretório do banco para '{}'.", path, e);
+            createSchema();
+            log.info("Banco de idiomas pronto.");
+        } catch (SQLException e) {
+            this.ds = null;
+            log.warn("Não foi possível preparar o banco de idiomas; tradução vira só em memória.", e);
         }
     }
 
     private boolean available() {
-        return conn != null;
+        return ds != null;
     }
 
     private void createSchema() throws SQLException {
-        try (Statement st = conn.createStatement()) {
+        try (Connection c = ds.getConnection(); Statement st = c.createStatement()) {
             st.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS user_language (
                         user_id TEXT NOT NULL PRIMARY KEY,
@@ -119,8 +81,9 @@ public class LanguageRepository {
         if (!available()) {
             return IDIOMA_PADRAO;
         }
-        try (PreparedStatement ps = conn.prepareStatement(
-                "SELECT lang FROM user_language WHERE user_id = ?")) {
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement(
+                     "SELECT lang FROM user_language WHERE user_id = ?")) {
             ps.setString(1, userId);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? rs.getString(1) : IDIOMA_PADRAO;
@@ -135,7 +98,8 @@ public class LanguageRepository {
         if (!available()) {
             return;
         }
-        try (PreparedStatement ps = conn.prepareStatement("""
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement("""
                 INSERT INTO user_language (user_id, lang) VALUES (?, ?)
                 ON CONFLICT(user_id) DO UPDATE SET lang = excluded.lang
                 """)) {
@@ -154,8 +118,9 @@ public class LanguageRepository {
         if (!available()) {
             return null;
         }
-        try (PreparedStatement ps = conn.prepareStatement(
-                "SELECT translated FROM translation_cache WHERE lang = ? AND source_hash = ?")) {
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement(
+                     "SELECT translated FROM translation_cache WHERE lang = ? AND source_hash = ?")) {
             ps.setString(1, lang);
             ps.setString(2, sourceHash);
             try (ResultSet rs = ps.executeQuery()) {
@@ -171,7 +136,8 @@ public class LanguageRepository {
         if (!available()) {
             return;
         }
-        try (PreparedStatement ps = conn.prepareStatement("""
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement("""
                 INSERT INTO translation_cache (lang, source_hash, translated) VALUES (?, ?, ?)
                 ON CONFLICT(lang, source_hash) DO UPDATE SET translated = excluded.translated
                 """)) {
@@ -184,17 +150,8 @@ public class LanguageRepository {
         }
     }
 
-    /** Fecha a conexão com o banco. Só usado em teste / shutdown explícito. */
+    /** O pool é global (Db); aqui só descarta a referência. Mantido por compatibilidade. */
     public synchronized void close() {
-        if (conn == null) {
-            return;
-        }
-        try {
-            conn.close();
-        } catch (SQLException ignored) {
-            // fechando; nada a fazer
-        } finally {
-            conn = null;
-        }
+        ds = null;
     }
 }
