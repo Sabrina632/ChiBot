@@ -15,9 +15,9 @@ class MusicRepositoryTest {
     private static final String ANA = "u-ana";
     private static final String BIA = "u-bia";
 
-    /** Banco Postgres embarcado de teste. */
-    private static MusicRepository inMemory() {
-        return new MusicRepository(PgTestDb.database("music_basico"));
+    /** Banco Postgres embarcado de teste — um banco proprio por teste, pra nao dividir estado. */
+    private static MusicRepository repo(String banco) {
+        return new MusicRepository(PgTestDb.database(banco));
     }
 
     private static MusicRepository.StoredTrack track(String id) {
@@ -26,7 +26,7 @@ class MusicRepositoryTest {
 
     @Test
     void volumePadraoAteSerConfigurado() {
-        MusicRepository repo = inMemory();
+        MusicRepository repo = repo("music_volume");
 
         assertEquals(50, repo.getVolume(GUILD, 50));
         repo.setVolume(GUILD, 80);
@@ -38,7 +38,7 @@ class MusicRepositoryTest {
 
     @Test
     void sessaoGuardaFilaEmOrdemComCanais() {
-        MusicRepository repo = inMemory();
+        MusicRepository repo = repo("music_sessao");
 
         repo.saveSession(GUILD, "voz1", "texto1", List.of(track("a"), track("b"), track("c")));
 
@@ -54,7 +54,7 @@ class MusicRepositoryTest {
 
     @Test
     void salvarSessaoSubstituiAFilaAnterior() {
-        MusicRepository repo = inMemory();
+        MusicRepository repo = repo("music_substitui");
 
         repo.saveSession(GUILD, "voz1", "texto1", List.of(track("a"), track("b")));
         repo.saveSession(GUILD, "voz2", "texto2", List.of(track("x")));
@@ -71,7 +71,7 @@ class MusicRepositoryTest {
 
     @Test
     void playlistSalvaCarregaEApaga() {
-        MusicRepository repo = inMemory();
+        MusicRepository repo = repo("music_playlist");
 
         assertTrue(repo.savePlaylist(GUILD, ANA, "Treino", List.of(track("1"), track("2")), 1000));
 
@@ -99,7 +99,7 @@ class MusicRepositoryTest {
 
     @Test
     void salvarPlaylistVaziaFalha() {
-        MusicRepository repo = inMemory();
+        MusicRepository repo = repo("music_playlist_vazia");
         assertFalse(repo.savePlaylist(GUILD, ANA, "Vazia", List.of(), 1000));
     }
 

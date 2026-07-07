@@ -76,8 +76,8 @@ public class MusicRepository {
         try (Connection c = ds.getConnection(); Statement st = c.createStatement()) {
             st.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS music_config (
-                        guild_id TEXT    NOT NULL PRIMARY KEY,
-                        volume   INTEGER NOT NULL DEFAULT 50
+                        guild_id TEXT   NOT NULL PRIMARY KEY,
+                        volume   BIGINT NOT NULL DEFAULT 50
                     )
                     """);
             st.executeUpdate("""
@@ -89,9 +89,9 @@ public class MusicRepository {
                     """);
             st.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS music_queue (
-                        guild_id TEXT    NOT NULL,
-                        position INTEGER NOT NULL,
-                        encoded  TEXT    NOT NULL,
+                        guild_id TEXT   NOT NULL,
+                        position BIGINT NOT NULL,
+                        encoded  TEXT   NOT NULL,
                         title    TEXT,
                         PRIMARY KEY (guild_id, position)
                     )
@@ -108,11 +108,11 @@ public class MusicRepository {
                     """);
             st.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS music_playlist_track (
-                        guild_id   TEXT    NOT NULL,
-                        owner_id   TEXT    NOT NULL,
-                        name_lower TEXT    NOT NULL,
-                        position   INTEGER NOT NULL,
-                        encoded    TEXT    NOT NULL,
+                        guild_id   TEXT   NOT NULL,
+                        owner_id   TEXT   NOT NULL,
+                        name_lower TEXT   NOT NULL,
+                        position   BIGINT NOT NULL,
+                        encoded    TEXT   NOT NULL,
                         title      TEXT,
                         PRIMARY KEY (guild_id, owner_id, name_lower, position)
                     )
