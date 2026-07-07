@@ -3,8 +3,8 @@ package org.chibot.Database;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.sql.DataSource;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -16,18 +16,18 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Persistencia local (SQLite) do sistema de waifu/husbando. Guarda os
+ * Persistência (PostgreSQL) do sistema de waifu/husbando. Guarda os
  * casamentos (um dono por personagem por servidor), o estado de cada jogador
  * (kakera, cooldown de claim e rolls da hora) e as listas de desejos.
  *
- * <p>Segue o mesmo espirito do {@link PfRepository}: se o banco nao abrir, a
+ * <p>Segue o mesmo espírito do {@link PfRepository}: se o banco não abrir, a
  * classe loga e degrada — rolls continuam funcionando, mas claims falham.
- * Todos os metodos sao sincronizados (uma unica conexao SQLite).
+ * Todos os métodos são sincronizados e pegam conexões do pool compartilhado
+ * (Db).
  */
 public class HaremRepository {
 
     private static final Logger log = LoggerFactory.getLogger(HaremRepository.class);
-    private static final String DEFAULT_DB_PATH = "ChiData.db";
 
     /** Estado de um jogador num servidor. */
     public record Player(long kakera, long lastClaimMs, int rollsUsed, long rollsHour,
@@ -51,49 +51,45 @@ public class HaremRepository {
     /** Estatisticas do harem de um jogador num servidor. */
     public record HaremStats(int count, long valorTotal, long primeiroClaimMs) {}
 
-    private Connection conn;
+    private DataSource ds;
 
     public HaremRepository() {
-        this(defaultDbUrl());
+        this(Db.dataSource());
     }
 
-    /** Construtor com URL explicita (ex.: {@code jdbc:sqlite::memory:} nos testes). */
-    public HaremRepository(String dbUrl) {
+    /** Construtor com DataSource explícito (testes). Null = degrada pra no-op. */
+    public HaremRepository(DataSource ds) {
+        this.ds = ds;
+        if (ds == null) {
+            log.warn("Banco do harem não configurado; claims não vão persistir.");
+            return;
+        }
         try {
-            conn = DriverManager.getConnection(dbUrl);
             createSchema();
-            log.info("Banco do harem pronto ({}).", dbUrl);
+            log.info("Banco do harem pronto.");
         } catch (SQLException e) {
-            conn = null;
-            log.warn("Nao foi possivel abrir o banco do harem; claims nao vao persistir.", e);
+            this.ds = null;
+            log.warn("Não foi possível preparar o banco do harem; claims não vão persistir.", e);
         }
-    }
-
-    private static String defaultDbUrl() {
-        String path = System.getenv("CHIBOT_DB_PATH");
-        if (path == null || path.isBlank()) {
-            path = DEFAULT_DB_PATH;
-        }
-        return "jdbc:sqlite:" + path;
     }
 
     private boolean available() {
-        return conn != null;
+        return ds != null;
     }
 
     private void createSchema() throws SQLException {
-        try (Statement st = conn.createStatement()) {
+        try (Connection c = ds.getConnection(); Statement st = c.createStatement()) {
             st.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS harem_claim (
-                        guild_id   TEXT    NOT NULL,
-                        char_id    INTEGER NOT NULL,
-                        name       TEXT    NOT NULL,
+                        guild_id   TEXT   NOT NULL,
+                        char_id    BIGINT NOT NULL,
+                        name       TEXT   NOT NULL,
                         series     TEXT,
                         image_url  TEXT,
-                        kakera     INTEGER NOT NULL,
-                        owner_id   TEXT    NOT NULL,
+                        kakera     BIGINT NOT NULL,
+                        owner_id   TEXT   NOT NULL,
                         owner_name TEXT,
-                        claimed_at INTEGER NOT NULL,
+                        claimed_at BIGINT NOT NULL,
                         PRIMARY KEY (guild_id, char_id)
                     )
                     """);
@@ -101,29 +97,29 @@ public class HaremRepository {
                     "CREATE INDEX IF NOT EXISTS idx_harem_claim_owner ON harem_claim(guild_id, owner_id)");
             st.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS harem_player (
-                        guild_id      TEXT    NOT NULL,
-                        user_id       TEXT    NOT NULL,
-                        kakera        INTEGER NOT NULL DEFAULT 0,
-                        last_claim    INTEGER NOT NULL DEFAULT 0,
-                        rolls_used    INTEGER NOT NULL DEFAULT 0,
-                        rolls_hour    INTEGER NOT NULL DEFAULT 0,
-                        last_daily    INTEGER NOT NULL DEFAULT 0,
-                        bonus_rolls   INTEGER NOT NULL DEFAULT 0,
-                        tower_level   INTEGER NOT NULL DEFAULT 0,
-                        game_rolls_used INTEGER NOT NULL DEFAULT 0,
-                        game_rolls_hour INTEGER NOT NULL DEFAULT 0,
-                        game_last_claim INTEGER NOT NULL DEFAULT 0,
+                        guild_id      TEXT   NOT NULL,
+                        user_id       TEXT   NOT NULL,
+                        kakera        BIGINT NOT NULL DEFAULT 0,
+                        last_claim    BIGINT NOT NULL DEFAULT 0,
+                        rolls_used    BIGINT NOT NULL DEFAULT 0,
+                        rolls_hour    BIGINT NOT NULL DEFAULT 0,
+                        last_daily    BIGINT NOT NULL DEFAULT 0,
+                        bonus_rolls   BIGINT NOT NULL DEFAULT 0,
+                        tower_level   BIGINT NOT NULL DEFAULT 0,
+                        game_rolls_used BIGINT NOT NULL DEFAULT 0,
+                        game_rolls_hour BIGINT NOT NULL DEFAULT 0,
+                        game_last_claim BIGINT NOT NULL DEFAULT 0,
                         PRIMARY KEY (guild_id, user_id)
                     )
                     """);
-            // Migracao de bancos criados antes das colunas novas (o ALTER falha
-            // com "duplicate column" em bancos novos e e ignorado de proposito).
-            addColumnIfMissing(st, "harem_player", "last_daily INTEGER NOT NULL DEFAULT 0");
-            addColumnIfMissing(st, "harem_player", "bonus_rolls INTEGER NOT NULL DEFAULT 0");
-            addColumnIfMissing(st, "harem_player", "tower_level INTEGER NOT NULL DEFAULT 0");
-            addColumnIfMissing(st, "harem_player", "game_rolls_used INTEGER NOT NULL DEFAULT 0");
-            addColumnIfMissing(st, "harem_player", "game_rolls_hour INTEGER NOT NULL DEFAULT 0");
-            addColumnIfMissing(st, "harem_player", "game_last_claim INTEGER NOT NULL DEFAULT 0");
+            // Migracao de bancos criados antes das colunas novas (o ADD COLUMN IF
+            // NOT EXISTS e ignorado de proposito em bancos que ja tem a coluna).
+            addColumnIfMissing(st, "harem_player", "last_daily BIGINT NOT NULL DEFAULT 0");
+            addColumnIfMissing(st, "harem_player", "bonus_rolls BIGINT NOT NULL DEFAULT 0");
+            addColumnIfMissing(st, "harem_player", "tower_level BIGINT NOT NULL DEFAULT 0");
+            addColumnIfMissing(st, "harem_player", "game_rolls_used BIGINT NOT NULL DEFAULT 0");
+            addColumnIfMissing(st, "harem_player", "game_rolls_hour BIGINT NOT NULL DEFAULT 0");
+            addColumnIfMissing(st, "harem_player", "game_last_claim BIGINT NOT NULL DEFAULT 0");
             st.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS harem_wish (
                         guild_id   TEXT NOT NULL,
@@ -134,23 +130,23 @@ public class HaremRepository {
                     """);
             st.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS harem_profile (
-                        guild_id      TEXT    NOT NULL,
-                        user_id       TEXT    NOT NULL,
-                        color         INTEGER NOT NULL DEFAULT -1,
+                        guild_id      TEXT   NOT NULL,
+                        user_id       TEXT   NOT NULL,
+                        color         BIGINT NOT NULL DEFAULT -1,
                         bio           TEXT,
-                        fav_char_id   INTEGER NOT NULL DEFAULT 0,
-                        harem_char_id INTEGER NOT NULL DEFAULT 0,
+                        fav_char_id   BIGINT NOT NULL DEFAULT 0,
+                        harem_char_id BIGINT NOT NULL DEFAULT 0,
                         PRIMARY KEY (guild_id, user_id)
                     )
                     """);
-            addColumnIfMissing(st, "harem_profile", "harem_char_id INTEGER NOT NULL DEFAULT 0");
+            addColumnIfMissing(st, "harem_profile", "harem_char_id BIGINT NOT NULL DEFAULT 0");
             st.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS harem_badge (
-                        guild_id  TEXT    NOT NULL,
-                        user_id   TEXT    NOT NULL,
-                        badge_id  TEXT    NOT NULL,
-                        acquired  INTEGER NOT NULL DEFAULT 0,
-                        equipped  INTEGER NOT NULL DEFAULT 0,
+                        guild_id  TEXT   NOT NULL,
+                        user_id   TEXT   NOT NULL,
+                        badge_id  TEXT   NOT NULL,
+                        acquired  BIGINT NOT NULL DEFAULT 0,
+                        equipped  BIGINT NOT NULL DEFAULT 0,
                         PRIMARY KEY (guild_id, user_id, badge_id)
                     )
                     """);
@@ -168,7 +164,8 @@ public class HaremRepository {
         if (!available()) {
             return null;
         }
-        try (PreparedStatement ps = conn.prepareStatement("SELECT mvalue FROM harem_meta WHERE mkey = ?")) {
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement("SELECT mvalue FROM harem_meta WHERE mkey = ?")) {
             ps.setString(1, key);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? rs.getString(1) : null;
@@ -184,7 +181,8 @@ public class HaremRepository {
         if (!available()) {
             return;
         }
-        try (PreparedStatement ps = conn.prepareStatement(
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement(
                 "INSERT INTO harem_meta (mkey, mvalue) VALUES (?, ?) "
                         + "ON CONFLICT(mkey) DO UPDATE SET mvalue = excluded.mvalue")) {
             ps.setString(1, key);
@@ -204,11 +202,11 @@ public class HaremRepository {
         if (!available()) {
             return maxRolls - 1;
         }
-        try {
-            ensurePlayer(guildId, userId);
+        try (Connection c = ds.getConnection()) {
+            ensurePlayer(c, guildId, userId);
             int used = 0;
             int bonus = 0;
-            try (PreparedStatement ps = conn.prepareStatement("""
+            try (PreparedStatement ps = c.prepareStatement("""
                     SELECT rolls_used, rolls_hour, bonus_rolls
                     FROM harem_player WHERE guild_id = ? AND user_id = ?
                     """)) {
@@ -224,7 +222,7 @@ public class HaremRepository {
                 }
             }
             if (used < maxRolls) {
-                try (PreparedStatement ps = conn.prepareStatement(
+                try (PreparedStatement ps = c.prepareStatement(
                         "UPDATE harem_player SET rolls_used = ?, rolls_hour = ? WHERE guild_id = ? AND user_id = ?")) {
                     ps.setInt(1, used + 1);
                     ps.setLong(2, hour);
@@ -235,7 +233,7 @@ public class HaremRepository {
                 return maxRolls - used - 1 + bonus;
             }
             if (bonus > 0) {
-                try (PreparedStatement ps = conn.prepareStatement(
+                try (PreparedStatement ps = c.prepareStatement(
                         "UPDATE harem_player SET bonus_rolls = bonus_rolls - 1 WHERE guild_id = ? AND user_id = ?")) {
                     ps.setString(1, guildId);
                     ps.setString(2, userId);
@@ -259,10 +257,10 @@ public class HaremRepository {
         if (!available()) {
             return maxRolls - 1;
         }
-        try {
-            ensurePlayer(guildId, userId);
+        try (Connection c = ds.getConnection()) {
+            ensurePlayer(c, guildId, userId);
             int used = 0;
-            try (PreparedStatement ps = conn.prepareStatement("""
+            try (PreparedStatement ps = c.prepareStatement("""
                     SELECT game_rolls_used, game_rolls_hour
                     FROM harem_player WHERE guild_id = ? AND user_id = ?
                     """)) {
@@ -277,7 +275,7 @@ public class HaremRepository {
             if (used >= maxRolls) {
                 return -1;
             }
-            try (PreparedStatement ps = conn.prepareStatement(
+            try (PreparedStatement ps = c.prepareStatement(
                     "UPDATE harem_player SET game_rolls_used = ?, game_rolls_hour = ? WHERE guild_id = ? AND user_id = ?")) {
                 ps.setInt(1, used + 1);
                 ps.setLong(2, hour);
@@ -297,7 +295,8 @@ public class HaremRepository {
         if (!available()) {
             return new Player(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
         }
-        try (PreparedStatement ps = conn.prepareStatement("""
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement("""
                 SELECT kakera, last_claim, rolls_used, rolls_hour, last_daily, bonus_rolls, tower_level,
                        game_rolls_used, game_rolls_hour, game_last_claim
                 FROM harem_player WHERE guild_id = ? AND user_id = ?
@@ -324,9 +323,9 @@ public class HaremRepository {
         if (!available()) {
             return;
         }
-        try {
-            ensurePlayer(guildId, userId);
-            try (PreparedStatement ps = conn.prepareStatement(
+        try (Connection c = ds.getConnection()) {
+            ensurePlayer(c, guildId, userId);
+            try (PreparedStatement ps = c.prepareStatement(
                     "UPDATE harem_player SET last_claim = ? WHERE guild_id = ? AND user_id = ?")) {
                 ps.setLong(1, epochMs);
                 ps.setString(2, guildId);
@@ -342,9 +341,9 @@ public class HaremRepository {
         if (!available()) {
             return;
         }
-        try {
-            ensurePlayer(guildId, userId);
-            try (PreparedStatement ps = conn.prepareStatement(
+        try (Connection c = ds.getConnection()) {
+            ensurePlayer(c, guildId, userId);
+            try (PreparedStatement ps = c.prepareStatement(
                     "UPDATE harem_player SET game_last_claim = ? WHERE guild_id = ? AND user_id = ?")) {
                 ps.setLong(1, epochMs);
                 ps.setString(2, guildId);
@@ -360,9 +359,9 @@ public class HaremRepository {
         if (!available()) {
             return;
         }
-        try {
-            ensurePlayer(guildId, userId);
-            try (PreparedStatement ps = conn.prepareStatement(
+        try (Connection c = ds.getConnection()) {
+            ensurePlayer(c, guildId, userId);
+            try (PreparedStatement ps = c.prepareStatement(
                     "UPDATE harem_player SET kakera = kakera + ? WHERE guild_id = ? AND user_id = ?")) {
                 ps.setLong(1, delta);
                 ps.setString(2, guildId);
@@ -379,7 +378,8 @@ public class HaremRepository {
         if (!available()) {
             return null;
         }
-        try (PreparedStatement ps = conn.prepareStatement("""
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement("""
                 SELECT char_id, name, series, image_url, kakera, owner_id, owner_name
                 FROM harem_claim WHERE guild_id = ? AND char_id = ?
                 """)) {
@@ -396,16 +396,18 @@ public class HaremRepository {
 
     /**
      * Tenta casar o personagem com o jogador, de forma atomica: se outra pessoa
-     * casou no meio tempo, retorna false (o INSERT OR IGNORE nao insere nada).
+     * casou no meio tempo, retorna false (o ON CONFLICT DO NOTHING nao insere nada).
      */
     public synchronized boolean tryClaim(String guildId, Claim claim, long epochMs) {
         if (!available()) {
             return false;
         }
-        try (PreparedStatement ps = conn.prepareStatement("""
-                INSERT OR IGNORE INTO harem_claim
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement("""
+                INSERT INTO harem_claim
                     (guild_id, char_id, name, series, image_url, kakera, owner_id, owner_name, claimed_at)
                 VALUES (?,?,?,?,?,?,?,?,?)
+                ON CONFLICT DO NOTHING
                 """)) {
             ps.setString(1, guildId);
             ps.setLong(2, claim.charId());
@@ -429,7 +431,8 @@ public class HaremRepository {
         if (!available()) {
             return out;
         }
-        try (PreparedStatement ps = conn.prepareStatement("""
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement("""
                 SELECT char_id, name, series, image_url, kakera, owner_id, owner_name
                 FROM harem_claim WHERE guild_id = ? AND owner_id = ?
                 ORDER BY kakera DESC, name
@@ -453,7 +456,8 @@ public class HaremRepository {
         if (!available()) {
             return out;
         }
-        try (PreparedStatement ps = conn.prepareStatement("""
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement("""
                 SELECT char_id, name, series, image_url, kakera, owner_id, owner_name
                 FROM harem_claim
                 WHERE guild_id = ? AND owner_id = ? AND LOWER(name) LIKE ?
@@ -477,7 +481,8 @@ public class HaremRepository {
         if (!available()) {
             return false;
         }
-        try (PreparedStatement ps = conn.prepareStatement(
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement(
                 "DELETE FROM harem_claim WHERE guild_id = ? AND char_id = ?")) {
             ps.setString(1, guildId);
             ps.setLong(2, charId);
@@ -492,12 +497,12 @@ public class HaremRepository {
         if (!available()) {
             return WishResult.CHEIO;
         }
-        try {
-            if (listWishes(guildId, userId).size() >= maxWishes) {
+        try (Connection c = ds.getConnection()) {
+            if (listWishes(c, guildId, userId).size() >= maxWishes) {
                 return WishResult.CHEIO;
             }
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "INSERT OR IGNORE INTO harem_wish (guild_id, user_id, name_lower) VALUES (?,?,?)")) {
+            try (PreparedStatement ps = c.prepareStatement(
+                    "INSERT INTO harem_wish (guild_id, user_id, name_lower) VALUES (?,?,?) ON CONFLICT DO NOTHING")) {
                 ps.setString(1, guildId);
                 ps.setString(2, userId);
                 ps.setString(3, nameLower);
@@ -513,7 +518,8 @@ public class HaremRepository {
         if (!available()) {
             return false;
         }
-        try (PreparedStatement ps = conn.prepareStatement(
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement(
                 "DELETE FROM harem_wish WHERE guild_id = ? AND user_id = ? AND name_lower = ?")) {
             ps.setString(1, guildId);
             ps.setString(2, userId);
@@ -526,11 +532,20 @@ public class HaremRepository {
     }
 
     public synchronized List<String> listWishes(String guildId, String userId) {
-        List<String> out = new ArrayList<>();
         if (!available()) {
-            return out;
+            return new ArrayList<>();
         }
-        try (PreparedStatement ps = conn.prepareStatement(
+        try (Connection c = ds.getConnection()) {
+            return listWishes(c, guildId, userId);
+        } catch (SQLException e) {
+            log.warn("Falha ao listar os desejos de {}/{}.", guildId, userId, e);
+            return new ArrayList<>();
+        }
+    }
+
+    private List<String> listWishes(Connection c, String guildId, String userId) throws SQLException {
+        List<String> out = new ArrayList<>();
+        try (PreparedStatement ps = c.prepareStatement(
                 "SELECT name_lower FROM harem_wish WHERE guild_id = ? AND user_id = ? ORDER BY name_lower")) {
             ps.setString(1, guildId);
             ps.setString(2, userId);
@@ -539,8 +554,6 @@ public class HaremRepository {
                     out.add(rs.getString(1));
                 }
             }
-        } catch (SQLException e) {
-            log.warn("Falha ao listar os desejos de {}/{}.", guildId, userId, e);
         }
         return out;
     }
@@ -551,7 +564,8 @@ public class HaremRepository {
         if (!available()) {
             return out;
         }
-        try (PreparedStatement ps = conn.prepareStatement(
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement(
                 "SELECT user_id FROM harem_wish WHERE guild_id = ? AND name_lower = ?")) {
             ps.setString(1, guildId);
             ps.setString(2, nameLower);
@@ -574,21 +588,25 @@ public class HaremRepository {
         if (!available()) {
             return false;
         }
-        try {
-            ensurePlayer(guildId, userId);
-            try (PreparedStatement ps = conn.prepareStatement("""
-                    UPDATE harem_player SET kakera = kakera - ?
-                    WHERE guild_id = ? AND user_id = ? AND kakera >= ?
-                    """)) {
-                ps.setLong(1, amount);
-                ps.setString(2, guildId);
-                ps.setString(3, userId);
-                ps.setLong(4, amount);
-                return ps.executeUpdate() > 0;
-            }
+        try (Connection c = ds.getConnection()) {
+            return trySpendKakera(c, guildId, userId, amount);
         } catch (SQLException e) {
             log.warn("Falha ao debitar kakera de {}/{}.", guildId, userId, e);
             return false;
+        }
+    }
+
+    private boolean trySpendKakera(Connection c, String guildId, String userId, long amount) throws SQLException {
+        ensurePlayer(c, guildId, userId);
+        try (PreparedStatement ps = c.prepareStatement("""
+                UPDATE harem_player SET kakera = kakera - ?
+                WHERE guild_id = ? AND user_id = ? AND kakera >= ?
+                """)) {
+            ps.setLong(1, amount);
+            ps.setString(2, guildId);
+            ps.setString(3, userId);
+            ps.setLong(4, amount);
+            return ps.executeUpdate() > 0;
         }
     }
 
@@ -596,9 +614,9 @@ public class HaremRepository {
         if (!available()) {
             return;
         }
-        try {
-            ensurePlayer(guildId, userId);
-            try (PreparedStatement ps = conn.prepareStatement(
+        try (Connection c = ds.getConnection()) {
+            ensurePlayer(c, guildId, userId);
+            try (PreparedStatement ps = c.prepareStatement(
                     "UPDATE harem_player SET bonus_rolls = bonus_rolls + ? WHERE guild_id = ? AND user_id = ?")) {
                 ps.setInt(1, rolls);
                 ps.setString(2, guildId);
@@ -618,9 +636,9 @@ public class HaremRepository {
         if (!available()) {
             return false;
         }
-        try {
-            ensurePlayer(guildId, userId);
-            try (PreparedStatement ps = conn.prepareStatement("""
+        try (Connection c = ds.getConnection()) {
+            ensurePlayer(c, guildId, userId);
+            try (PreparedStatement ps = c.prepareStatement("""
                     UPDATE harem_player SET last_daily = ?, kakera = kakera + ?
                     WHERE guild_id = ? AND user_id = ? AND last_daily <= ?
                     """)) {
@@ -645,9 +663,9 @@ public class HaremRepository {
         if (!available()) {
             return false;
         }
-        try {
-            ensurePlayer(guildId, userId);
-            try (PreparedStatement ps = conn.prepareStatement("""
+        try (Connection c = ds.getConnection()) {
+            ensurePlayer(c, guildId, userId);
+            try (PreparedStatement ps = c.prepareStatement("""
                     UPDATE harem_player SET tower_level = ?, kakera = kakera - ?
                     WHERE guild_id = ? AND user_id = ? AND kakera >= ? AND tower_level = ?
                     """)) {
@@ -676,9 +694,9 @@ public class HaremRepository {
         if (!available()) {
             return false;
         }
-        try {
-            conn.setAutoCommit(false);
-            try (PreparedStatement ps = conn.prepareStatement("""
+        try (Connection c = ds.getConnection()) {
+            c.setAutoCommit(false);
+            try (PreparedStatement ps = c.prepareStatement("""
                     UPDATE harem_claim SET owner_id = ?, owner_name = ?
                     WHERE guild_id = ? AND char_id = ? AND owner_id = ?
                     """)) {
@@ -697,26 +715,18 @@ public class HaremRepository {
                 int movedB = ps.executeUpdate();
 
                 if (movedA == 1 && movedB == 1) {
-                    conn.commit();
+                    c.commit();
                     return true;
                 }
-                conn.rollback();
+                c.rollback();
                 return false;
+            } catch (SQLException e) {
+                c.rollback();
+                throw e;
             }
         } catch (SQLException e) {
             log.warn("Falha ao trocar os personagens {} e {} em {}.", charA, charB, guildId, e);
-            try {
-                conn.rollback();
-            } catch (SQLException ignored) {
-                // ja estamos tratando uma falha; nada a fazer
-            }
             return false;
-        } finally {
-            try {
-                conn.setAutoCommit(true);
-            } catch (SQLException ignored) {
-                // idem
-            }
         }
     }
 
@@ -725,7 +735,8 @@ public class HaremRepository {
         if (!available()) {
             return new Profile(-1, null, 0, 0);
         }
-        try (PreparedStatement ps = conn.prepareStatement(
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement(
                 "SELECT color, bio, fav_char_id, harem_char_id FROM harem_profile WHERE guild_id = ? AND user_id = ?")) {
             ps.setString(1, guildId);
             ps.setString(2, userId);
@@ -766,14 +777,14 @@ public class HaremRepository {
         if (!available()) {
             return;
         }
-        try {
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "INSERT OR IGNORE INTO harem_profile (guild_id, user_id) VALUES (?, ?)")) {
+        try (Connection c = ds.getConnection()) {
+            try (PreparedStatement ps = c.prepareStatement(
+                    "INSERT INTO harem_profile (guild_id, user_id) VALUES (?, ?) ON CONFLICT DO NOTHING")) {
                 ps.setString(1, guildId);
                 ps.setString(2, userId);
                 ps.executeUpdate();
             }
-            try (PreparedStatement ps = conn.prepareStatement(
+            try (PreparedStatement ps = c.prepareStatement(
                     "UPDATE harem_profile SET " + column + " = ? WHERE guild_id = ? AND user_id = ?")) {
                 setter.set(ps);
                 ps.setString(2, guildId);
@@ -790,7 +801,16 @@ public class HaremRepository {
         if (!available()) {
             return new HaremStats(0, 0, 0);
         }
-        try (PreparedStatement ps = conn.prepareStatement("""
+        try (Connection c = ds.getConnection()) {
+            return haremStats(c, guildId, userId);
+        } catch (SQLException e) {
+            log.warn("Falha ao ler as estatisticas do harem de {}/{}.", guildId, userId, e);
+            return new HaremStats(0, 0, 0);
+        }
+    }
+
+    private HaremStats haremStats(Connection c, String guildId, String userId) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement("""
                 SELECT COUNT(*) AS n, COALESCE(SUM(kakera), 0) AS total, COALESCE(MIN(claimed_at), 0) AS primeiro
                 FROM harem_claim WHERE guild_id = ? AND owner_id = ?
                 """)) {
@@ -801,8 +821,6 @@ public class HaremRepository {
                     return new HaremStats(rs.getInt("n"), rs.getLong("total"), rs.getLong("primeiro"));
                 }
             }
-        } catch (SQLException e) {
-            log.warn("Falha ao ler as estatisticas do harem de {}/{}.", guildId, userId, e);
         }
         return new HaremStats(0, 0, 0);
     }
@@ -815,11 +833,12 @@ public class HaremRepository {
         if (!available()) {
             return 0;
         }
-        try (PreparedStatement ps = conn.prepareStatement("""
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement("""
                 SELECT COUNT(*) + 1 FROM (
                     SELECT owner_id, SUM(kakera) AS s FROM harem_claim
                     WHERE guild_id = ? GROUP BY owner_id
-                ) WHERE s > (
+                ) AS t WHERE s > (
                     SELECT COALESCE(SUM(kakera), -1) FROM harem_claim
                     WHERE guild_id = ? AND owner_id = ?
                 )
@@ -828,7 +847,7 @@ public class HaremRepository {
             ps.setString(2, guildId);
             ps.setString(3, userId);
             try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next() && haremStats(guildId, userId).count() > 0) {
+                if (rs.next() && haremStats(c, guildId, userId).count() > 0) {
                     return rs.getInt(1);
                 }
             }
@@ -844,7 +863,8 @@ public class HaremRepository {
         if (!available()) {
             return out;
         }
-        try (PreparedStatement ps = conn.prepareStatement(
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement(
                 "SELECT char_id FROM harem_claim WHERE guild_id = ? AND owner_id = ?")) {
             ps.setString(1, guildId);
             ps.setString(2, userId);
@@ -867,7 +887,17 @@ public class HaremRepository {
         if (!available()) {
             return out;
         }
-        try (PreparedStatement ps = conn.prepareStatement(
+        try (Connection c = ds.getConnection()) {
+            out.addAll(ownedBadges(c, guildId, userId));
+        } catch (SQLException e) {
+            log.warn("Falha ao listar os badges de {}/{}.", guildId, userId, e);
+        }
+        return out;
+    }
+
+    private Set<String> ownedBadges(Connection c, String guildId, String userId) throws SQLException {
+        Set<String> out = new LinkedHashSet<>();
+        try (PreparedStatement ps = c.prepareStatement(
                 "SELECT badge_id FROM harem_badge WHERE guild_id = ? AND user_id = ? ORDER BY acquired")) {
             ps.setString(1, guildId);
             ps.setString(2, userId);
@@ -876,8 +906,6 @@ public class HaremRepository {
                     out.add(rs.getString(1));
                 }
             }
-        } catch (SQLException e) {
-            log.warn("Falha ao listar os badges de {}/{}.", guildId, userId, e);
         }
         return out;
     }
@@ -888,7 +916,8 @@ public class HaremRepository {
         if (!available()) {
             return out;
         }
-        try (PreparedStatement ps = conn.prepareStatement("""
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement("""
                 SELECT badge_id FROM harem_badge
                 WHERE guild_id = ? AND user_id = ? AND equipped = 1 ORDER BY acquired
                 """)) {
@@ -910,7 +939,8 @@ public class HaremRepository {
         if (!available()) {
             return 0;
         }
-        try (PreparedStatement ps = conn.prepareStatement(
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement(
                 "SELECT COUNT(*) FROM harem_badge WHERE guild_id = ? AND user_id = ? AND equipped = 1")) {
             ps.setString(1, guildId);
             ps.setString(2, userId);
@@ -928,16 +958,22 @@ public class HaremRepository {
         if (!available()) {
             return false;
         }
-        try (PreparedStatement ps = conn.prepareStatement(
-                "INSERT OR IGNORE INTO harem_badge (guild_id, user_id, badge_id, acquired) VALUES (?,?,?,?)")) {
+        try (Connection c = ds.getConnection()) {
+            return grantBadge(c, guildId, userId, badgeId, epochMs);
+        } catch (SQLException e) {
+            log.warn("Falha ao conceder o badge '{}' pra {}/{}.", badgeId, guildId, userId, e);
+            return false;
+        }
+    }
+
+    private boolean grantBadge(Connection c, String guildId, String userId, String badgeId, long epochMs) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement(
+                "INSERT INTO harem_badge (guild_id, user_id, badge_id, acquired) VALUES (?,?,?,?) ON CONFLICT DO NOTHING")) {
             ps.setString(1, guildId);
             ps.setString(2, userId);
             ps.setString(3, badgeId);
             ps.setLong(4, epochMs);
             return ps.executeUpdate() > 0;
-        } catch (SQLException e) {
-            log.warn("Falha ao conceder o badge '{}' pra {}/{}.", badgeId, guildId, userId, e);
-            return false;
         }
     }
 
@@ -950,33 +986,27 @@ public class HaremRepository {
         if (!available()) {
             return false;
         }
-        try {
-            ensurePlayer(guildId, userId);
-            if (ownedBadges(guildId, userId).contains(badgeId)) {
+        try (Connection c = ds.getConnection()) {
+            ensurePlayer(c, guildId, userId);
+            if (ownedBadges(c, guildId, userId).contains(badgeId)) {
                 return false;
             }
-            conn.setAutoCommit(false);
-            if (trySpendKakera(guildId, userId, preco)
-                    && grantBadge(guildId, userId, badgeId, epochMs)) {
-                conn.commit();
-                return true;
+            c.setAutoCommit(false);
+            try {
+                if (trySpendKakera(c, guildId, userId, preco)
+                        && grantBadge(c, guildId, userId, badgeId, epochMs)) {
+                    c.commit();
+                    return true;
+                }
+                c.rollback();
+                return false;
+            } catch (SQLException e) {
+                c.rollback();
+                throw e;
             }
-            conn.rollback();
-            return false;
         } catch (SQLException e) {
             log.warn("Falha ao comprar o badge '{}' pra {}/{}.", badgeId, guildId, userId, e);
-            try {
-                conn.rollback();
-            } catch (SQLException ignored) {
-                // ja estamos tratando uma falha; nada a fazer
-            }
             return false;
-        } finally {
-            try {
-                conn.setAutoCommit(true);
-            } catch (SQLException ignored) {
-                // idem
-            }
         }
     }
 
@@ -985,7 +1015,8 @@ public class HaremRepository {
         if (!available()) {
             return false;
         }
-        try (PreparedStatement ps = conn.prepareStatement(
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement(
                 "UPDATE harem_badge SET equipped = ? WHERE guild_id = ? AND user_id = ? AND badge_id = ?")) {
             ps.setInt(1, equipped ? 1 : 0);
             ps.setString(2, guildId);
@@ -1009,17 +1040,14 @@ public class HaremRepository {
                 rs.getString("owner_name"));
     }
 
-    private static void addColumnIfMissing(Statement st, String table, String columnDef) {
-        try {
-            st.executeUpdate("ALTER TABLE " + table + " ADD COLUMN " + columnDef);
-        } catch (SQLException ignored) {
-            // coluna ja existe (bancos novos ja nascem com ela no CREATE TABLE)
-        }
+    /** Migração de bancos antigos: adiciona a coluna se ainda não existir. */
+    private static void addColumnIfMissing(Statement st, String table, String columnDef) throws SQLException {
+        st.executeUpdate("ALTER TABLE " + table + " ADD COLUMN IF NOT EXISTS " + columnDef);
     }
 
-    private void ensurePlayer(String guildId, String userId) throws SQLException {
-        try (PreparedStatement ps = conn.prepareStatement(
-                "INSERT OR IGNORE INTO harem_player (guild_id, user_id) VALUES (?, ?)")) {
+    private void ensurePlayer(Connection c, String guildId, String userId) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement(
+                "INSERT INTO harem_player (guild_id, user_id) VALUES (?, ?) ON CONFLICT DO NOTHING")) {
             ps.setString(1, guildId);
             ps.setString(2, userId);
             ps.executeUpdate();

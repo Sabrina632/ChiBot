@@ -15,9 +15,9 @@ class HaremRepositoryTest {
     private static final String ANA = "u-ana";
     private static final String BIA = "u-bia";
 
-    /** Banco em memoria — a mesma conexao vive enquanto o repo viver. */
-    private static HaremRepository inMemory() {
-        return new HaremRepository("jdbc:sqlite::memory:");
+    /** Banco de teste (PostgreSQL embarcado) — um nome proprio por teste, pra isolar o estado. */
+    private static HaremRepository repo(String dbName) {
+        return new HaremRepository(PgTestDb.database(dbName));
     }
 
     private static HaremRepository.Claim claim(long charId, String name, int kakera, String owner) {
@@ -27,7 +27,7 @@ class HaremRepositoryTest {
 
     @Test
     void rollsRespeitamCotaEJanelaDaHora() {
-        HaremRepository repo = inMemory();
+        HaremRepository repo = repo("harem_rolls_cota");
 
         assertEquals(2, repo.tryUseRoll(GUILD, ANA, 100, 3));
         assertEquals(1, repo.tryUseRoll(GUILD, ANA, 100, 3));
@@ -41,7 +41,7 @@ class HaremRepositoryTest {
 
     @Test
     void soUmaPessoaCasaComCadaPersonagem() {
-        HaremRepository repo = inMemory();
+        HaremRepository repo = repo("harem_um_dono");
 
         assertTrue(repo.tryClaim(GUILD, claim(42, "Zero Two", 500, ANA), 1000));
         assertFalse(repo.tryClaim(GUILD, claim(42, "Zero Two", 500, BIA), 2000));
@@ -56,7 +56,7 @@ class HaremRepositoryTest {
 
     @Test
     void haremListaPorValorEDivorcioLibera() {
-        HaremRepository repo = inMemory();
+        HaremRepository repo = repo("harem_lista_valor");
         repo.tryClaim(GUILD, claim(1, "Rem", 300, ANA), 1000);
         repo.tryClaim(GUILD, claim(2, "Megumin", 700, ANA), 1000);
         repo.tryClaim(GUILD, claim(3, "Aqua", 100, BIA), 1000);
@@ -74,7 +74,7 @@ class HaremRepositoryTest {
 
     @Test
     void kakeraEClaimDoJogadorPersistem() {
-        HaremRepository repo = inMemory();
+        HaremRepository repo = repo("harem_kakera_claim");
 
         repo.addKakera(GUILD, ANA, 120);
         repo.addKakera(GUILD, ANA, 30);
@@ -90,7 +90,7 @@ class HaremRepositoryTest {
 
     @Test
     void rollsBonusSaoUsadosQuandoACotaDaHoraAcaba() {
-        HaremRepository repo = inMemory();
+        HaremRepository repo = repo("harem_rolls_bonus");
         repo.addBonusRolls(GUILD, ANA, 2);
 
         assertEquals(2, repo.tryUseRoll(GUILD, ANA, 100, 1)); // 0 da hora + 2 bonus
@@ -104,7 +104,7 @@ class HaremRepositoryTest {
 
     @Test
     void gastoDeKakeraEAtomicoESoComSaldo() {
-        HaremRepository repo = inMemory();
+        HaremRepository repo = repo("harem_gasto_kakera");
         repo.addKakera(GUILD, ANA, 100);
 
         assertTrue(repo.trySpendKakera(GUILD, ANA, 60));
@@ -114,7 +114,7 @@ class HaremRepositoryTest {
 
     @Test
     void dailyRespeitaCooldown() {
-        HaremRepository repo = inMemory();
+        HaremRepository repo = repo("harem_daily");
 
         assertTrue(repo.tryDaily(GUILD, ANA, 1000, 1000 - 1, 250));
         assertEquals(250, repo.getPlayer(GUILD, ANA).kakera());
@@ -131,7 +131,7 @@ class HaremRepositoryTest {
 
     @Test
     void torreSobeUmNivelPorVezESoComSaldo() {
-        HaremRepository repo = inMemory();
+        HaremRepository repo = repo("harem_torre");
         repo.addKakera(GUILD, ANA, 500);
 
         assertFalse(repo.tryUpgradeTower(GUILD, ANA, 2, 400)); // nao pode pular nivel
@@ -145,7 +145,7 @@ class HaremRepositoryTest {
 
     @Test
     void trocaEAtomicaEValidaOsDonos() {
-        HaremRepository repo = inMemory();
+        HaremRepository repo = repo("harem_troca");
         repo.tryClaim(GUILD, claim(1, "Rem", 300, ANA), 1000);
         repo.tryClaim(GUILD, claim(2, "Megumin", 700, BIA), 1000);
 
@@ -162,7 +162,7 @@ class HaremRepositoryTest {
 
     @Test
     void perfilGuardaCorBioEFavorito() {
-        HaremRepository repo = inMemory();
+        HaremRepository repo = repo("harem_perfil");
 
         // Sem nada salvo, vem o padrao.
         HaremRepository.Profile vazio = repo.getProfile(GUILD, ANA);
@@ -182,7 +182,7 @@ class HaremRepositoryTest {
 
     @Test
     void statsERankConsideramOValorDoHarem() {
-        HaremRepository repo = inMemory();
+        HaremRepository repo = repo("harem_stats_rank");
         repo.tryClaim(GUILD, claim(1, "Rem", 300, ANA), 5000);
         repo.tryClaim(GUILD, claim(2, "Megumin", 700, ANA), 9000);
         repo.tryClaim(GUILD, claim(3, "Aqua", 5000, BIA), 1000);
@@ -199,7 +199,7 @@ class HaremRepositoryTest {
 
     @Test
     void desejosTemLimiteEAvisamQuemDeseja() {
-        HaremRepository repo = inMemory();
+        HaremRepository repo = repo("harem_desejos");
 
         assertEquals(HaremRepository.WishResult.OK, repo.addWish(GUILD, ANA, "zero two", 2));
         assertEquals(HaremRepository.WishResult.DUPLICADO, repo.addWish(GUILD, ANA, "zero two", 2));
@@ -217,7 +217,7 @@ class HaremRepositoryTest {
 
     @Test
     void rollsDeJogoTemCotaPropria() {
-        HaremRepository repo = inMemory();
+        HaremRepository repo = repo("harem_rolls_jogo");
 
         // Esgota a cota de anime; a de jogos continua intacta (e vice-versa).
         assertEquals(0, repo.tryUseRoll(GUILD, ANA, 100, 1));
@@ -234,7 +234,7 @@ class HaremRepositoryTest {
 
     @Test
     void cooldownDeClaimDeJogoEIndependente() {
-        HaremRepository repo = inMemory();
+        HaremRepository repo = repo("harem_cooldown_jogo");
 
         repo.setLastClaim(GUILD, ANA, 111);
         repo.setLastGameClaim(GUILD, ANA, 222);
@@ -246,7 +246,7 @@ class HaremRepositoryTest {
 
     @Test
     void claimDeIdNegativoConviveComPositivo() {
-        HaremRepository repo = inMemory();
+        HaremRepository repo = repo("harem_id_negativo");
 
         // Personagem de jogo (id negativo) e de anime (positivo) nao colidem.
         assertTrue(repo.tryClaim(GUILD, claim(42, "Zero Two", 500, ANA), 1000));
