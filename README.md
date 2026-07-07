@@ -147,7 +147,7 @@ O `docker-compose.yml` sobe **quatro serviços** na rede interna (nenhuma porta 
 | `postgres`        | Banco de dados do bot (harém, música, Party Finder, idiomas, estado) — PostgreSQL 16, sem porta exposta pro host. |
 
 ```bash
-# Edite o .env com seu token antes de subir
+# Edite o .env com seu token e o POSTGRES_PASSWORD antes de subir
 # (e use LAVALINK_URI=ws://lavalink:2333)
 docker compose up -d --build
 

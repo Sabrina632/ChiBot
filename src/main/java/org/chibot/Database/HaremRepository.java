@@ -112,8 +112,8 @@ public class HaremRepository {
                         PRIMARY KEY (guild_id, user_id)
                     )
                     """);
-            // Migracao de bancos criados antes das colunas novas (o ADD COLUMN IF
-            // NOT EXISTS e ignorado de proposito em bancos que ja tem a coluna).
+            // Migração de bancos criados antes das colunas novas (o ADD COLUMN IF
+            // NOT EXISTS é ignorado de propósito em bancos que já têm a coluna).
             addColumnIfMissing(st, "harem_player", "last_daily BIGINT NOT NULL DEFAULT 0");
             addColumnIfMissing(st, "harem_player", "bonus_rolls BIGINT NOT NULL DEFAULT 0");
             addColumnIfMissing(st, "harem_player", "tower_level BIGINT NOT NULL DEFAULT 0");
@@ -696,6 +696,7 @@ public class HaremRepository {
         }
         try (Connection c = ds.getConnection()) {
             c.setAutoCommit(false);
+            // autoCommit volta ao padrão quando a conexão retorna ao pool (Hikari reseta)
             try (PreparedStatement ps = c.prepareStatement("""
                     UPDATE harem_claim SET owner_id = ?, owner_name = ?
                     WHERE guild_id = ? AND char_id = ? AND owner_id = ?
@@ -992,6 +993,7 @@ public class HaremRepository {
                 return false;
             }
             c.setAutoCommit(false);
+            // autoCommit volta ao padrão quando a conexão retorna ao pool (Hikari reseta)
             try {
                 if (trySpendKakera(c, guildId, userId, preco)
                         && grantBadge(c, guildId, userId, badgeId, epochMs)) {

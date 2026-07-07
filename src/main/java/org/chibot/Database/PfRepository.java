@@ -126,6 +126,7 @@ public class PfRepository {
         String ts = when.toString();
         try (Connection c = ds.getConnection()) {
             c.setAutoCommit(false);
+            // autoCommit volta ao padrão quando a conexão retorna ao pool (Hikari reseta)
             try (PreparedStatement gate = c.prepareStatement(
                          "INSERT INTO pf_indexed_listing (id) VALUES (?) ON CONFLICT DO NOTHING");
                  PreparedStatement upsert = c.prepareStatement("""
@@ -202,6 +203,7 @@ public class PfRepository {
         }
         try (Connection c = ds.getConnection()) {
             c.setAutoCommit(false);
+            // autoCommit volta ao padrão quando a conexão retorna ao pool (Hikari reseta)
             try {
                 try (Statement st = c.createStatement()) {
                     st.executeUpdate("DELETE FROM pf_listing");

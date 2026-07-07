@@ -56,7 +56,7 @@ public class MusicRepository {
     public MusicRepository(DataSource ds) {
         this.ds = ds;
         if (ds == null) {
-            log.warn("Banco da musica não configurado; seguindo sem persistência.");
+            log.warn("Banco da música não configurado; seguindo sem persistência.");
             return;
         }
         try {
@@ -64,7 +64,7 @@ public class MusicRepository {
             log.info("Banco da musica pronto.");
         } catch (SQLException e) {
             this.ds = null;
-            log.warn("Não foi possível preparar o banco da musica; seguindo sem persistência.", e);
+            log.warn("Não foi possível preparar o banco da música; seguindo sem persistência.", e);
         }
     }
 
@@ -171,6 +171,7 @@ public class MusicRepository {
         }
         try (Connection c = ds.getConnection()) {
             c.setAutoCommit(false);
+            // autoCommit volta ao padrão quando a conexão retorna ao pool (Hikari reseta)
             try (PreparedStatement ps = c.prepareStatement("""
                     INSERT INTO music_session (guild_id, voice_channel_id, text_channel_id)
                     VALUES (?, ?, ?)
@@ -287,6 +288,7 @@ public class MusicRepository {
         String nameLower = name.toLowerCase(Locale.ROOT);
         try (Connection c = ds.getConnection()) {
             c.setAutoCommit(false);
+            // autoCommit volta ao padrão quando a conexão retorna ao pool (Hikari reseta)
             try (PreparedStatement ps = c.prepareStatement("""
                     INSERT INTO music_playlist (guild_id, owner_id, name_lower, name, created_at)
                     VALUES (?,?,?,?,?)
@@ -371,6 +373,7 @@ public class MusicRepository {
         String key = nameLower.toLowerCase(Locale.ROOT);
         try (Connection c = ds.getConnection()) {
             c.setAutoCommit(false);
+            // autoCommit volta ao padrão quando a conexão retorna ao pool (Hikari reseta)
             try (PreparedStatement ps = c.prepareStatement("""
                     DELETE FROM music_playlist
                     WHERE guild_id = ? AND owner_id = ? AND name_lower = ?
