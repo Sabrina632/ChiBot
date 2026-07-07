@@ -3,8 +3,8 @@ package org.chibot.Database;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.sql.DataSource;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Persistencia local (SQLite) da musica. Guarda tres coisas, todas opcionais —
+ * Persistência (PostgreSQL) da música. Guarda tres coisas, todas opcionais —
  * se o banco nao abrir, a musica continua tocando, so nao sobrevive a restart:
  *
  * <ul>
@@ -30,12 +30,12 @@ import java.util.Locale;
  * <p>As faixas sao guardadas no formato <em>encoded</em> do Lavalink (base64), que
  * o {@code node.decodeTracks(...)} reconstroi sem precisar resolver de novo o
  * link. Segue o mesmo espirito do {@link PfRepository}: degrada com log e vira
- * no-op se o banco falhar. Todos os metodos sao sincronizados (uma conexao SQLite).
+ * no-op se o banco falhar. Todos os metodos sao sincronizados e pegam conexões
+ * do pool compartilhado (Db).
  */
 public class MusicRepository {
 
     private static final Logger log = LoggerFactory.getLogger(MusicRepository.class);
-    private static final String DEFAULT_DB_FILE = "ChiMusic.db";
 
     /** Uma faixa persistida: o encoded do Lavalink + o titulo (pra listar sem decodificar). */
     public record StoredTrack(String encoded, String title) {}
@@ -43,88 +43,34 @@ public class MusicRepository {
     /** Uma playlist salva (so o cabecalho, pra listagem). */
     public record SavedPlaylist(String name, int trackCount) {}
 
-    private Connection conn;
+    private DataSource ds;
 
     public MusicRepository() {
-        this(defaultDbUrl());
+        this(Db.dataSource());
     }
 
-    /** Construtor com URL explicita (ex.: {@code jdbc:sqlite::memory:} nos testes). */
-    public MusicRepository(String dbUrl) {
-        try {
-            ensureParentDir(dbUrl);
-            conn = DriverManager.getConnection(dbUrl);
-            applyPragmas();
-            createSchema();
-            log.info("Banco da musica pronto ({}).", dbUrl);
-        } catch (SQLException e) {
-            conn = null;
-            log.warn("Nao foi possivel abrir o banco da musica; seguindo sem persistencia.", e);
-        }
-    }
-
-    /**
-     * A musica fica num arquivo SEPARADO do banco principal (harem/PF), de
-     * proposito: a fila e gravada a cada faixa, e dividir o {@code ChiData.db}
-     * faria as gravacoes da musica disputarem o lock do SQLite com o resto e
-     * engasgarem o audio. Por padrao fica ao lado do banco principal (mesmo
-     * diretorio/volume no Docker); {@code CHIBOT_MUSIC_DB_PATH} sobrescreve.
-     */
-    private static String defaultDbUrl() {
-        String explicit = System.getenv("CHIBOT_MUSIC_DB_PATH");
-        if (explicit != null && !explicit.isBlank()) {
-            return "jdbc:sqlite:" + explicit;
-        }
-        String mainDb = System.getenv("CHIBOT_DB_PATH");
-        if (mainDb != null && !mainDb.isBlank()) {
-            java.nio.file.Path parent = java.nio.file.Paths.get(mainDb).getParent();
-            java.nio.file.Path musicPath = parent != null
-                    ? parent.resolve(DEFAULT_DB_FILE)
-                    : java.nio.file.Paths.get(DEFAULT_DB_FILE);
-            return "jdbc:sqlite:" + musicPath;
-        }
-        return "jdbc:sqlite:" + DEFAULT_DB_FILE;
-    }
-
-    /** Liga WAL + busy_timeout: leituras nao travam gravacoes e um lock espera em vez de falhar. */
-    private void applyPragmas() {
-        try (Statement st = conn.createStatement()) {
-            // WAL: leitor e escritor nao se bloqueiam — menos engasgo no audio.
-            st.execute("PRAGMA journal_mode = WAL");
-            // Espera ate 5s por um lock em vez de estourar SQLITE_BUSY na hora.
-            st.execute("PRAGMA busy_timeout = 5000");
-            // Seguro com WAL e bem mais rapido pra gravar a fila a cada faixa.
-            st.execute("PRAGMA synchronous = NORMAL");
-        } catch (SQLException e) {
-            log.warn("Nao foi possivel aplicar os PRAGMAs de performance no banco da musica.", e);
-        }
-    }
-
-    private static void ensureParentDir(String dbUrl) {
-        String prefix = "jdbc:sqlite:";
-        if (!dbUrl.startsWith(prefix)) {
+    /** Construtor com DataSource explícito (testes). Null = degrada pra no-op. */
+    public MusicRepository(DataSource ds) {
+        this.ds = ds;
+        if (ds == null) {
+            log.warn("Banco da musica não configurado; seguindo sem persistência.");
             return;
         }
-        String path = dbUrl.substring(prefix.length());
-        if (path.isBlank() || path.startsWith(":")) {
-            return; // :memory:, etc.
-        }
         try {
-            java.nio.file.Path parent = java.nio.file.Paths.get(path).getParent();
-            if (parent != null) {
-                java.nio.file.Files.createDirectories(parent);
-            }
-        } catch (Exception e) {
-            log.warn("Nao foi possivel criar o diretorio do banco para '{}'.", path, e);
+            createSchema();
+            log.info("Banco da musica pronto.");
+        } catch (SQLException e) {
+            this.ds = null;
+            log.warn("Não foi possível preparar o banco da musica; seguindo sem persistência.", e);
         }
     }
 
     private boolean available() {
-        return conn != null;
+        return ds != null;
     }
 
     private void createSchema() throws SQLException {
-        try (Statement st = conn.createStatement()) {
+        try (Connection c = ds.getConnection(); Statement st = c.createStatement()) {
             st.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS music_config (
                         guild_id TEXT    NOT NULL PRIMARY KEY,
@@ -149,11 +95,11 @@ public class MusicRepository {
                     """);
             st.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS music_playlist (
-                        guild_id   TEXT    NOT NULL,
-                        owner_id   TEXT    NOT NULL,
-                        name_lower TEXT    NOT NULL,
-                        name       TEXT    NOT NULL,
-                        created_at INTEGER NOT NULL,
+                        guild_id   TEXT   NOT NULL,
+                        owner_id   TEXT   NOT NULL,
+                        name_lower TEXT   NOT NULL,
+                        name       TEXT   NOT NULL,
+                        created_at BIGINT NOT NULL,
                         PRIMARY KEY (guild_id, owner_id, name_lower)
                     )
                     """);
@@ -178,8 +124,9 @@ public class MusicRepository {
         if (!available()) {
             return def;
         }
-        try (PreparedStatement ps = conn.prepareStatement(
-                "SELECT volume FROM music_config WHERE guild_id = ?")) {
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement(
+                     "SELECT volume FROM music_config WHERE guild_id = ?")) {
             ps.setString(1, guildId);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? rs.getInt(1) : def;
@@ -194,7 +141,8 @@ public class MusicRepository {
         if (!available()) {
             return;
         }
-        try (PreparedStatement ps = conn.prepareStatement("""
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement("""
                 INSERT INTO music_config (guild_id, volume) VALUES (?, ?)
                 ON CONFLICT(guild_id) DO UPDATE SET volume = excluded.volume
                 """)) {
@@ -218,27 +166,27 @@ public class MusicRepository {
         if (!available()) {
             return;
         }
-        try {
-            conn.setAutoCommit(false);
-            try (PreparedStatement ps = conn.prepareStatement("""
+        try (Connection c = ds.getConnection()) {
+            c.setAutoCommit(false);
+            try (PreparedStatement ps = c.prepareStatement("""
                     INSERT INTO music_session (guild_id, voice_channel_id, text_channel_id)
                     VALUES (?, ?, ?)
                     ON CONFLICT(guild_id) DO UPDATE SET
                         voice_channel_id = excluded.voice_channel_id,
                         text_channel_id  = excluded.text_channel_id
-                    """)) {
+                    """);
+                 PreparedStatement del = c.prepareStatement(
+                         "DELETE FROM music_queue WHERE guild_id = ?");
+                 PreparedStatement ins = c.prepareStatement(
+                         "INSERT INTO music_queue (guild_id, position, encoded, title) VALUES (?,?,?,?)")) {
                 ps.setString(1, guildId);
                 ps.setString(2, voiceChannelId);
                 ps.setString(3, textChannelId);
                 ps.executeUpdate();
-            }
-            try (PreparedStatement del = conn.prepareStatement(
-                    "DELETE FROM music_queue WHERE guild_id = ?")) {
+
                 del.setString(1, guildId);
                 del.executeUpdate();
-            }
-            try (PreparedStatement ins = conn.prepareStatement(
-                    "INSERT INTO music_queue (guild_id, position, encoded, title) VALUES (?,?,?,?)")) {
+
                 int pos = 0;
                 for (StoredTrack t : tracks) {
                     ins.setString(1, guildId);
@@ -248,13 +196,13 @@ public class MusicRepository {
                     ins.addBatch();
                 }
                 ins.executeBatch();
+                c.commit();
+            } catch (SQLException e) {
+                c.rollback();
+                throw e;
             }
-            conn.commit();
         } catch (SQLException e) {
             log.warn("Falha ao salvar a sessao de musica de {}.", guildId, e);
-            rollbackQuietly();
-        } finally {
-            restoreAutoCommit();
         }
     }
 
@@ -264,7 +212,8 @@ public class MusicRepository {
         if (!available()) {
             return out;
         }
-        try (Statement st = conn.createStatement();
+        try (Connection c = ds.getConnection();
+             Statement st = c.createStatement();
              ResultSet rs = st.executeQuery("SELECT DISTINCT guild_id FROM music_queue")) {
             while (rs.next()) {
                 out.add(rs.getString(1));
@@ -287,8 +236,9 @@ public class MusicRepository {
         if (!available()) {
             return null;
         }
-        try (PreparedStatement ps = conn.prepareStatement(
-                "SELECT " + column + " FROM music_session WHERE guild_id = ?")) {
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement(
+                     "SELECT " + column + " FROM music_session WHERE guild_id = ?")) {
             ps.setString(1, guildId);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? rs.getString(1) : null;
@@ -305,8 +255,9 @@ public class MusicRepository {
         if (!available()) {
             return out;
         }
-        try (PreparedStatement ps = conn.prepareStatement(
-                "SELECT encoded, title FROM music_queue WHERE guild_id = ? ORDER BY position")) {
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement(
+                     "SELECT encoded, title FROM music_queue WHERE guild_id = ? ORDER BY position")) {
             ps.setString(1, guildId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
@@ -331,13 +282,22 @@ public class MusicRepository {
             return false;
         }
         String nameLower = name.toLowerCase(Locale.ROOT);
-        try {
-            conn.setAutoCommit(false);
-            try (PreparedStatement ps = conn.prepareStatement("""
+        try (Connection c = ds.getConnection()) {
+            c.setAutoCommit(false);
+            try (PreparedStatement ps = c.prepareStatement("""
                     INSERT INTO music_playlist (guild_id, owner_id, name_lower, name, created_at)
                     VALUES (?,?,?,?,?)
                     ON CONFLICT(guild_id, owner_id, name_lower)
                     DO UPDATE SET name = excluded.name, created_at = excluded.created_at
+                    """);
+                 PreparedStatement del = c.prepareStatement("""
+                    DELETE FROM music_playlist_track
+                    WHERE guild_id = ? AND owner_id = ? AND name_lower = ?
+                    """);
+                 PreparedStatement ins = c.prepareStatement("""
+                    INSERT INTO music_playlist_track
+                        (guild_id, owner_id, name_lower, position, encoded, title)
+                    VALUES (?,?,?,?,?,?)
                     """)) {
                 ps.setString(1, guildId);
                 ps.setString(2, ownerId);
@@ -345,21 +305,12 @@ public class MusicRepository {
                 ps.setString(4, name);
                 ps.setLong(5, epochMs);
                 ps.executeUpdate();
-            }
-            try (PreparedStatement del = conn.prepareStatement("""
-                    DELETE FROM music_playlist_track
-                    WHERE guild_id = ? AND owner_id = ? AND name_lower = ?
-                    """)) {
+
                 del.setString(1, guildId);
                 del.setString(2, ownerId);
                 del.setString(3, nameLower);
                 del.executeUpdate();
-            }
-            try (PreparedStatement ins = conn.prepareStatement("""
-                    INSERT INTO music_playlist_track
-                        (guild_id, owner_id, name_lower, position, encoded, title)
-                    VALUES (?,?,?,?,?,?)
-                    """)) {
+
                 int pos = 0;
                 for (StoredTrack t : tracks) {
                     ins.setString(1, guildId);
@@ -371,15 +322,15 @@ public class MusicRepository {
                     ins.addBatch();
                 }
                 ins.executeBatch();
+                c.commit();
+                return true;
+            } catch (SQLException e) {
+                c.rollback();
+                throw e;
             }
-            conn.commit();
-            return true;
         } catch (SQLException e) {
             log.warn("Falha ao salvar a playlist '{}' de {}/{}.", name, guildId, ownerId, e);
-            rollbackQuietly();
             return false;
-        } finally {
-            restoreAutoCommit();
         }
     }
 
@@ -389,7 +340,8 @@ public class MusicRepository {
         if (!available()) {
             return out;
         }
-        try (PreparedStatement ps = conn.prepareStatement("""
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement("""
                 SELECT encoded, title FROM music_playlist_track
                 WHERE guild_id = ? AND owner_id = ? AND name_lower = ?
                 ORDER BY position
@@ -414,35 +366,35 @@ public class MusicRepository {
             return false;
         }
         String key = nameLower.toLowerCase(Locale.ROOT);
-        try {
-            conn.setAutoCommit(false);
-            int removed;
-            try (PreparedStatement ps = conn.prepareStatement("""
+        try (Connection c = ds.getConnection()) {
+            c.setAutoCommit(false);
+            try (PreparedStatement ps = c.prepareStatement("""
                     DELETE FROM music_playlist
                     WHERE guild_id = ? AND owner_id = ? AND name_lower = ?
-                    """)) {
-                ps.setString(1, guildId);
-                ps.setString(2, ownerId);
-                ps.setString(3, key);
-                removed = ps.executeUpdate();
-            }
-            try (PreparedStatement ps = conn.prepareStatement("""
+                    """);
+                 PreparedStatement psTrack = c.prepareStatement("""
                     DELETE FROM music_playlist_track
                     WHERE guild_id = ? AND owner_id = ? AND name_lower = ?
                     """)) {
                 ps.setString(1, guildId);
                 ps.setString(2, ownerId);
                 ps.setString(3, key);
-                ps.executeUpdate();
+                int removed = ps.executeUpdate();
+
+                psTrack.setString(1, guildId);
+                psTrack.setString(2, ownerId);
+                psTrack.setString(3, key);
+                psTrack.executeUpdate();
+
+                c.commit();
+                return removed > 0;
+            } catch (SQLException e) {
+                c.rollback();
+                throw e;
             }
-            conn.commit();
-            return removed > 0;
         } catch (SQLException e) {
             log.warn("Falha ao apagar a playlist '{}' de {}/{}.", nameLower, guildId, ownerId, e);
-            rollbackQuietly();
             return false;
-        } finally {
-            restoreAutoCommit();
         }
     }
 
@@ -452,14 +404,15 @@ public class MusicRepository {
         if (!available()) {
             return out;
         }
-        try (PreparedStatement ps = conn.prepareStatement("""
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement("""
                 SELECT p.name AS name, COUNT(t.position) AS n
                 FROM music_playlist p
                 LEFT JOIN music_playlist_track t
                     ON t.guild_id = p.guild_id AND t.owner_id = p.owner_id
                     AND t.name_lower = p.name_lower
                 WHERE p.guild_id = ? AND p.owner_id = ?
-                GROUP BY p.name_lower, p.name
+                GROUP BY p.name_lower, p.name, p.created_at
                 ORDER BY p.created_at DESC
                 """)) {
             ps.setString(1, guildId);
@@ -475,19 +428,8 @@ public class MusicRepository {
         return out;
     }
 
-    private void rollbackQuietly() {
-        try {
-            conn.rollback();
-        } catch (SQLException ignored) {
-            // ja estamos tratando uma falha; nada a fazer
-        }
-    }
-
-    private void restoreAutoCommit() {
-        try {
-            conn.setAutoCommit(true);
-        } catch (SQLException ignored) {
-            // idem
-        }
+    /** O pool é global (Db); aqui só descarta a referência. Mantido por compatibilidade. */
+    public synchronized void close() {
+        ds = null;
     }
 }

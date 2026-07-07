@@ -15,9 +15,9 @@ class MusicRepositoryTest {
     private static final String ANA = "u-ana";
     private static final String BIA = "u-bia";
 
-    /** Banco em memoria — a mesma conexao vive enquanto o repo viver. */
+    /** Banco Postgres embarcado de teste. */
     private static MusicRepository inMemory() {
-        return new MusicRepository("jdbc:sqlite::memory:");
+        return new MusicRepository(PgTestDb.database("music_basico"));
     }
 
     private static MusicRepository.StoredTrack track(String id) {
@@ -105,8 +105,8 @@ class MusicRepositoryTest {
 
     @Test
     void semBancoDegradaSemQuebrar() {
-        // URL invalida: a conexao nao abre e tudo vira no-op seguro.
-        MusicRepository repo = new MusicRepository("jdbc:sqlite:/caminho/invalido/??/x.db");
+        // Banco indisponivel: tudo vira no-op seguro.
+        MusicRepository repo = new MusicRepository(new BrokenDataSource());
 
         repo.setVolume(GUILD, 70);
         assertEquals(50, repo.getVolume(GUILD, 50));
