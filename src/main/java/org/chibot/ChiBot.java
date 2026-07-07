@@ -14,8 +14,10 @@ import org.chibot.Commands.CommandManager;
 import org.chibot.Commands.Core.ChiActivity;
 import org.chibot.Commands.Core.HelpButtons;
 import org.chibot.Config.ChiConfig;
+import org.chibot.Database.Db;
 import org.chibot.Database.LanguageRepository;
 import org.chibot.Database.MaintenanceRepository;
+import org.chibot.Database.SqliteToPostgresMigration;
 import org.chibot.Translation.DeepLTranslator;
 import org.chibot.Translation.ResilientTranslator;
 import org.chibot.Translation.TranslationService;
@@ -41,6 +43,11 @@ public class ChiBot
 
     public void start() throws InterruptedException {
         CommandManager commandManager = new CommandManager();
+
+        // Primeira subida com PostgreSQL: importa os dados dos bancos SQLite
+        // legados (se existirem) antes de qualquer serviço tocar no banco.
+        // Nas subidas seguintes o marcador faz isso custar um SELECT.
+        SqliteToPostgresMigration.run(Db.dataSource());
 
         // Estado global do bot (banco separado): restaura o modo manutenção antes
         // do JDA subir, pro bot voltar pausado se foi assim que ele desligou.
