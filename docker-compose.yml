@@ -10,6 +10,7 @@ services:
       - ./.env:/app/.env
       # Banco do Party Finder (ChiData.db). Volume nomeado pra persistir entre
       # recriacoes do container (docker compose up --build nao apaga).
+      # (segue montado: é de lá que a migração lê os .db antigos do SQLite)
       - chibot-data:/app/data
     # Logs ficam acessiveis via "docker logs chibot".
     logging:
@@ -23,12 +24,19 @@ services:
     # folga pro yt-cipher e o SO — mantenha 1-2G de swap pra absorver picos.
     environment:
       - _JAVA_OPTIONS=-Xmx512M
+      # Conexão com o postgres do compose, derivada das mesmas POSTGRES_* do
+      # .env — uma senha só pra configurar, e bot e banco ficam em sincronia.
+      - DATABASE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB:-chibot}
+      - DATABASE_USER=${POSTGRES_USER:-chibot}
+      - DATABASE_PASSWORD=${POSTGRES_PASSWORD:-}
     # Musica: o bot fala com o Lavalink pela rede interna do compose.
     # No .env da VPS, use LAVALINK_URI=ws://lavalink:2333.
     # service_healthy: segura o bot ate o Lavalink RESPONDER (nao so iniciar),
     # senao o boot enche o log de "Failed to connect to WS" ate ele subir.
     depends_on:
       lavalink:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
 
   lavalink:
@@ -97,5 +105,35 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Banco de dados do bot (harém, música, Party Finder, idiomas, estado).
+  # Sem "ports": só o bot precisa alcançar (rede interna do compose).
+  postgres:
+    image: postgres:16-alpine
+    container_name: chibot-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-chibot}
+      - POSTGRES_USER=${POSTGRES_USER:-chibot}
+      # Obrigatória no .env da VPS — sem default de propósito.
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+    # VPS de 2G: buffers pequenos e teto de RAM pro banco não disputar com o
+    # Lavalink (que é quem não pode engasgar).
+    command: postgres -c shared_buffers=32MB -c max_connections=20
+    mem_limit: 256m
+    volumes:
+      - chibot-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-chibot} -d ${POSTGRES_DB:-chibot}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 volumes:
   chibot-data:
+  chibot-pgdata:
